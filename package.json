@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
-    "build": "vite build && node -e \"const fs=require('fs'),JSZip=require('jszip'),zip=new JSZip();function addDir(d,p=''){for(const f of fs.readdirSync(d)){const fp=d+'/'+f,rp=p?p+'/'+f:f;if(fs.statSync(fp).isDirectory())addDir(fp,rp);else zip.file(rp,fs.readFileSync(fp));}}addDir('dist');zip.generateAsync({type:'nodebuffer',compression:'DEFLATE'}).then(c=>{fs.writeFileSync('dist.zip',c);console.log('dist.zip synced');});\"",
+    "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"
