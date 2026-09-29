@@ -1,0 +1,6 @@
+{
+  "name": "MarketPreço",
+  "description": "MarketPreço — Catálogo • Conversão • UpSeller ERP. Sistema profissional para gestão de catálogo, precificação e conversão automatizada para UpSeller ERP (2 Contas), Shopee, TikTok Shop e SHEIN.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
