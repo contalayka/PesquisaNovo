@@ -6,6 +6,8 @@ const STORAGE_KEY = 'saas_github_sync_config_v1';
 
 export const DEFAULT_GITHUB_CONFIG: GitHubSyncConfig = {
   token: '',
+  username: 'contalayka',
+  repoName: 'pesquisaproduto',
   repo: 'contalayka/pesquisaproduto',
   branch: 'main',
   filePath: 'data/app_data_sync.json',
@@ -17,9 +19,24 @@ export function getStoredGitHubConfig(): GitHubSyncConfig {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { ...DEFAULT_GITHUB_CONFIG };
     const parsed = JSON.parse(raw);
+    let username = parsed.username || '';
+    let repoName = parsed.repoName || '';
+    if ((!username || !repoName) && parsed.repo) {
+      const parts = parsed.repo.split('/');
+      if (parts.length >= 2) {
+        if (!username) username = parts[0];
+        if (!repoName) repoName = parts[1];
+      }
+    }
+    if (!username) username = DEFAULT_GITHUB_CONFIG.username;
+    if (!repoName) repoName = DEFAULT_GITHUB_CONFIG.repoName;
+    const repo = `${username}/${repoName}`;
+
     return {
       token: parsed.token || '',
-      repo: parsed.repo || DEFAULT_GITHUB_CONFIG.repo,
+      username,
+      repoName,
+      repo,
       branch: parsed.branch || DEFAULT_GITHUB_CONFIG.branch,
       filePath: parsed.filePath || DEFAULT_GITHUB_CONFIG.filePath,
       autoPush: Boolean(parsed.autoPush),
@@ -34,14 +51,25 @@ export function getStoredGitHubConfig(): GitHubSyncConfig {
 
 export function saveStoredGitHubConfig(config: GitHubSyncConfig): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    const username = (config.username || '').trim();
+    const repoName = (config.repoName || '').trim();
+    const repo = username && repoName ? `${username}/${repoName}` : config.repo || '';
+    const normalized: GitHubSyncConfig = {
+      ...config,
+      username,
+      repoName,
+      repo,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
   } catch (err) {
     console.error('Falha ao salvar configuração do GitHub no localStorage:', err);
   }
 }
 
 export function isGitHubSyncConfigured(config: GitHubSyncConfig = getStoredGitHubConfig()): boolean {
-  return Boolean(config.token?.trim() && config.repo?.trim());
+  const hasCreds = Boolean(config.token?.trim());
+  const hasTarget = Boolean((config.username?.trim() && config.repoName?.trim()) || config.repo?.trim());
+  return hasCreds && hasTarget;
 }
 
 /**
@@ -69,8 +97,28 @@ export function base64ToUtf8(b64: string): string {
   return new TextDecoder().decode(bytes);
 }
 
-function parseRepo(repo: string): { owner: string; repoName: string } {
-  const clean = repo.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '');
+function parseRepo(config: GitHubSyncConfig | string): { owner: string; repoName: string } {
+  if (typeof config === 'object') {
+    if (config.username?.trim() && config.repoName?.trim()) {
+      const owner = config.username.trim().replace(/^@/, '');
+      const rawRepo = config.repoName.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '');
+      if (rawRepo.includes('/')) {
+        const parts = rawRepo.split('/').filter(Boolean);
+        return { owner: parts[0], repoName: parts[1] };
+      }
+      return { owner, repoName: rawRepo };
+    }
+    if (config.repo?.trim()) {
+      const clean = config.repo.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '');
+      const parts = clean.split('/').filter(Boolean);
+      if (parts.length >= 2) {
+        return { owner: parts[0], repoName: parts[1] };
+      }
+    }
+    throw new Error('Informe o Nome do Usuário e o Nome do Repositório do GitHub.');
+  }
+
+  const clean = config.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '');
   const parts = clean.split('/').filter(Boolean);
   if (parts.length < 2) {
     throw new Error('Formato de repositório inválido. Utilize "usuario/repositorio" (Ex: contalayka/pesquisaproduto).');
@@ -98,14 +146,17 @@ export async function testGitHubConnection(config: GitHubSyncConfig): Promise<{
   repoInfo?: { fullName: string; defaultBranch: string; canPush: boolean; isPrivate: boolean };
 }> {
   if (!config.token?.trim()) {
-    return { success: false, message: 'Informe o Token de Acesso Pessoal (PAT) do GitHub.' };
+    return { success: false, message: 'Informe as credenciais (Token de Acesso PAT) do GitHub.' };
   }
-  if (!config.repo?.trim()) {
-    return { success: false, message: 'Informe o Repositório no formato usuario/repositorio.' };
+  if (!config.username?.trim() && !config.repo?.trim()) {
+    return { success: false, message: 'Informe o Nome do Usuário do GitHub.' };
+  }
+  if (!config.repoName?.trim() && !config.repo?.trim()) {
+    return { success: false, message: 'Informe o Nome do Repositório do GitHub.' };
   }
 
   try {
-    const { owner, repoName } = parseRepo(config.repo);
+    const { owner, repoName } = parseRepo(config);
     const headers = getHeaders(config.token);
 
     // 1. Testa acesso ao repositório
@@ -217,12 +268,12 @@ export async function pushDataToGitHub(
   payload: GitHubSyncPayload,
   commitMessage?: string
 ): Promise<{ success: boolean; message: string; commitSha?: string }> {
-  if (!config.token?.trim() || !config.repo?.trim()) {
-    return { success: false, message: 'GitHub não configurado. Preencha o Token e Repositório.' };
+  if (!isGitHubSyncConfigured(config)) {
+    return { success: false, message: 'GitHub não configurado. Preencha as credenciais (Token), Usuário e Repositório.' };
   }
 
   try {
-    const { owner, repoName } = parseRepo(config.repo);
+    const { owner, repoName } = parseRepo(config);
     const headers = getHeaders(config.token);
     const branch = config.branch?.trim() || 'main';
     const cleanPath = (config.filePath?.trim() || DEFAULT_GITHUB_CONFIG.filePath).replace(/^\/+/, '');
@@ -316,12 +367,12 @@ export async function pullDataFromGitHub(config: GitHubSyncConfig): Promise<{
   message: string;
   data?: GitHubSyncPayload;
 }> {
-  if (!config.token?.trim() || !config.repo?.trim()) {
-    return { success: false, message: 'GitHub não configurado. Preencha o Token e Repositório.' };
+  if (!isGitHubSyncConfigured(config)) {
+    return { success: false, message: 'GitHub não configurado. Preencha as credenciais (Token), Usuário e Repositório.' };
   }
 
   try {
-    const { owner, repoName } = parseRepo(config.repo);
+    const { owner, repoName } = parseRepo(config);
     const headers = getHeaders(config.token);
     const branch = config.branch?.trim() || 'main';
     const cleanPath = (config.filePath?.trim() || DEFAULT_GITHUB_CONFIG.filePath).replace(/^\/+/, '');

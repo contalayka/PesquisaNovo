@@ -576,28 +576,60 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         ) : (
           <div className="space-y-3.5 pt-1">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Repositório Remoto (Owner / Repositório)
+                  Nome do Usuário (GitHub)
                 </label>
                 <div className="relative">
                   <input
                     type="text"
-                    value={ghConfig.repo}
-                    onChange={(e) => setGhConfig({ ...ghConfig, repo: e.target.value })}
-                    placeholder="contalayka/pesquisaproduto"
+                    value={ghConfig.username}
+                    onChange={(e) => {
+                      const u = e.target.value;
+                      setGhConfig({
+                        ...ghConfig,
+                        username: u,
+                        repo: u && ghConfig.repoName ? `${u}/${ghConfig.repoName}` : ghConfig.repo,
+                      });
+                    }}
+                    placeholder="contalayka"
                     className="w-full rounded-lg bg-slate-900 border border-slate-800 px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none font-mono"
                   />
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1">
-                  Formato: <code>usuario/repositorio</code> (Ex: contalayka/pesquisaproduto)
+                  Usuário ou organização (Ex: <code>contalayka</code>)
                 </p>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Branch de Produção
+                  Nome do Repositório
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={ghConfig.repoName}
+                    onChange={(e) => {
+                      const r = e.target.value;
+                      setGhConfig({
+                        ...ghConfig,
+                        repoName: r,
+                        repo: ghConfig.username && r ? `${ghConfig.username}/${r}` : ghConfig.repo,
+                      });
+                    }}
+                    placeholder="pesquisaproduto"
+                    className="w-full rounded-lg bg-slate-900 border border-slate-800 px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none font-mono"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Repositório remoto (Ex: <code>pesquisaproduto</code>)
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Branch
                 </label>
                 <div className="relative">
                   <input
@@ -609,7 +641,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   />
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1">
-                  Branch monitorada pelo Cloudflare Pages (padrão: <code>main</code>)
+                  Branch monitorada (padrão: <code>main</code>)
                 </p>
               </div>
             </div>
@@ -617,7 +649,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs font-semibold text-slate-300">
-                  Personal Access Token (PAT) do GitHub
+                  Credenciais do Repositório (Personal Access Token / PAT)
                 </label>
                 <button
                   type="button"
@@ -646,7 +678,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </button>
               </div>
               <p className="text-[11px] text-slate-500 mt-1">
-                Necessita da permissão <code>repo</code> (Classic) ou <code>Contents: Read and write</code> (Fine-grained).
+                Credencial de autenticação com permissão <code>repo</code> para envio automático.
               </p>
             </div>
 

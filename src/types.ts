@@ -78,7 +78,9 @@ export interface SupabaseConfig {
 
 export interface GitHubSyncConfig {
   token: string;
-  repo: string;
+  username: string;
+  repoName: string;
+  repo?: string;
   branch: string;
   filePath: string;
   autoPush: boolean;
