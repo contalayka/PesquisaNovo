@@ -27,6 +27,7 @@ import {
   subscribeToSupabaseChanges,
 } from './utils/supabase';
 import {
+  GitHubSyncConfig,
   getStoredGitHubConfig,
   isGitHubSyncConfigured,
   pushDataToGitHub,
@@ -248,6 +249,8 @@ export default function App() {
   const [isSupabaseConnected, setIsSupabaseConnected] = useState<boolean>(() =>
     isSupabaseConfigured()
   );
+  const [githubConfig, setGithubConfig] = useState<GitHubSyncConfig>(() => getStoredGitHubConfig());
+  const [isSyncingGitHub, setIsSyncingGitHub] = useState(false);
   const [previousProducts, setPreviousProducts] = useState<Product[] | null>(() => {
     try {
       const saved = localStorage.getItem(PREV_STORAGE_KEY);
@@ -345,6 +348,7 @@ export default function App() {
         };
         const res = await pushDataToGitHub(ghConfig, payload);
         if (res.success) {
+          setGithubConfig(getStoredGitHubConfig());
           addToast(
             'GitHub Sincronizado',
             `Push automático: ${products.length} itens persistidos no repositório remoto.`,
@@ -381,6 +385,7 @@ export default function App() {
               if (res.data.pricingSettings.packaging)
                 localStorage.setItem('saas_settings_packaging', res.data.pricingSettings.packaging);
             }
+            setGithubConfig(getStoredGitHubConfig());
             addToast(
               'Repositório GitHub',
               `${res.data.products.length} produtos carregados do repositório remoto nesta máquina.`,
@@ -391,6 +396,85 @@ export default function App() {
         .catch(console.error);
     }
   }, [addToast]);
+
+  // Sincronização manual global solicitada pelo usuário no botão do topo
+  const handleManualGlobalSync = useCallback(async () => {
+    const ghConfig = getStoredGitHubConfig();
+    const isGhReady = isGitHubSyncConfigured(ghConfig);
+    const isSupaReady = isSupabaseConfigured();
+
+    if (!isGhReady && !isSupaReady) {
+      setCurrentSidebarSection('configuracoes');
+      addToast(
+        'Configurar Sincronização',
+        'Cadastre seu token e repositório nas Configurações para habilitar a sincronização.',
+        'info'
+      );
+      return;
+    }
+
+    setIsSyncingGitHub(true);
+
+    let ghSuccess = false;
+    let ghMessage = '';
+
+    if (isGhReady) {
+      try {
+        const payload: GitHubSyncPayload = {
+          version: '2.0',
+          updatedAt: new Date().toISOString(),
+          source: 'manual-header-button',
+          totalProducts: products.length,
+          products,
+          pricingSettings: {
+            markup: localStorage.getItem('saas_settings_markup') || '100',
+            tax: localStorage.getItem('saas_settings_tax') || '6',
+            packaging: localStorage.getItem('saas_settings_packaging') || '3.50',
+          },
+        };
+        const res = await pushDataToGitHub(
+          ghConfig,
+          payload,
+          `Sincronização manual antes de fechar o navegador: ${products.length} produtos [${new Date().toLocaleString('pt-BR')}]`
+        );
+        ghSuccess = res.success;
+        ghMessage = res.message;
+        if (res.success) {
+          setGithubConfig(getStoredGitHubConfig());
+        }
+      } catch (err: any) {
+        ghMessage = err?.message || 'Erro ao sincronizar com GitHub';
+      }
+    }
+
+    if (isSupaReady) {
+      try {
+        await upsertProductsToSupabase(products);
+      } catch (e) {
+        console.warn('Erro ao sincronizar Supabase no botão manual:', e);
+      }
+    }
+
+    setIsSyncingGitHub(false);
+
+    if (isGhReady) {
+      if (ghSuccess) {
+        addToast(
+          'Sincronização Concluída',
+          `Push realizado no GitHub com sucesso! As alterações estão seguras para fechar o navegador.`,
+          'success'
+        );
+      } else {
+        addToast('Falha na Sincronização GitHub', ghMessage, 'error');
+      }
+    } else if (isSupaReady) {
+      addToast(
+        'Nuvem Sincronizada',
+        'Dados salvos no Supabase com sucesso!',
+        'success'
+      );
+    }
+  }, [products, addToast]);
 
   // Keyboard shortcut Ctrl+K to search
   useEffect(() => {
@@ -1759,6 +1843,11 @@ export default function App() {
           onOpenSettings={() => handleSelectSidebarSection('configuracoes')}
           onSyncSupabase={() => loadFromSupabase(false)}
           isSyncingSupabase={isSyncingSupabase}
+          isGitHubConnected={isGitHubSyncConfigured(githubConfig)}
+          githubConfig={githubConfig}
+          isSyncingGitHub={isSyncingGitHub}
+          onManualGitHubSync={handleManualGlobalSync}
+          onOpenGitHubSettings={() => handleSelectSidebarSection('configuracoes')}
         />
 
         {/* Floating back-to-top control */}

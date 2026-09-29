@@ -439,3 +439,88 @@ export async function pullDataFromGitHub(config: GitHubSyncConfig): Promise<{
     };
   }
 }
+
+export type GitHubSyncStatusColor = 'green' | 'yellow' | 'red';
+
+export interface GitHubSyncStatusInfo {
+  status: GitHubSyncStatusColor;
+  label: string;
+  relativeTime: string;
+  tooltip: string;
+  formattedDate: string;
+}
+
+export function getGitHubSyncStatusInfo(config: GitHubSyncConfig): GitHubSyncStatusInfo {
+  if (!isGitHubSyncConfigured(config)) {
+    return {
+      status: 'yellow',
+      label: 'Desconectado',
+      relativeTime: 'Configurar',
+      tooltip: 'GitHub não configurado. Clique para cadastrar as credenciais do repositório.',
+      formattedDate: '',
+    };
+  }
+
+  if (!config.lastSyncedAt) {
+    return {
+      status: 'yellow',
+      label: 'Pendente',
+      relativeTime: 'Nunca',
+      tooltip: `Conectado a ${config.username || 'user'}/${config.repoName || 'repo'} (${config.branch || 'main'}), mas nenhum push/pull foi realizado ainda.`,
+      formattedDate: '',
+    };
+  }
+
+  try {
+    const syncDate = new Date(config.lastSyncedAt);
+    const now = new Date();
+    const diffMs = now.getTime() - syncDate.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMin / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    const formattedDate = syncDate.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    let relativeTime = 'agora';
+    let status: GitHubSyncStatusColor = 'green';
+
+    if (diffMin < 1) {
+      relativeTime = 'agora mesmo';
+      status = 'green';
+    } else if (diffMin < 60) {
+      relativeTime = `há ${diffMin} min`;
+      status = diffMin <= 30 ? 'green' : 'green';
+    } else if (diffHours < 24) {
+      relativeTime = `há ${diffHours}h`;
+      status = diffHours <= 4 ? 'green' : 'yellow';
+    } else {
+      relativeTime = `há ${diffDays}d`;
+      status = 'yellow';
+    }
+
+    const typeDesc = config.lastSyncType === 'pull' ? 'Pull' : 'Push';
+    const tooltip = `Último ${typeDesc}: ${syncDate.toLocaleString('pt-BR')} (${config.username}/${config.repoName} @ ${config.branch})`;
+
+    return {
+      status,
+      label: 'Sincronizado',
+      relativeTime,
+      tooltip,
+      formattedDate,
+    };
+  } catch {
+    return {
+      status: 'red',
+      label: 'Erro',
+      relativeTime: 'Inválido',
+      tooltip: 'Data de sincronização corrompida.',
+      formattedDate: '',
+    };
+  }
+}
+

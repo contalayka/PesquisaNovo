@@ -19,10 +19,12 @@ import {
   Settings,
   RefreshCw,
   Undo2,
+  Github,
 } from 'lucide-react';
 import { AppView } from '../types';
 import { useDevice } from '../utils/device';
 import { MarketPrepLogo } from './MarketPrepLogo';
+import { GitHubSyncConfig, getGitHubSyncStatusInfo } from '../utils/githubSync';
 
 interface HeaderProps {
   currentSection: AppView;
@@ -48,6 +50,12 @@ interface HeaderProps {
   onNavigateToProducts?: () => void;
   onSyncSupabase?: () => void;
   isSyncingSupabase?: boolean;
+  // GitHub Integration Props
+  isGitHubConnected?: boolean;
+  githubConfig?: GitHubSyncConfig;
+  isSyncingGitHub?: boolean;
+  onManualGitHubSync?: () => void;
+  onOpenGitHubSettings?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -74,10 +82,17 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigateToProducts,
   onSyncSupabase,
   isSyncingSupabase = false,
+  isGitHubConnected = false,
+  githubConfig,
+  isSyncingGitHub = false,
+  onManualGitHubSync,
+  onOpenGitHubSettings,
 }) => {
   const device = useDevice();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const ghSyncInfo = githubConfig ? getGitHubSyncStatusInfo(githubConfig) : null;
 
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -181,6 +196,35 @@ export const Header: React.FC<HeaderProps> = ({
             />
             <span>{isSupabaseConnected ? 'Nuvem' : 'Local'}</span>
           </button>
+
+          {/* Indicador Global de Última Sincronização GitHub (Verde / Amarelo / Vermelho) */}
+          {githubConfig && (
+            <button
+              type="button"
+              onClick={onOpenGitHubSettings || onOpenSettings}
+              className={`hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium border transition ${
+                ghSyncInfo?.status === 'green'
+                  ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/60 hover:bg-emerald-950/60'
+                  : ghSyncInfo?.status === 'yellow'
+                  ? 'bg-amber-950/40 text-amber-300 border-amber-800/60 hover:bg-amber-950/60'
+                  : 'bg-rose-950/40 text-rose-300 border-rose-800/60 hover:bg-rose-950/60'
+              }`}
+              title={`${ghSyncInfo?.tooltip || 'GitHub'} — Clique para abrir configurações`}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  ghSyncInfo?.status === 'green'
+                    ? 'bg-emerald-400 ring-2 ring-emerald-400/20'
+                    : ghSyncInfo?.status === 'yellow'
+                    ? 'bg-amber-400 ring-2 ring-amber-400/20'
+                    : 'bg-rose-400 ring-2 ring-rose-400/20'
+                }`}
+              />
+              <Github className="w-3 h-3 text-slate-300" />
+              <span className="hidden xl:inline">GitHub:</span>
+              <span className="font-mono text-[10px]">{ghSyncInfo?.relativeTime}</span>
+            </button>
+          )}
         </div>
 
         {/* =======================================================
@@ -286,29 +330,34 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
 
-          {/* Action: Sincronizar Nuvem */}
+          {/* Action: Sincronizar Agora (Forçar pull/push no GitHub e nuvem antes de fechar o navegador) */}
           <button
             type="button"
-            onClick={onSyncSupabase || onOpenSupabaseConfig}
-            disabled={isSyncingSupabase}
-            className={`inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium border transition ${
-              isSupabaseConnected
-                ? 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-800'
-                : 'bg-amber-950/30 hover:bg-amber-950/50 text-amber-300 border-amber-800/50'
-            }`}
-            title={
-              isSupabaseConnected
-                ? 'Supabase Conectado — Clique para sincronizar'
-                : 'Configurar Nuvem Supabase'
-            }
+            onClick={onManualGitHubSync || onSyncSupabase || onOpenSupabaseConfig}
+            disabled={isSyncingGitHub || isSyncingSupabase}
+            className={`inline-flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-semibold shadow-sm transition active:scale-95 ${
+              isGitHubConnected
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white border border-blue-500/40'
+                : isSupabaseConnected
+                ? 'bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800'
+                : 'bg-amber-950/30 hover:bg-amber-950/50 text-amber-300 border border-amber-800/50'
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
+            title="Sincronizar Agora — Forçar pull/push no GitHub e nuvem antes de fechar o navegador"
           >
             <RefreshCw
-              className={`w-3.5 h-3.5 text-blue-400 ${
-                isSyncingSupabase ? 'animate-spin' : ''
+              className={`w-3.5 h-3.5 ${
+                isSyncingGitHub || isSyncingSupabase
+                  ? 'animate-spin text-white'
+                  : isGitHubConnected
+                  ? 'text-blue-200'
+                  : 'text-slate-400'
               }`}
             />
-            <span className="hidden md:inline">
-              {isSyncingSupabase ? 'Sincronizando...' : 'Sincronizar'}
+            <span className="hidden sm:inline">
+              {isSyncingGitHub || isSyncingSupabase ? 'Sincronizando...' : 'Sincronizar Agora'}
+            </span>
+            <span className="sm:hidden">
+              {isSyncingGitHub || isSyncingSupabase ? 'Sync...' : 'Sync'}
             </span>
           </button>
 
