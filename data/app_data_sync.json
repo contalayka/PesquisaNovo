@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "updatedAt": "2026-10-02T03:22:00.615Z",
+  "updatedAt": "2026-10-02T03:23:12.302Z",
   "source": "app-auto-push",
   "totalProducts": 345,
   "products": [
@@ -13,7 +13,7 @@
       "status": "Revisar",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:24.198571+00:00",
+      "updated_at": "2026-10-02T03:24:14.659072+00:00",
       "rawColumns": {
         "web_scraper_order": "1789957625-1",
         "web_scraper_start_url": "https://atacado.pdvmaster.com/",
@@ -33,7 +33,7 @@
       "status": "Encontrado",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:24.246373+00:00",
+      "updated_at": "2026-10-02T03:24:14.701193+00:00",
       "rawColumns": {}
     },
     {
@@ -45,7 +45,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:24.28576+00:00",
+      "updated_at": "2026-10-02T03:24:14.741318+00:00",
       "rawColumns": {}
     },
     {
@@ -67,11 +67,11 @@
           "url": "https://www.mercadolivre.com.br/extensao-5-tomadas-e-4-usb-1-tipo-c-bivolt-power-110v220v-cor-preto-127220v/p/MLB69881230",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:24.339165+00:00",
+      "updated_at": "2026-10-02T03:24:14.785635+00:00",
       "rawColumns": {}
     },
     {
@@ -83,7 +83,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:24.374499+00:00",
+      "updated_at": "2026-10-02T03:24:14.823986+00:00",
       "rawColumns": {}
     },
     {
@@ -95,7 +95,7 @@
       "status": "Encontrado",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:24.411468+00:00",
+      "updated_at": "2026-10-02T03:24:14.865245+00:00",
       "rawColumns": {}
     },
     {
@@ -117,11 +117,11 @@
           "url": "https://shopee.com.br/Guirlanda-Natalina-Fest%C3%A3o-Porta-Natal-Verde-Nevada-Decorada-Enfeite-Natal-Papai-Noel-Guirlanda-Natal-i.436723291.18757593025",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:24.450471+00:00",
+      "updated_at": "2026-10-02T03:24:14.902313+00:00",
       "rawColumns": {}
     },
     {
@@ -133,7 +133,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:24.491632+00:00",
+      "updated_at": "2026-10-02T03:24:14.944261+00:00",
       "rawColumns": {}
     },
     {
@@ -155,11 +155,11 @@
           "url": "https://shopee.com.br/Extens%C3%A3o-El%C3%A9trica-2-3-5-10-(METROS)-Bivolt-Tomadas-Tripolares-COR-BRANCA-i.268349244.23998640878",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:24.527296+00:00",
+      "updated_at": "2026-10-02T03:24:14.981398+00:00",
       "rawColumns": {}
     },
     {
@@ -171,7 +171,7 @@
       "status": "Encontrado",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:24.578325+00:00",
+      "updated_at": "2026-10-02T03:24:15.026067+00:00",
       "rawColumns": {}
     },
     {
@@ -193,11 +193,11 @@
           "url": "https://shopee.com.br/Fita-Led-Rgb-3528-ULTRA-Colorida-5m-12V-Bivolt-5M-a-15M-Com-e-Sem-Fonte-Decora%C3%A7%C3%A3o-Casa-Teto-Vitrine-i.1521881458.23798657862?extraParams=%7B%22display_model_id%22%3A179718288314%2C%22model_selection_logic%22%3A3%7D",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:24.615767+00:00",
+      "updated_at": "2026-10-02T03:24:15.063968+00:00",
       "rawColumns": {}
     },
     {
@@ -219,11 +219,11 @@
           "url": "https://shopee.com.br/Fita-Nano-Dupla-Face-Adesiva-M%C3%A1gica-Super-Cola-Resistente-i.554666829.23491249899",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:24.655322+00:00",
+      "updated_at": "2026-10-02T03:24:15.102229+00:00",
       "rawColumns": {}
     },
     {
@@ -245,11 +245,11 @@
           "url": "",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:24.693369+00:00",
+      "updated_at": "2026-10-02T03:24:15.138373+00:00",
       "rawColumns": {}
     },
     {
@@ -271,11 +271,11 @@
           "url": "https://shopee.com.br/Trena-De-A%C3%A7o-Com-Trava-E-Al%C3%A7a-7.5m-*-25mm-5m-*-25mm-Dur%C3%A1vel-W-i.1138376842.19099377894",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:24.732536+00:00",
+      "updated_at": "2026-10-02T03:24:15.176431+00:00",
       "rawColumns": {}
     },
     {
@@ -297,11 +297,11 @@
           "url": "https://shopee.com.br/Fone-De-Ouvido-Sem-Fio-Bluetooth-5.3-Hifi-Stereo-M90-Pro-Gamer-Esportivo-Touch-Case-ming-i.526625785.22698024939",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:24.770465+00:00",
+      "updated_at": "2026-10-02T03:24:15.215169+00:00",
       "rawColumns": {}
     },
     {
@@ -313,7 +313,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:24.807096+00:00",
+      "updated_at": "2026-10-02T03:24:15.252829+00:00",
       "rawColumns": {}
     },
     {
@@ -325,7 +325,7 @@
       "status": "Encontrado",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:24.853839+00:00",
+      "updated_at": "2026-10-02T03:24:15.317113+00:00",
       "rawColumns": {}
     },
     {
@@ -337,7 +337,7 @@
       "status": "Encontrado",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:24.890451+00:00",
+      "updated_at": "2026-10-02T03:24:15.359336+00:00",
       "rawColumns": {}
     },
     {
@@ -359,11 +359,11 @@
           "url": "https://shopee.com.br/Fone-de-Ouvido-Bluetooth-A'Gold-Est%C3%A1vel-e-Bateria-Duradoura-FN-BT10-i.1585493447.58255772894",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:24.930499+00:00",
+      "updated_at": "2026-10-02T03:24:15.396018+00:00",
       "rawColumns": {}
     },
     {
@@ -385,11 +385,11 @@
           "url": "https://shopee.com.br/Fone-De-Ouvido-P47-Wireless-5.0-Headphone-Micro-Sd-i.1165620003.19497623276",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:24.970755+00:00",
+      "updated_at": "2026-10-02T03:24:15.432428+00:00",
       "rawColumns": {}
     },
     {
@@ -411,11 +411,11 @@
           "url": "https://shopee.com.br/Batedor-de-Ovos-e-Claras-Fu%C3%AA-Grande-de-Silicone-com-Cabo-Madeira-Resistente-Pr%C3%A1tico-Cozinha-Fouet-i.1671941890.58205109085?extraParams=%7B%22display_model_id%22%3A228800098910%2C%22model_selection_logic%22%3A3%7D",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:25.008051+00:00",
+      "updated_at": "2026-10-02T03:24:15.470734+00:00",
       "rawColumns": {}
     },
     {
@@ -437,11 +437,11 @@
           "url": "https://shopee.com.br/Funil-Dosador-de-Massa-Cupcake-e-Bolo-Dispenser-Confeitaria-Profissional-com-Controle-de-Fluxo-i.1602382973.58208073153",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:25.04413+00:00",
+      "updated_at": "2026-10-02T03:24:15.508148+00:00",
       "rawColumns": {}
     },
     {
@@ -463,11 +463,11 @@
           "url": "https://shopee.com.br/V%C3%ADdeo-Game-Port%C3%A1til-999-Jogos-em-1-Mini-Game-Retr%C3%B4-Brinquedo-Infantil-Antigo-Transparente-i.373376777.44220122268",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:25.082365+00:00",
+      "updated_at": "2026-10-02T03:24:15.56335+00:00",
       "rawColumns": {}
     },
     {
@@ -479,7 +479,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:25.118628+00:00",
+      "updated_at": "2026-10-02T03:24:15.601179+00:00",
       "rawColumns": {}
     },
     {
@@ -501,11 +501,11 @@
           "url": "https://shopee.com.br/Kit-com-3-Gancho-Adesivo-pl%C3%A1stico-3-8x4-6cm-Tuut-i.1496669049.23594329631?extraParams=%7B%22display_model_id%22%3A199610883472%2C%22model_selection_logic%22%3A3%7D",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:25.157863+00:00",
+      "updated_at": "2026-10-02T03:24:15.641602+00:00",
       "rawColumns": {}
     },
     {
@@ -527,11 +527,11 @@
           "url": "https://shopee.com.br/Garrafa-Squeeze-Inox-750ml-Academia-Esportes-Modernidade-i.871489241.21297232449",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:25.19796+00:00",
+      "updated_at": "2026-10-02T03:24:15.680569+00:00",
       "rawColumns": {}
     },
     {
@@ -543,7 +543,7 @@
       "status": "Encontrado",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:25.235428+00:00",
+      "updated_at": "2026-10-02T03:24:15.719941+00:00",
       "rawColumns": {}
     },
     {
@@ -565,11 +565,11 @@
           "url": "https://produto.mercadolivre.com.br/MLB-3964004047-garrafa-garrafinha-infantil-orelhinhas-crianca-escola-350ml-_JM",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:25.27281+00:00",
+      "updated_at": "2026-10-02T03:24:15.758625+00:00",
       "rawColumns": {}
     },
     {
@@ -591,11 +591,11 @@
           "url": "https://shopee.com.br/Kit-3-Garrafas-Squeeze-Motivacionais-Garrafa-%C3%81gua-Academia-Com-1.2L-e-800ml-e-300ml-copo-stanley-canudo-i.1046776023.19798269477",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:25.311816+00:00",
+      "updated_at": "2026-10-02T03:24:15.806534+00:00",
       "rawColumns": {}
     },
     {
@@ -617,11 +617,11 @@
           "url": "https://www.mercadolivre.com.br/garrafa-squeeze-agua-infantil-orelha-gatinho-c-alca-500ml/up/MLBU3825821980",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:25.350531+00:00",
+      "updated_at": "2026-10-02T03:24:15.846978+00:00",
       "rawColumns": {}
     },
     {
@@ -643,11 +643,11 @@
           "url": "https://shopee.com.br/Garrafa-Copo-De-Transi%C3%A7%C3%A3o-Rosa-Infantil-Beb%C3%AA-600ml-Com-Canudo-E-Bico-Tampa-E-Al%C3%A7a-Menina-Agua-Suco-Escola-i.340192492.58263395288?extraParams=%7B%22display_model_id%22%3A189191168077%2C%22model_selection_logic%22%3A3%7D",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:25.387814+00:00",
+      "updated_at": "2026-10-02T03:24:15.885282+00:00",
       "rawColumns": {}
     },
     {
@@ -659,7 +659,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:25.42799+00:00",
+      "updated_at": "2026-10-02T03:24:15.923806+00:00",
       "rawColumns": {}
     },
     {
@@ -681,11 +681,11 @@
           "url": "https://www.mercadolivre.com.br/garrafinha-agua-squezee-infantil-jl-055-cor-verde-escuro/p/MLB57579441",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:25.468195+00:00",
+      "updated_at": "2026-10-02T03:24:15.963857+00:00",
       "rawColumns": {}
     },
     {
@@ -707,11 +707,11 @@
           "url": "https://www.mercadolivre.com.br/-garrafa-dagua-380ml-com-canudo-design-donut-arco-iris-/p/MLB2025642002",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:25.505206+00:00",
+      "updated_at": "2026-10-02T03:24:16.013856+00:00",
       "rawColumns": {}
     },
     {
@@ -723,7 +723,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:25.546162+00:00",
+      "updated_at": "2026-10-02T03:24:16.049482+00:00",
       "rawColumns": {}
     },
     {
@@ -745,11 +745,11 @@
           "url": "https://shopee.com.br/Garrafinha-T%C3%A9rmica-800ml-garrafa-para-academia-e-treino-Quente-e-Frio-Isolamento-T%C3%A9rmico-Com-Al%C3%A7a-i.581765967.23398381894",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:25.583304+00:00",
+      "updated_at": "2026-10-02T03:24:16.087193+00:00",
       "rawColumns": {}
     },
     {
@@ -771,11 +771,11 @@
           "url": "https://www.mercadolivre.com.br/garrafa-termica-inox-800ml-squeeze-camping-vedacao-cor-prataqsffksw3/p/MLB26628784#reviews",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:25.621501+00:00",
+      "updated_at": "2026-10-02T03:24:16.123504+00:00",
       "rawColumns": {}
     },
     {
@@ -787,7 +787,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:25.659893+00:00",
+      "updated_at": "2026-10-02T03:24:16.16313+00:00",
       "rawColumns": {}
     },
     {
@@ -809,11 +809,11 @@
           "url": "https://produto.mercadolivre.com.br/MLB-5186408182-garrafa-termica-bule-c-gatilho-inox-680ml-cha-cafe-frigopro-_JM",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:25.699005+00:00",
+      "updated_at": "2026-10-02T03:24:16.204631+00:00",
       "rawColumns": {}
     },
     {
@@ -825,7 +825,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:25.737231+00:00",
+      "updated_at": "2026-10-02T03:24:16.246919+00:00",
       "rawColumns": {}
     },
     {
@@ -837,7 +837,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:25.774546+00:00",
+      "updated_at": "2026-10-02T03:24:16.285695+00:00",
       "rawColumns": {}
     },
     {
@@ -859,11 +859,11 @@
           "url": "https://www.mercadolivre.com.br/garrafa-termica-squeeze-display-aco-inox-500ml-agua-cafe-cor-roxo-azul/p/MLB25441210?product_trigger_id=MLB25846391&picker=true&quantity=1",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:25.808672+00:00",
+      "updated_at": "2026-10-02T03:24:16.321757+00:00",
       "rawColumns": {}
     },
     {
@@ -885,11 +885,11 @@
           "url": "https://shopee.com.br/Gorro-(touca)-de-papai-noel-gorro-para-natal-gorro-adulto-gorro-infantil-gorro-motoqueiro-gorro-festivo-natalino-i.336293864.18199932553",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:25.846363+00:00",
+      "updated_at": "2026-10-02T03:24:16.357115+00:00",
       "rawColumns": {}
     },
     {
@@ -901,7 +901,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:25.881625+00:00",
+      "updated_at": "2026-10-02T03:24:16.393038+00:00",
       "rawColumns": {}
     },
     {
@@ -913,7 +913,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:25.918885+00:00",
+      "updated_at": "2026-10-02T03:24:16.429957+00:00",
       "rawColumns": {}
     },
     {
@@ -925,7 +925,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:25.958034+00:00",
+      "updated_at": "2026-10-02T03:24:16.599498+00:00",
       "rawColumns": {}
     },
     {
@@ -937,7 +937,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:25.996125+00:00",
+      "updated_at": "2026-10-02T03:24:16.671229+00:00",
       "rawColumns": {}
     },
     {
@@ -949,7 +949,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:26.033043+00:00",
+      "updated_at": "2026-10-02T03:24:16.761313+00:00",
       "rawColumns": {}
     },
     {
@@ -971,11 +971,11 @@
           "url": "https://shopee.com.br/Irrigador-Higiene-Dental-Oral-de-Jato-D'%C3%A1gua-Port%C3%A1til-4-Bicos-LMF-1143-i.773737327.58212831603",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:26.069433+00:00",
+      "updated_at": "2026-10-02T03:24:16.799438+00:00",
       "rawColumns": {}
     },
     {
@@ -987,7 +987,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:26.106667+00:00",
+      "updated_at": "2026-10-02T03:24:16.835183+00:00",
       "rawColumns": {}
     },
     {
@@ -1009,11 +1009,11 @@
           "url": "https://shopee.com.br/Pacote-de-2-Bra%C3%A7adeiras-de-Compress%C3%A3o-para-Joelho-e-Tornozelo-Tensor-El%C3%A1stico-contra-Dor-no-Joelho-i.1171941844.22398153184",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:26.141987+00:00",
+      "updated_at": "2026-10-02T03:24:16.872685+00:00",
       "rawColumns": {}
     },
     {
@@ -1035,11 +1035,11 @@
           "url": "https://shopee.com.br/Kit-9-Chaves-Allen-OMNITOOL-Torx-Flor-com-Furo-Completo-i.554666829.19099889842",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:26.178332+00:00",
+      "updated_at": "2026-10-02T03:24:16.910511+00:00",
       "rawColumns": {}
     },
     {
@@ -1061,11 +1061,11 @@
           "url": "https://shopee.com.br/Mini-Kit-10-Xuxinha-El%C3%A1stico-Rabic%C3%B3-4-Presilhas-Tic-Tac-De-Cabelo-Penteado-i.344855473.51451661148",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:26.217138+00:00",
+      "updated_at": "2026-10-02T03:24:16.946288+00:00",
       "rawColumns": {}
     },
     {
@@ -1087,11 +1087,11 @@
           "url": "https://shopee.com.br/Kit-3-Tesouras-A%C3%A7o-Inox-Multiuso-Profissional-Costura-Tecido-Cozinha-Artesanato-i.1835837652.23995007512?extraParams=%7B%22display_model_id%22%3A228809264683%2C%22model_selection_logic%22%3A3%7D",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:26.252901+00:00",
+      "updated_at": "2026-10-02T03:24:16.982855+00:00",
       "rawColumns": {}
     },
     {
@@ -1103,7 +1103,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:26.288789+00:00",
+      "updated_at": "2026-10-02T03:24:17.020185+00:00",
       "rawColumns": {}
     },
     {
@@ -1125,11 +1125,11 @@
           "url": "https://shopee.com.br/Kit-de-Churrasco-de-Inox-e-Cabo-de-Madeira-com-3-p%C3%A7s-i.499136331.10087037379",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:26.328491+00:00",
+      "updated_at": "2026-10-02T03:24:17.055929+00:00",
       "rawColumns": {}
     },
     {
@@ -1151,11 +1151,11 @@
           "url": "",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:26.364104+00:00",
+      "updated_at": "2026-10-02T03:24:17.093351+00:00",
       "rawColumns": {}
     },
     {
@@ -1177,11 +1177,11 @@
           "url": "https://shopee.com.br/Chave-de-Jogo-Magn%C3%A9tica-Precis%C3%A3o-24-Pe%C3%A7as-Pequenos-Reparos-Compat%C3%ADvel-i.401332894.17294145435",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:26.398788+00:00",
+      "updated_at": "2026-10-02T03:24:17.129608+00:00",
       "rawColumns": {}
     },
     {
@@ -1193,7 +1193,7 @@
       "status": "Encontrado",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:26.437391+00:00",
+      "updated_at": "2026-10-02T03:24:17.167374+00:00",
       "rawColumns": {}
     },
     {
@@ -1205,7 +1205,7 @@
       "status": "Encontrado",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:26.474283+00:00",
+      "updated_at": "2026-10-02T03:24:17.211459+00:00",
       "rawColumns": {}
     },
     {
@@ -1227,11 +1227,11 @@
           "url": "https://shopee.com.br/Kit-De-Higiene-Para-Unhas-Azul-BabyGo-Premium-i.801007107.20519430665",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:26.51227+00:00",
+      "updated_at": "2026-10-02T03:24:17.248558+00:00",
       "rawColumns": {}
     },
     {
@@ -1243,7 +1243,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:26.549679+00:00",
+      "updated_at": "2026-10-02T03:24:17.284924+00:00",
       "rawColumns": {}
     },
     {
@@ -1255,7 +1255,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:26.587554+00:00",
+      "updated_at": "2026-10-02T03:24:17.324928+00:00",
       "rawColumns": {}
     },
     {
@@ -1277,11 +1277,11 @@
           "url": "https://www.mercadolibre.com.uy/juego-de-esponja--dos-de-alambre/up/MLUU4096570389",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:26.640928+00:00",
+      "updated_at": "2026-10-02T03:24:17.363531+00:00",
       "rawColumns": {}
     },
     {
@@ -1293,7 +1293,7 @@
       "status": "Encontrado",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:26.680692+00:00",
+      "updated_at": "2026-10-02T03:24:17.405301+00:00",
       "rawColumns": {}
     },
     {
@@ -1315,11 +1315,11 @@
           "url": "https://shopee.com.br/Mini-Jogo-Ferramentas-Brinquedo-Infantil-Alicate-Ponteira-Dupla-Material-Seguro-Port%C3%A1til-i.1263332275.58206549008",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:26.720122+00:00",
+      "updated_at": "2026-10-02T03:24:17.442215+00:00",
       "rawColumns": {}
     },
     {
@@ -1341,11 +1341,11 @@
           "url": "https://shopee.com.br/Kit-Garrafa-Pote-Colher-e-Garfo-Para-Marmita-Lanche-Escola-Lancheira-Infantil-580ml-Anjinho-i.807122329.23791209880",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:26.76019+00:00",
+      "updated_at": "2026-10-02T03:24:17.47954+00:00",
       "rawColumns": {}
     },
     {
@@ -1357,7 +1357,7 @@
       "status": "Encontrado",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:26.797295+00:00",
+      "updated_at": "2026-10-02T03:24:17.518807+00:00",
       "rawColumns": {}
     },
     {
@@ -1369,7 +1369,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:26.834848+00:00",
+      "updated_at": "2026-10-02T03:24:17.555281+00:00",
       "rawColumns": {}
     },
     {
@@ -1391,11 +1391,11 @@
           "url": "https://shopee.com.br/Kit-Marmita-Urso-e-Garrafa-Com-Copinho-Com-Al%C3%A7a-1-L-i.775303188.22697356194",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:26.872101+00:00",
+      "updated_at": "2026-10-02T03:24:17.592439+00:00",
       "rawColumns": {}
     },
     {
@@ -1417,11 +1417,11 @@
           "url": "https://shopee.com.br/Marmita-e-Garrafa-em-Formato-de-L%C3%A1pis-com-al%C3%A7a-infantil-Lunch-time-300ml-i.1314327488.23093418696",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:26.91547+00:00",
+      "updated_at": "2026-10-02T03:24:17.633026+00:00",
       "rawColumns": {}
     },
     {
@@ -1433,7 +1433,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:26.959478+00:00",
+      "updated_at": "2026-10-02T03:24:17.670557+00:00",
       "rawColumns": {}
     },
     {
@@ -1445,7 +1445,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:26.999614+00:00",
+      "updated_at": "2026-10-02T03:24:17.713531+00:00",
       "rawColumns": {}
     },
     {
@@ -1457,7 +1457,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:27.037907+00:00",
+      "updated_at": "2026-10-02T03:24:17.753484+00:00",
       "rawColumns": {}
     },
     {
@@ -1469,7 +1469,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:27.076541+00:00",
+      "updated_at": "2026-10-02T03:24:17.794572+00:00",
       "rawColumns": {}
     },
     {
@@ -1481,7 +1481,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:27.115532+00:00",
+      "updated_at": "2026-10-02T03:24:17.832123+00:00",
       "rawColumns": {}
     },
     {
@@ -1493,7 +1493,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:27.153172+00:00",
+      "updated_at": "2026-10-02T03:24:17.869129+00:00",
       "rawColumns": {}
     },
     {
@@ -1505,7 +1505,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:27.190569+00:00",
+      "updated_at": "2026-10-02T03:24:17.905409+00:00",
       "rawColumns": {}
     },
     {
@@ -1527,11 +1527,11 @@
           "url": "https://shopee.com.br/Baralho-Dourado-Ouro-24k-Dollar-Poker-Cartas-Jogos-%C3%80-Prova-D'agua-i.401327358.23896582186",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:27.228465+00:00",
+      "updated_at": "2026-10-02T03:24:17.941163+00:00",
       "rawColumns": {}
     },
     {
@@ -1543,7 +1543,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:27.267811+00:00",
+      "updated_at": "2026-10-02T03:24:17.978925+00:00",
       "rawColumns": {}
     },
     {
@@ -1565,11 +1565,11 @@
           "url": "https://www.mercadolivre.com.br/bsl17806-acessorios-infantil-para-cabelo-bolsinha-flor/up/MLBU4028618542?picker=true&quantity=1",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:27.308512+00:00",
+      "updated_at": "2026-10-02T03:24:18.015041+00:00",
       "rawColumns": {}
     },
     {
@@ -1591,11 +1591,11 @@
           "url": "https://shopee.com.br/Kit-de-Vinho-com-4-pe%C3%A7as-com-saca-rolhas-abridor-de-lacre-anel-corta-gotas-bico-dosador-e-tampa-rolha-i.967842081.22792645244",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:27.350131+00:00",
+      "updated_at": "2026-10-02T03:24:18.051667+00:00",
       "rawColumns": {}
     },
     {
@@ -1607,7 +1607,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:27.38943+00:00",
+      "updated_at": "2026-10-02T03:24:18.089844+00:00",
       "rawColumns": {}
     },
     {
@@ -1619,7 +1619,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:27.428649+00:00",
+      "updated_at": "2026-10-02T03:24:18.127694+00:00",
       "rawColumns": {}
     },
     {
@@ -1641,11 +1641,11 @@
           "url": "https://shopee.com.br/Lagartas-Articuladas-Caracol-Fidget-Toy-Colorido-TikTok-com-1-ou-2-unidades-i.388882638.22397302016",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:27.46598+00:00",
+      "updated_at": "2026-10-02T03:24:18.166566+00:00",
       "rawColumns": {}
     },
     {
@@ -1667,11 +1667,11 @@
           "url": "https://shopee.com.br/Fita-Lanterna-Cabe%C3%A7a-Led-Recarreg%C3%A1vel-Fita-Ajust%C3%A1vel-Xpe-cob-Usb-TOP-i.909400500.19697661981",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:27.506832+00:00",
+      "updated_at": "2026-10-02T03:24:18.201187+00:00",
       "rawColumns": {}
     },
     {
@@ -1683,7 +1683,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:27.544192+00:00",
+      "updated_at": "2026-10-02T03:24:18.239479+00:00",
       "rawColumns": {}
     },
     {
@@ -1705,11 +1705,11 @@
           "url": "https://www.mercadolivre.com.br/livro-para-colorir-bobbie-goods-50-paginas-premium/p/MLB50176554",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:27.583775+00:00",
+      "updated_at": "2026-10-02T03:24:18.274394+00:00",
       "rawColumns": {}
     },
     {
@@ -1721,7 +1721,7 @@
       "status": "Encontrado",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:27.621925+00:00",
+      "updated_at": "2026-10-02T03:24:18.312352+00:00",
       "rawColumns": {}
     },
     {
@@ -1743,11 +1743,11 @@
           "url": "https://www.mercadolivre.com.br/aparelho-pratico-tira-pelos-nariz-e-orelhas-portatil-unisex-preto/p/MLB53676001",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:27.661354+00:00",
+      "updated_at": "2026-10-02T03:24:18.3482+00:00",
       "rawColumns": {}
     },
     {
@@ -1759,7 +1759,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:27.700232+00:00",
+      "updated_at": "2026-10-02T03:24:18.386518+00:00",
       "rawColumns": {}
     },
     {
@@ -1781,11 +1781,11 @@
           "url": "https://www.mercadolivre.com.br/cortador-de-batatas-manual-palito-facil-176x11x35cm-branco/p/MLB63102038",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:27.736929+00:00",
+      "updated_at": "2026-10-02T03:24:18.423368+00:00",
       "rawColumns": {}
     },
     {
@@ -1807,11 +1807,11 @@
           "url": "https://shopee.com.br/Carretilha-Para-Massas-de-Pastel-Corta-e-Fecha-Ravioli-Risole-Pl%C3%A1stico-Keita-i.1451735630.58202253686",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:27.774095+00:00",
+      "updated_at": "2026-10-02T03:24:18.460343+00:00",
       "rawColumns": {}
     },
     {
@@ -1833,11 +1833,11 @@
           "url": "https://www.amazon.com.br/Pregadores-Decorativos-Inspiradoras-Unidades-Pl%C3%A1stico/dp/B0GYK26NK5",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:27.814161+00:00",
+      "updated_at": "2026-10-02T03:24:18.497955+00:00",
       "rawColumns": {}
     },
     {
@@ -1849,7 +1849,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:27.854617+00:00",
+      "updated_at": "2026-10-02T03:24:18.536026+00:00",
       "rawColumns": {}
     },
     {
@@ -1871,11 +1871,11 @@
           "url": "https://www.mercadolivre.com.br/dispensador-de-alcool-isopropilico-pier-telecom-transparente-150-ml/p/MLB66011686",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:27.896464+00:00",
+      "updated_at": "2026-10-02T03:24:18.573334+00:00",
       "rawColumns": {}
     },
     {
@@ -1897,11 +1897,11 @@
           "url": "https://www.mercadolivre.com.br/fura-coco--abridor-furador-perfurador-fura-coco-pratico/up/MLBU1415829205",
           "confidence": "Alta",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:27.936143+00:00",
+      "updated_at": "2026-10-02T03:24:18.607309+00:00",
       "rawColumns": {}
     },
     {
@@ -1913,7 +1913,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:27.973397+00:00",
+      "updated_at": "2026-10-02T03:24:18.642378+00:00",
       "rawColumns": {}
     },
     {
@@ -1925,7 +1925,7 @@
       "status": "Encontrado",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:28.010508+00:00",
+      "updated_at": "2026-10-02T03:24:18.68432+00:00",
       "rawColumns": {}
     },
     {
@@ -1937,7 +1937,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:28.051267+00:00",
+      "updated_at": "2026-10-02T03:24:18.721108+00:00",
       "rawColumns": {}
     },
     {
@@ -1949,7 +1949,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:28.220399+00:00",
+      "updated_at": "2026-10-02T03:24:18.871227+00:00",
       "rawColumns": {}
     },
     {
@@ -1971,11 +1971,11 @@
           "url": "https://www.mercadolivre.com.br/mascara-de-gel-ajustavel-grupo-online-para-alivio-de-enxaqueca-e-dor-de-cabeca/p/MLB39890240",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:28.259532+00:00",
+      "updated_at": "2026-10-02T03:24:18.908033+00:00",
       "rawColumns": {}
     },
     {
@@ -1987,7 +1987,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:28.296446+00:00",
+      "updated_at": "2026-10-02T03:24:18.94445+00:00",
       "rawColumns": {}
     },
     {
@@ -1999,7 +1999,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:28.331888+00:00",
+      "updated_at": "2026-10-02T03:24:18.978571+00:00",
       "rawColumns": {}
     },
     {
@@ -2021,11 +2021,11 @@
           "url": "https://www.mercadolivre.com.br/paliteiro-automatico-de-mesa-passarinho-porta-palitos-higien/up/MLBU4009743318",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:28.369148+00:00",
+      "updated_at": "2026-10-02T03:24:19.014465+00:00",
       "rawColumns": {}
     },
     {
@@ -2037,7 +2037,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:28.40822+00:00",
+      "updated_at": "2026-10-02T03:24:19.057894+00:00",
       "rawColumns": {}
     },
     {
@@ -2049,7 +2049,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:28.447528+00:00",
+      "updated_at": "2026-10-02T03:24:19.096107+00:00",
       "rawColumns": {}
     },
     {
@@ -2071,11 +2071,11 @@
           "url": "https://www.mercadolivre.com.br/borrifador-bolinha-350ml-rotony/up/MLBU3875330661",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:28.486778+00:00",
+      "updated_at": "2026-10-02T03:24:19.133906+00:00",
       "rawColumns": {}
     },
     {
@@ -2097,11 +2097,11 @@
           "url": "https://www.mercadolivre.com.br/jogo-conjunto-porta-copos-suporte-multiuso-6-pecas/up/MLBU3900160739",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:28.52779+00:00",
+      "updated_at": "2026-10-02T03:24:19.169209+00:00",
       "rawColumns": {}
     },
     {
@@ -2123,11 +2123,11 @@
           "url": "https://www.mercadolivre.com.br/bandeja-organizadora-ovo-com-tampa-capacidade-15-cavidades/up/MLBU3475944427",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:28.568923+00:00",
+      "updated_at": "2026-10-02T03:24:19.206043+00:00",
       "rawColumns": {}
     },
     {
@@ -2149,11 +2149,11 @@
           "url": "https://www.mercadolivre.com.br/bsl17806-acessorios-infantil-para-cabelo-bolsinha-flor/up/MLBU4028618542?picker=true&quantity=1",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:28.604917+00:00",
+      "updated_at": "2026-10-02T03:24:19.241532+00:00",
       "rawColumns": {}
     },
     {
@@ -2175,11 +2175,11 @@
           "url": "https://www.mercadolivre.com.br/rolo-massageador-jade-duo-facial-estetica-skincare-verde/p/MLB69733354",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:28.641787+00:00",
+      "updated_at": "2026-10-02T03:24:19.277543+00:00",
       "rawColumns": {}
     },
     {
@@ -2201,11 +2201,11 @@
           "url": "https://shopee.com.br/Saboneteira-De-Pia-Acr%C3%ADlico-Oval-Cristal-Premium-i.1505700090.22598476721",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:28.680324+00:00",
+      "updated_at": "2026-10-02T03:24:19.313578+00:00",
       "rawColumns": {}
     },
     {
@@ -2217,7 +2217,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:28.718745+00:00",
+      "updated_at": "2026-10-02T03:24:19.349058+00:00",
       "rawColumns": {}
     },
     {
@@ -2229,7 +2229,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:28.75872+00:00",
+      "updated_at": "2026-10-02T03:24:19.386492+00:00",
       "rawColumns": {}
     },
     {
@@ -2251,11 +2251,11 @@
           "url": "https://shopee.com.br/Suportes-para-Pratos-e-Quadros-Acr%C3%ADlico-Transparente-Kit-com-2-i.376211363.22098096943",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:28.795833+00:00",
+      "updated_at": "2026-10-02T03:24:19.424228+00:00",
       "rawColumns": {}
     },
     {
@@ -2267,7 +2267,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:28.841807+00:00",
+      "updated_at": "2026-10-02T03:24:19.467794+00:00",
       "rawColumns": {}
     },
     {
@@ -2289,11 +2289,11 @@
           "url": "https://www.mercadolivre.com.br/mini-coador-de-cafe-keita-dobravel-com-filtro-de-pano-e-suporte-para-uma-xicara/p/MLB24811431",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:28.882508+00:00",
+      "updated_at": "2026-10-02T03:24:19.50768+00:00",
       "rawColumns": {}
     },
     {
@@ -2305,7 +2305,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:28.918528+00:00",
+      "updated_at": "2026-10-02T03:24:19.544918+00:00",
       "rawColumns": {}
     },
     {
@@ -2317,7 +2317,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:28.955266+00:00",
+      "updated_at": "2026-10-02T03:24:19.582405+00:00",
       "rawColumns": {}
     },
     {
@@ -2339,11 +2339,11 @@
           "url": "https://www.mercadolivre.com.br/afiador-manual-de-facas-e-tesouras-com-3-fases-de-cermica/p/MLB59125416",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:28.996365+00:00",
+      "updated_at": "2026-10-02T03:24:19.618513+00:00",
       "rawColumns": {}
     },
     {
@@ -2355,7 +2355,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:29.036744+00:00",
+      "updated_at": "2026-10-02T03:24:19.66546+00:00",
       "rawColumns": {}
     },
     {
@@ -2367,7 +2367,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:29.091029+00:00",
+      "updated_at": "2026-10-02T03:24:19.720972+00:00",
       "rawColumns": {}
     },
     {
@@ -2379,7 +2379,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:29.130484+00:00",
+      "updated_at": "2026-10-02T03:24:19.759163+00:00",
       "rawColumns": {}
     },
     {
@@ -2391,7 +2391,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:31.102611+00:00",
+      "updated_at": "2026-10-02T03:24:19.796435+00:00",
       "rawColumns": {}
     },
     {
@@ -2413,11 +2413,11 @@
           "url": "https://www.mercadolivre.com.br/cortador-ralador-fatiador--legumes--multifuncional--grade/up/MLBU3844167852",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:31.287228+00:00",
+      "updated_at": "2026-10-02T03:24:19.834242+00:00",
       "rawColumns": {}
     },
     {
@@ -2429,7 +2429,7 @@
       "status": "Encontrado",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:31.351346+00:00",
+      "updated_at": "2026-10-02T03:24:19.874045+00:00",
       "rawColumns": {}
     },
     {
@@ -2451,11 +2451,11 @@
           "url": "https://shopee.com.br/1-pe%C3%A7as-Raspador-Manual-Em-Escala-De-Peixe-removedor-de-escama-de-peixe-de-cozinha-i.400269328.23393688622?extraParams=%7B%22display_model_id%22%3A119722477268%2C%22model_selection_logic%22%3A3%7D&rModelId=119722477268&vItemId=22299393959&vModelId=238802576625&vShopId=1665239494",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:31.407823+00:00",
+      "updated_at": "2026-10-02T03:24:19.91912+00:00",
       "rawColumns": {}
     },
     {
@@ -2477,11 +2477,11 @@
           "url": "https://www.mercadolivre.com.br/descascador-de-abacaxi-fatiador-cortador-espiral-facil/up/MLBU3852375508",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:31.484377+00:00",
+      "updated_at": "2026-10-02T03:24:19.954706+00:00",
       "rawColumns": {}
     },
     {
@@ -2503,11 +2503,11 @@
           "url": "https://www.mercadolivre.com.br/descascador-ralador-fatiador-manual-espaguete-legumes-5-em-1/up/MLBU3565217697",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:33.641246+00:00",
+      "updated_at": "2026-10-02T03:24:19.992588+00:00",
       "rawColumns": {}
     },
     {
@@ -2519,7 +2519,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:35.314037+00:00",
+      "updated_at": "2026-10-02T03:24:20.030172+00:00",
       "rawColumns": {}
     },
     {
@@ -2531,7 +2531,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:35.397376+00:00",
+      "updated_at": "2026-10-02T03:24:20.066936+00:00",
       "rawColumns": {}
     },
     {
@@ -2543,7 +2543,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:35.446966+00:00",
+      "updated_at": "2026-10-02T03:24:20.103993+00:00",
       "rawColumns": {}
     },
     {
@@ -2555,7 +2555,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:35.547026+00:00",
+      "updated_at": "2026-10-02T03:24:20.144725+00:00",
       "rawColumns": {}
     },
     {
@@ -2577,11 +2577,11 @@
           "url": "https://www.mercadolivre.com.br/estilete-profissional-vonder-cabo-emborrachado/up/MLBU4178568339",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:35.591579+00:00",
+      "updated_at": "2026-10-02T03:24:20.183692+00:00",
       "rawColumns": {}
     },
     {
@@ -2593,7 +2593,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:35.684838+00:00",
+      "updated_at": "2026-10-02T03:24:20.220578+00:00",
       "rawColumns": {}
     },
     {
@@ -2605,7 +2605,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:35.763117+00:00",
+      "updated_at": "2026-10-02T03:24:20.257632+00:00",
       "rawColumns": {}
     },
     {
@@ -2627,11 +2627,11 @@
           "url": "https://www.mercadolivre.com.br/fone-de-ouvido-blueetoth-xiaomi-redmi-airdots-2-preto/p/MLB26110729",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:18:35.818112+00:00",
+      "updated_at": "2026-10-02T03:24:20.294592+00:00",
       "rawColumns": {}
     },
     {
@@ -2643,7 +2643,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:35.857711+00:00",
+      "updated_at": "2026-10-02T03:24:20.333394+00:00",
       "rawColumns": {}
     },
     {
@@ -2655,7 +2655,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:35.902215+00:00",
+      "updated_at": "2026-10-02T03:24:20.369939+00:00",
       "rawColumns": {}
     },
     {
@@ -2667,7 +2667,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:35.941367+00:00",
+      "updated_at": "2026-10-02T03:24:20.407342+00:00",
       "rawColumns": {}
     },
     {
@@ -2679,7 +2679,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:18:35.981704+00:00",
+      "updated_at": "2026-10-02T03:24:20.445464+00:00",
       "rawColumns": {}
     },
     {
@@ -2691,7 +2691,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:42.78366+00:00",
+      "updated_at": "2026-10-02T03:24:20.484693+00:00",
       "rawColumns": {}
     },
     {
@@ -2703,7 +2703,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:42.818744+00:00",
+      "updated_at": "2026-10-02T03:24:20.52914+00:00",
       "rawColumns": {}
     },
     {
@@ -2715,7 +2715,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:42.85206+00:00",
+      "updated_at": "2026-10-02T03:24:20.567604+00:00",
       "rawColumns": {}
     },
     {
@@ -2727,7 +2727,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:42.888524+00:00",
+      "updated_at": "2026-10-02T03:24:20.606077+00:00",
       "rawColumns": {}
     },
     {
@@ -2739,7 +2739,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:42.923302+00:00",
+      "updated_at": "2026-10-02T03:24:20.645365+00:00",
       "rawColumns": {}
     },
     {
@@ -2751,7 +2751,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:42.95822+00:00",
+      "updated_at": "2026-10-02T03:24:20.683856+00:00",
       "rawColumns": {}
     },
     {
@@ -2763,7 +2763,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:42.991359+00:00",
+      "updated_at": "2026-10-02T03:24:20.722657+00:00",
       "rawColumns": {}
     },
     {
@@ -2775,7 +2775,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:43.027427+00:00",
+      "updated_at": "2026-10-02T03:24:20.76189+00:00",
       "rawColumns": {}
     },
     {
@@ -2787,7 +2787,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:43.063884+00:00",
+      "updated_at": "2026-10-02T03:24:20.79892+00:00",
       "rawColumns": {}
     },
     {
@@ -2799,7 +2799,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:43.099918+00:00",
+      "updated_at": "2026-10-02T03:24:20.835898+00:00",
       "rawColumns": {}
     },
     {
@@ -2811,7 +2811,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:43.139124+00:00",
+      "updated_at": "2026-10-02T03:24:20.875761+00:00",
       "rawColumns": {}
     },
     {
@@ -2823,7 +2823,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:43.172908+00:00",
+      "updated_at": "2026-10-02T03:24:20.914197+00:00",
       "rawColumns": {}
     },
     {
@@ -2835,7 +2835,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:43.209306+00:00",
+      "updated_at": "2026-10-02T03:24:20.959437+00:00",
       "rawColumns": {}
     },
     {
@@ -2857,11 +2857,11 @@
           "url": "https://www.mercadolivre.com.br/luminaria-solar-led-externa-clipe-sensor-movimento-jardim/up/MLBU3905660653",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:05:43.246277+00:00",
+      "updated_at": "2026-10-02T03:24:20.995825+00:00",
       "rawColumns": {}
     },
     {
@@ -2873,7 +2873,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:43.283199+00:00",
+      "updated_at": "2026-10-02T03:24:21.032258+00:00",
       "rawColumns": {}
     },
     {
@@ -2885,7 +2885,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:43.319223+00:00",
+      "updated_at": "2026-10-02T03:24:21.071328+00:00",
       "rawColumns": {}
     },
     {
@@ -2897,7 +2897,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:43.360192+00:00",
+      "updated_at": "2026-10-02T03:24:21.110044+00:00",
       "rawColumns": {}
     },
     {
@@ -2909,7 +2909,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:43.396113+00:00",
+      "updated_at": "2026-10-02T03:24:21.146033+00:00",
       "rawColumns": {}
     },
     {
@@ -2921,7 +2921,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:43.433076+00:00",
+      "updated_at": "2026-10-02T03:24:21.183432+00:00",
       "rawColumns": {}
     },
     {
@@ -2933,7 +2933,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:43.467616+00:00",
+      "updated_at": "2026-10-02T03:24:21.220629+00:00",
       "rawColumns": {}
     },
     {
@@ -2955,11 +2955,11 @@
           "url": "https://www.mercadolivre.com.br/adaptador-tomada-articulado-dobravel-benjamim-flexivel-usb/up/MLBU3521320440",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:05:43.500526+00:00",
+      "updated_at": "2026-10-02T03:24:21.258192+00:00",
       "rawColumns": {}
     },
     {
@@ -2981,11 +2981,11 @@
           "url": "https://shopee.com.br/Calculadora-Cient%C3%ADfica-240-Fun%C3%A7%C3%B5es-Cor-Pastel-Lil%C3%A1s-Rosa-Azul-Verde-82MS-C-Gatte-i.464677794.23997906954",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:05:43.538202+00:00",
+      "updated_at": "2026-10-02T03:24:21.325524+00:00",
       "rawColumns": {}
     },
     {
@@ -2997,7 +2997,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:43.573304+00:00",
+      "updated_at": "2026-10-02T03:24:21.36243+00:00",
       "rawColumns": {}
     },
     {
@@ -3009,7 +3009,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:43.607597+00:00",
+      "updated_at": "2026-10-02T03:24:21.397974+00:00",
       "rawColumns": {}
     },
     {
@@ -3021,7 +3021,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:43.644067+00:00",
+      "updated_at": "2026-10-02T03:24:21.436301+00:00",
       "rawColumns": {}
     },
     {
@@ -3033,7 +3033,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:43.678746+00:00",
+      "updated_at": "2026-10-02T03:24:21.473228+00:00",
       "rawColumns": {}
     },
     {
@@ -3045,7 +3045,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:43.715029+00:00",
+      "updated_at": "2026-10-02T03:24:21.51033+00:00",
       "rawColumns": {}
     },
     {
@@ -3057,7 +3057,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:43.751232+00:00",
+      "updated_at": "2026-10-02T03:24:21.549548+00:00",
       "rawColumns": {}
     },
     {
@@ -3069,7 +3069,7 @@
       "status": "Pendente",
       "is_new": true,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:43.809089+00:00",
+      "updated_at": "2026-10-02T03:24:21.589964+00:00",
       "rawColumns": {}
     },
     {
@@ -3081,7 +3081,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:43.843722+00:00",
+      "updated_at": "2026-10-02T03:24:21.62935+00:00",
       "rawColumns": {}
     },
     {
@@ -3093,7 +3093,7 @@
       "status": "Encontrado",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:43.877641+00:00",
+      "updated_at": "2026-10-02T03:24:21.665484+00:00",
       "rawColumns": {}
     },
     {
@@ -3115,11 +3115,11 @@
           "url": "https://shopee.com.br/Kit-3-L%C3%A2mpada-Lumin%C3%A1ria-Led-com-controle-remoto-sem-fio-i.1381918631.23693498511",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:05:43.910665+00:00",
+      "updated_at": "2026-10-02T03:24:21.711044+00:00",
       "rawColumns": {}
     },
     {
@@ -3141,11 +3141,11 @@
           "url": "https://www.amazon.com.br/Manteigueira-Francesa-Vidro-Premium-5x11cm/dp/B0GQNPSF72",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:05:43.946806+00:00",
+      "updated_at": "2026-10-02T03:24:21.74857+00:00",
       "rawColumns": {}
     },
     {
@@ -3157,7 +3157,7 @@
       "status": "Encontrado",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:43.983425+00:00",
+      "updated_at": "2026-10-02T03:24:21.785735+00:00",
       "rawColumns": {}
     },
     {
@@ -3179,11 +3179,11 @@
           "url": "https://shopee.com.br/Manteigueira-Retangular-em-Vidro-18-7cm-c-Tampa-Mimo-Style-i.336159387.20997666097?extraParams=%7B%22display_model_id%22%3A159776979775%2C%22model_selection_logic%22%3A3%7D",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:05:44.022507+00:00",
+      "updated_at": "2026-10-02T03:24:21.822668+00:00",
       "rawColumns": {}
     },
     {
@@ -3205,11 +3205,11 @@
           "url": "https://www.mercadolivre.com.br/marmita-infantil-escolar-lancheira-divisoria-formato-abacaxi-cor-rosa/p/MLB28825225",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:05:44.065039+00:00",
+      "updated_at": "2026-10-02T03:24:21.86195+00:00",
       "rawColumns": {}
     },
     {
@@ -3221,7 +3221,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:44.10441+00:00",
+      "updated_at": "2026-10-02T03:24:21.900145+00:00",
       "rawColumns": {}
     },
     {
@@ -3243,11 +3243,11 @@
           "url": "https://www.mercadolivre.com.br/lancheira-marmita-infantil-menina-menino-divisoria-escola/p/MLB31062067",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:05:44.14359+00:00",
+      "updated_at": "2026-10-02T03:24:21.93798+00:00",
       "rawColumns": {}
     },
     {
@@ -3269,11 +3269,11 @@
           "url": "https://shopee.com.br/Pote-Marmita-Cenoura-Com-Divis%C3%B3rias-B-1073-Novos-E-De-Qualidade-i.467113267.15794665339",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:05:44.180414+00:00",
+      "updated_at": "2026-10-02T03:24:21.974933+00:00",
       "rawColumns": {}
     },
     {
@@ -3295,11 +3295,11 @@
           "url": "https://produto.mercadolivre.com.br/MLB-3341661065-pote-lancheira-marmita-fofa-c-talheres-e-adesivos-donuts-_JM",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:05:44.215184+00:00",
+      "updated_at": "2026-10-02T03:24:22.014701+00:00",
       "rawColumns": {}
     },
     {
@@ -3311,7 +3311,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:44.251573+00:00",
+      "updated_at": "2026-10-02T03:24:22.05164+00:00",
       "rawColumns": {}
     },
     {
@@ -3333,11 +3333,11 @@
           "url": "https://shopee.com.br/Marmita-dupla-para-lancheira-com-divis%C3%B3ria-pote-infantil-colher-marmitinha-fofa-adesivos-picnic-i.408685689.18499093188",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:05:44.29006+00:00",
+      "updated_at": "2026-10-02T03:24:22.090017+00:00",
       "rawColumns": {}
     },
     {
@@ -3359,11 +3359,11 @@
           "url": "https://www.mercadolivre.com.br/marmita-infantil-coelho-escolar-passeio-almoco-viagem-aula/up/MLBU3880027060",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:05:44.324759+00:00",
+      "updated_at": "2026-10-02T03:24:22.221716+00:00",
       "rawColumns": {}
     },
     {
@@ -3385,11 +3385,11 @@
           "url": "https://shopee.com.br/Marmita-Infantil-Adulto-Melancia-3-Compartimentos-Lancheira-Escola-Talher-i.393729004.22530821092",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:05:44.375011+00:00",
+      "updated_at": "2026-10-02T03:24:22.259327+00:00",
       "rawColumns": {}
     },
     {
@@ -3411,11 +3411,11 @@
           "url": "https://shopee.com.br/Marmita-de-pl%C3%A1stico-em-formato-de-Morango-i.816865320.20499235891",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.185631+00:00",
-          "updated_at": "2026-10-02T03:05:45.185631+00:00"
+          "researched_at": "2026-10-02T03:24:23.081383+00:00",
+          "updated_at": "2026-10-02T03:24:23.081383+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:05:44.411279+00:00",
+      "updated_at": "2026-10-02T03:24:22.297773+00:00",
       "rawColumns": {}
     },
     {
@@ -3427,7 +3427,7 @@
       "status": "Encontrado",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:44.4465+00:00",
+      "updated_at": "2026-10-02T03:24:22.338121+00:00",
       "rawColumns": {}
     },
     {
@@ -3439,7 +3439,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:44.48393+00:00",
+      "updated_at": "2026-10-02T03:24:22.375741+00:00",
       "rawColumns": {}
     },
     {
@@ -3451,7 +3451,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:44.520735+00:00",
+      "updated_at": "2026-10-02T03:24:22.414548+00:00",
       "rawColumns": {}
     },
     {
@@ -3473,11 +3473,11 @@
           "url": "https://www.mercadolivre.com.br/claw-hammer-dl5001-com-alca-de-fibra-de-025-kg-deli-tool/p/MLB2036141955",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:05:44.55675+00:00",
+      "updated_at": "2026-10-02T03:24:22.451086+00:00",
       "rawColumns": {}
     },
     {
@@ -3489,7 +3489,7 @@
       "status": "Encontrado",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:44.593197+00:00",
+      "updated_at": "2026-10-02T03:24:22.4869+00:00",
       "rawColumns": {}
     },
     {
@@ -3501,7 +3501,7 @@
       "status": "Encontrado",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:44.629163+00:00",
+      "updated_at": "2026-10-02T03:24:22.524789+00:00",
       "rawColumns": {}
     },
     {
@@ -3513,7 +3513,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:44.666786+00:00",
+      "updated_at": "2026-10-02T03:24:22.563551+00:00",
       "rawColumns": {
         "web_scraper_order": "1789957625-2",
         "web_scraper_start_url": "https://atacado.pdvmaster.com/",
@@ -3543,11 +3543,11 @@
           "url": "https://shopee.com.br/Torneira-Bomba-El%C3%A9trica-Premium-Gal%C3%A3o-D'-%C3%81gua-Bivolt-Usb-i.980308095.22398531209",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:05:44.706964+00:00",
+      "updated_at": "2026-10-02T03:24:22.602517+00:00",
       "rawColumns": {}
     },
     {
@@ -3569,11 +3569,11 @@
           "url": "https://www.mercadolivre.com.br/microfone-karaoke-sem-fio-bluetooth-xtrad-ws-858-alto-falante-embutido/p/MLB28864625?product_trigger_id=MLB22677098&picker=true&quantity=1",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:05:44.740301+00:00",
+      "updated_at": "2026-10-02T03:24:22.640042+00:00",
       "rawColumns": {}
     },
     {
@@ -3595,11 +3595,11 @@
           "url": "https://www.mercadolivre.com.br/climatizador-e-ventilador-portatil-led-bivolt-10w-startools/up/MLBU3391513681",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:05:44.7758+00:00",
+      "updated_at": "2026-10-02T03:24:22.67669+00:00",
       "rawColumns": {}
     },
     {
@@ -3611,7 +3611,7 @@
       "status": "Pendente",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:44.812826+00:00",
+      "updated_at": "2026-10-02T03:24:22.714115+00:00",
       "rawColumns": {}
     },
     {
@@ -3633,11 +3633,11 @@
           "url": "https://shopee.com.br/VEDO-Mini-Est%C3%BAdio-Fotogr%C3%A1fico-Port%C3%A1til-Studio-Photo-Led-12-Cores-De-Fundo-Ajust%C3%A1vel-Kit-De-Caixa-De-Luz-Para-Est%C3%BAdio-i.1403040620.23498414670",
           "confidence": "Alta",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
-      "updated_at": "2026-10-02T03:05:44.847168+00:00",
+      "updated_at": "2026-10-02T03:24:22.75276+00:00",
       "rawColumns": {}
     },
     {
@@ -3649,7 +3649,7 @@
       "status": "Encontrado",
       "is_new": false,
       "research_records": [],
-      "updated_at": "2026-10-02T03:05:44.884591+00:00",
+      "updated_at": "2026-10-02T03:24:22.80284+00:00",
       "rawColumns": {}
     },
     {
@@ -3671,8 +3671,8 @@
           "url": "https://www.mercadolivre.com.br/mini-lanterna-tatica-led-forte-recarregavel-usb-militar-cor-da-lanterna-preto-cor-da-luz-branco/p/MLB32073703",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T16:13:14.125001+00:00",
@@ -3697,8 +3697,8 @@
           "url": "https://www.mercadolivre.com.br/mini-liquidificador-portatil-recarregavel-mixer-juice-copo/up/MLBU3262845538",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-23T15:31:38.140229+00:00",
@@ -3723,8 +3723,8 @@
           "url": "https://www.mercadolivre.com.br/mini-martelo-16-cm-cabo-curto-emborrachado-aco-carbono/p/MLB26653906",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T16:13:01.928399+00:00",
@@ -3749,8 +3749,8 @@
           "url": "https://www.mercadolivre.com.br/mini-mop-multiuso-limpa-e-seca-pia-cozinha-banheiro-vidro/up/MLBU3783762557",
           "confidence": "Alta",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T16:13:14.125001+00:00",
@@ -3775,8 +3775,8 @@
           "url": "https://www.mercadolivre.com.br/mini-mixer-eletrico-espumador-de-leite-cafe-3-velocidades/up/MLBU3900646811",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-22T15:53:04.124885+00:00",
@@ -3801,8 +3801,8 @@
           "url": "https://shopee.com.br/Bomba-El%C3%A9trica-Para-Garraf%C3%A3o-Gal%C3%A3o-%C3%81gua-Recarreg%C3%A1vel-Cor-Branco-USB-i.1639543941.23798939317",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-23T20:43:36.374444+00:00",
@@ -3827,8 +3827,8 @@
           "url": "https://shopee.com.br/Armadilha-El%C3%A9trica-LED-Bivolt-de-Tomada-Repelente-Insetos-Pernilongos-Mosquitos-i.288404200.22394016973",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-26T13:08:02.736754+00:00",
@@ -3853,8 +3853,8 @@
           "url": "https://shopee.com.br/Porta-Leite-em-P%C3%B3-com-3-N%C3%ADveis-%E2%80%93-Pr%C3%A1tico-Port%C3%A1til-e-Ideal-para-Passeios-com-o-Beb%C3%AA-i.1634238470.23299004674",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-22T20:09:47.2775+00:00",
@@ -3891,8 +3891,8 @@
           "url": "https://shopee.com.br/Organizador-de-Cosm%C3%A9ticos-Resistente-Elegante-i.964705668.22693405103",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T18:05:32.311145+00:00",
@@ -3917,8 +3917,8 @@
           "url": "https://shopee.com.br/Divis%C3%B3rias-Ajust%C3%A1veis-para-Gaveta-i.406676525.22192686631",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T18:05:33.853781+00:00",
@@ -3943,8 +3943,8 @@
           "url": "https://shopee.com.br/Suporte-Organizador-de-Torneira-A%C3%A7o-Inox-para-Cozinha-Banheiro-Lavanderia-Sabonete-Detergente-Esponja-suporte-Aramado-i.332130069.23298106742",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T18:05:35.070853+00:00",
@@ -3993,8 +3993,8 @@
           "url": "https://www.mercadolivre.com.br/toalhas-pano-micro-fibra-limpeza-secar-carro-multiuso-25x21/up/MLBU3853912695",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T16:13:01.928399+00:00",
@@ -4055,8 +4055,8 @@
           "url": "https://www.mercadolivre.com.br/metralhadora-gel-azul-ak47-mil-bolinhas-com-5000-municoes/p/MLB56686105",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-29T18:52:50.851171+00:00",
@@ -4105,8 +4105,8 @@
           "url": "https://www.mercadolivre.com.br/porta-joias-elegante-com-espelho-ideal-para-suas-bijuterias-cor-rosa/p/MLB70035300",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-22T19:30:42.789482+00:00",
@@ -4143,8 +4143,8 @@
           "url": "https://www.mercadolivre.com.br/pote-hermetico-para-cereal-e-leite-em-po-800-ml/up/MLBU4013442458",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-26T19:08:02.703109+00:00",
@@ -4289,8 +4289,8 @@
           "url": "https://www.mercadolivre.com.br/queijeira-de-vidro-com-tampa-20cm--hauskraft-premium-cinza/up/MLBU2742597016",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T17:45:28.29539+00:00",
@@ -4315,8 +4315,8 @@
           "url": "https://shopee.com.br/Ralador-de-Legumes-e-Fatiador-Com-Apoio-de-M%C3%A3o-Multiuso-i.1087219933.22792638454",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T17:45:28.519572+00:00",
@@ -4341,8 +4341,8 @@
           "url": "https://www.mercadolivre.com.br/raquete-eletrica-mata-pernilongos-recarregavel-cor-sortido/p/MLB38900501",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T16:13:01.928399+00:00",
@@ -4391,8 +4391,8 @@
           "url": "https://shopee.com.br/Rodo-para-Pia-em-Bambu-Branco-%E2%80%93-Organiza%C3%A7%C3%A3o-Minimalista-para-Cozinha-i.844777185.45511943321",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T16:13:01.928399+00:00",
@@ -4429,8 +4429,8 @@
           "url": "https://shopee.com.br/Estojo-para-Saco-de-Lixos-para-Pets-Cata-Caca-Ossinho-de-Coleira-Sacos-de-Fezes-i.429355659.23097089168",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-23T15:50:40.22877+00:00",
@@ -4467,8 +4467,8 @@
           "url": "https://www.mercadolivre.com.br/1-sacola-plastica-de-presente-transparente-pvc--grande/up/MLBU3456738692",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T17:45:41.699788+00:00",
@@ -4529,8 +4529,8 @@
           "url": "https://shopee.com.br/Separador-de-Gema-Ovo-Peneira-Suporte-Divisor-de-Ovo-Acess%C3%B3rio-Cozinha-Moda-Casa-i.353318404.6293477636",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-22T19:30:49.622596+00:00",
@@ -4567,8 +4567,8 @@
           "url": "https://shopee.com.br/Squishy-Dumpling-Surpresa-Popsy-Brinquedo-Anti-stress-Para-Colecionar-i.353177948.43582312347",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T16:13:14.457708+00:00",
@@ -4617,8 +4617,8 @@
           "url": "https://www.mercadolivre.com.br/suporte-celular-para-magsafe-magnetico-mesa-carro-ventosa/up/MLBU3940320832",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T17:45:30.098817+00:00",
@@ -4643,8 +4643,8 @@
           "url": "https://www.mercadolivre.com.br/suporte-para-celular-omniplace-em-aluminio-reforcado-para-guidao-de-bike-e-moto/p/MLB51439395",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T17:45:30.319928+00:00",
@@ -4669,8 +4669,8 @@
           "url": "https://www.mercadolivre.com.br/enrolador-suporte-organizador-cabos-fios-silicone-adesivo/up/MLBU1750279102",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T17:45:30.550422+00:00",
@@ -4719,8 +4719,8 @@
           "url": "https://shopee.com.br/Tapete-M%C3%A1gico-Banheiro-Cozinha-e-Varanda-V%C3%A1rios-Modelos-59x39cm-i.401608980.23196868271",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T17:45:31.235051+00:00",
@@ -4745,8 +4745,8 @@
           "url": "https://shopee.com.br/Massageador-Tapete-Pulso-El%C3%A9trico-Perna-P%C3%A9s-Ems-Almofada-Alta-Qualidade-Para-Neuropatia-i.1248089306.22497501676",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T17:45:31.448983+00:00",
@@ -4783,8 +4783,8 @@
           "url": "https://www.mercadolivre.com.br/smart-fitness-instrument-abdominal-sticker-abdominal-sticker/p/MLB2027827063",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-23T15:06:28.875916+00:00",
@@ -4809,8 +4809,8 @@
           "url": "https://www.mercadolibre.cl/masajeador-lumbar-electrico-para-cintura/up/MLCU3238706720",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-23T15:06:30.980056+00:00",
@@ -4835,8 +4835,8 @@
           "url": "https://www.mercadolivre.com.br/umidificador-difusor-de-aromas-madeira-ultrassonico-usb/up/MLBU3927596651",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T17:45:31.672481+00:00",
@@ -4861,8 +4861,8 @@
           "url": "https://produto.mercadolivre.com.br/MLB-4277427063-umidificador-difusor-ultrassnico-220ml-p-carro-_JM#redirectedFromSimilar=https%3A%2F%2Fproduto.mercadolivre.com.br%2FMLB-4277439927-umidificador-para-carro-nevoa-ultrassnica-220ml-tanque-agua-_JM",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-26T18:51:40.854936+00:00",
@@ -4899,8 +4899,8 @@
           "url": "https://shopee.com.br/Escova-de-Lou%C3%A7a-Panela-De-A%C3%A7o-com-Dispenser-Recipiente-para-Detergente-Fog%C3%A3o-Cozinha-Limpeza-Esponja-i.1284883381.18299305932",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T16:13:13.786938+00:00",
@@ -4925,8 +4925,8 @@
           "url": "https://shopee.com.br/Varal-Cabide-Cal%C3%A7ados-Pendurar-Secar-T%C3%AAnis-Sapatilha-Sapato-i.451223615.22496087794",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T16:13:13.786938+00:00",
@@ -4951,8 +4951,8 @@
           "url": "https://shopee.com.br/Secador-de-Unhas-UV-LED-Port%C3%A1til-SUNmini-Cabine-Gel-Compacta-Dobr%C3%A1vel-Secagem-R%C3%A1pida-Esmalte-Gel-i.334023889.23294403525",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T16:13:13.786938+00:00",
@@ -4997,8 +4997,8 @@
           "url": "https://shopee.com.br/Cabo-Carregador-Turbo-USB-V8-Charging-Cable-Brief-Fashion-design-i.499620734.10374784137",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-23T20:43:17.374834+00:00",
@@ -5047,8 +5047,8 @@
           "url": "https://shopee.com.br/Cafeteira-Prensa-Francesa-de-Inox-e-Vidro-350-%C3%A0-800ml-Caf%C3%A9-Cremeira-Ch%C3%A1-Capuccino-Jarra-de-Suco-i.1025202028.22998299000",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T17:45:34.336169+00:00",
@@ -5073,8 +5073,8 @@
           "url": "https://www.mercadolivre.com.br/caixa-de-som-bluetooth-rgb-portatil-10w-tws-radio-fm-usb/up/MLBU3974198917",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T16:13:01.928399+00:00",
@@ -5099,8 +5099,8 @@
           "url": "https://www.mercadolivre.com.br/caixa-de-som-bluetooth-8w-usb-fm-microsd-com-led-portatil/up/MLBU3824701858",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-28T17:52:53.241428+00:00",
@@ -5161,8 +5161,8 @@
           "url": "https://www.mercadolivre.com.br/alto-falante-oem-portatil-bts-06-com-bluetooth-verde-impermeavel/p/MLB28920926",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-23T20:40:25.430206+00:00",
@@ -5207,8 +5207,8 @@
           "url": "https://www.mercadolibre.com.ar/parlante-portatil-bluetooth-tws-bateria-usb-c-sd-pendrive/up/MLAU3932732978",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-23T20:38:43.195899+00:00",
@@ -5245,8 +5245,8 @@
           "url": "https://shopee.com.br/sob-a-mesa-sendo-gaveta-organizadora-retangular-com-adesivo-Multifuncional-papelaria-armazenamento-de-utens%C3%ADlios-2-gavetas-Gaveta-Adesiva-Escondida-Gaveta-Porta-Treco-Organizadora-i.629513653.17981546626",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T16:13:13.786938+00:00",
@@ -5283,8 +5283,8 @@
           "url": "https://www.mercadolivre.com.br/kit-canetas-marcador-permanente-ponta-dupla-36-cores-balta-estojo/p/MLB44795831",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T16:13:13.786938+00:00",
@@ -5309,8 +5309,8 @@
           "url": "https://shopee.com.br/canetinha-Touch-12-24-36-48-60-128-262-Touch-36-pcs-pe%C3%A7as-caneta-marcadora-ponta-fina-e-grossa-i.1340184233.21799775272",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-23T19:42:01.139128+00:00",
@@ -5335,8 +5335,8 @@
           "url": "https://shopee.com.br/Kit-10-Capa-De-Chuva-Descartavel-Transparente-Show-Evento-Trabalho-Entrega-Motoboy-Viagem-Reforcada-i.428133121.51410377174",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-23T20:43:08.938793+00:00",
@@ -5373,8 +5373,8 @@
           "url": "https://shopee.com.br/KIT-Toy-Cactus-Dancing-Talking-Imita-Com-Linhas-De-Repeti%C3%A7%C3%A3o-De-M%C3%BAsica-MUNDO-ONLINE-i.1378634979.26274105723",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T16:13:13.786938+00:00",
@@ -5399,8 +5399,8 @@
           "url": "https://www.mercadolivre.com.br/carregador-turbo-lehmox-le357-25w--carregamento-ultra-rapi/up/MLBU4326783530",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T16:13:13.786938+00:00",
@@ -5445,8 +5445,8 @@
           "url": "https://shopee.com.br/Carregador-Turbo-Inteligente-V8-tipo-c-Turbo-com-Cabo-Micro-USB-Novos-Telefones-Recomendados-i.1607476642.58254439819?extraParams=%7B%22display_model_id%22%3A139654928110%2C%22model_selection_logic%22%3A3%7D",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-26T13:26:34.670771+00:00",
@@ -5471,8 +5471,8 @@
           "url": "https://shopee.com.br/Carregador-Carro-Transmissor-Fm-Bluetooth-Veicular-X8-Mp3-R%C3%A1dio-i.475013592.58209858872",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-26T12:48:55.551075+00:00",
@@ -5509,8 +5509,8 @@
           "url": "https://shopee.com.br/Jarra-Chaleira-El%C3%A9trica-Dobr%C3%A1vel-de-Silicone-para-Viagens-Port%C3%A1til-e-Compacta-110V-i.1093669416.23793255593",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T16:13:13.786938+00:00",
@@ -5583,8 +5583,8 @@
           "url": "https://shopee.com.br/Chaveiro-Video-Game-Controle-Emborrachado-Presente-Gamer-i.888780142.58252928987",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-26T19:08:11.289086+00:00",
@@ -5665,8 +5665,8 @@
           "url": "https://shopee.com.br/Kit-Marmita-Infantil-Desenho-capivara-Com-Talheres-De-Pl%C3%A1stico-E-Garrafa-De-500ML-Para-Criencas-i.1256488766.22998190322",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-23T20:42:33.578135+00:00",
@@ -5691,8 +5691,8 @@
           "url": "https://shopee.com.br/Lancheira-Marmita-com-Copo-e-Talheres-Pl%C3%A1stico-Retangular-Coloridas-i.688992298.20897626700",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-23T20:42:36.779688+00:00",
@@ -5717,8 +5717,8 @@
           "url": "https://shopee.com.br/Utens%C3%ADlios-de-Cozinha-6-Pe%C3%A7as-com-Facas-Tesoura-e-Descascador-Praticidade-e-Versatilidade-i.1351654234.22593674968?extraParams=%7B%22display_model_id%22%3A189603175354%2C%22model_selection_logic%22%3A3%7D",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-23T20:42:39.812857+00:00",
@@ -5743,8 +5743,8 @@
           "url": "https://shopee.com.br/Conjunto-5-Potes-de-Vidro-com-Tampa-Herm%C3%A9tica-Tigela-Resistente-para-Alimentos-Marmita-i.1087215952.58210359070",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T16:13:13.786938+00:00",
@@ -5805,8 +5805,8 @@
           "url": "https://shopee.com.br/Copo-T%C3%A9rmico-5-em-1-420ml-Latinha-Barrigudinha-Lata-Alta-Com-abridor-Porta-Garrafa-i.323330780.23697474606",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T16:13:13.786938+00:00",
@@ -5843,8 +5843,8 @@
           "url": "https://shopee.com.br/Copo-Infantil-Canudo-Retr%C3%A1til-E-Al%C3%A7a-300ml-IAL022-Novos-E-De-Qualidade-i.467113267.16384494610",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T16:13:13.786938+00:00",
@@ -5869,8 +5869,8 @@
           "url": "https://shopee.com.br/Copo-Ta%C3%A7a-Coquetel-2-em-1-Remov%C3%ADvel-U-Shape-Duplo-Isolamento-A%C3%A7o-Inox-304-Base-S%C3%B3lida-Multiuso-Caf%C3%A9-Vinho-Suco-i.1210714652.20299706090",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T16:13:13.786938+00:00",
@@ -5907,8 +5907,8 @@
           "url": "https://shopee.com.br/Corda-de-Pular-Com-Rolamento-Para-Exerc%C3%ADcio-Funcional-Cross-Fit-2-87m-Borracha-Vermelha-i.338483478.9105140740",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-23T16:08:59.019017+00:00",
@@ -5933,8 +5933,8 @@
           "url": "https://shopee.com.br/Corretivo-Liquido-Sinta-se-Miss-Rose-COR1-i.416452847.23898803408",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-23T20:42:43.805294+00:00",
@@ -5959,8 +5959,8 @@
           "url": "https://shopee.com.br/Fatiador-De-Ovo-Frutas-e-Legumes-3-Formatos-de-Corte-(-Flor-Fatiado-e-Ao-Meio)-Daiso-i.1366783671.58206884226",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T16:13:13.786938+00:00",
@@ -5997,8 +5997,8 @@
           "url": "https://shopee.com.br/Cozedor-Caldeiro-Para-Ovo-Cozinha-Multiuso-Eltrica-i.376211363.20313056090",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T16:13:13.786938+00:00",
@@ -6023,8 +6023,8 @@
           "url": "https://shopee.com.br/Depilador-2em1-Recarregavel-Usb-Sobrancelha-Bu%C3%A7o-Batom-i.1203488870.22792887531",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T16:13:13.786938+00:00",
@@ -6049,8 +6049,8 @@
           "url": "https://www.mercadolivre.com.br/depilador-eletrico-facial-indolor-finishing-touch-flawless-branco-recarregavel/p/MLB44693988",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-23T19:42:05.298923+00:00",
@@ -6075,8 +6075,8 @@
           "url": "https://shopee.com.br/Amplificador-De-Imagem-Da-Tela-Do-Celular-Ampliada-Lupa-3d-i.1344481903.20897797245",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T17:45:33.882459+00:00",
@@ -6101,8 +6101,8 @@
           "url": "",
           "confidence": "Média",
           "note": "https://www.mercadolivre.com.br/caneta-depiladora-de-sobrancelha--removedor-de-pelos-facial/up/MLBU4049602883",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-26T13:57:06.569519+00:00",
@@ -6151,8 +6151,8 @@
           "url": "https://www.mercadolivre.com.br/enfeites-placa-de-recado-natalina/up/MLBU3411342160",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-26T14:35:19.316091+00:00",
@@ -6201,8 +6201,8 @@
           "url": "https://shopee.com.br/Escova-De-Limpeza-Lava-Roupa-Lou%C3%A7a-T%C3%AAnis-Roupa-Multiuso-Com-Reservat%C3%B3rio-De-Sab%C3%A3o-MIMI-i.980318061.21897456890",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T17:45:36.637753+00:00",
@@ -6227,8 +6227,8 @@
           "url": "https://shopee.com.br/Escova-Vapor-Tira-Pelo-Pet-Recarreg%C3%A1vel-Usb-C%C3%A3o-Gato-i.340126827.23398718675",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T17:45:36.860073+00:00",
@@ -6253,8 +6253,8 @@
           "url": "https://shopee.com.br/ESCOVA-EL%C3%89TRICA-MAGIC-BRUSH-i.353893396.19497637455",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-21T17:45:37.077118+00:00",
@@ -6279,8 +6279,8 @@
           "url": "https://shopee.com.br/Escova-Multifuncional-Com-4-Cabe%C3%A7as-Cabo-Longo-Para-Limpeza-Dom%C3%A9stica-WL-2174-i.1274197348.58251755907",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-23T19:41:58.699216+00:00",
@@ -6305,8 +6305,8 @@
           "url": "https://shopee.com.br/Limpador-Facial-Port%C3%A1til-USB-com-3-N%C3%ADveis-de-Suc%C3%A7%C3%A3o-e-6-Acess%C3%B3rios-Misuli-i.378093609.12674826139",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-23T19:42:03.783702+00:00",
@@ -6343,8 +6343,8 @@
           "url": "https://shopee.com.br/Espatula-para-Queijo-em-Pasta-ou-Pate-Cabo-de-Madeira-Kehome-i.419662316.4788108619",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.235006+00:00",
-          "updated_at": "2026-10-02T03:05:45.235006+00:00"
+          "researched_at": "2026-10-02T03:24:23.135234+00:00",
+          "updated_at": "2026-10-02T03:24:23.135234+00:00"
         }
       ],
       "updated_at": "2026-09-23T20:42:57.078377+00:00",
@@ -6405,8 +6405,8 @@
           "url": "https://www.mercadolivre.com.br/espremedor-triturador-de-alho-facil-de-limpar-top/p/MLB47663347",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.27364+00:00",
-          "updated_at": "2026-10-02T03:05:45.27364+00:00"
+          "researched_at": "2026-10-02T03:24:23.173911+00:00",
+          "updated_at": "2026-10-02T03:24:23.173911+00:00"
         }
       ],
       "updated_at": "2026-09-23T15:31:29.918271+00:00",
@@ -6431,8 +6431,8 @@
           "url": "https://shopee.com.br/Espremedor-De-Frutas-Lim%C3%A3o-Laranja-Em-Vidro-Cristal-Luxo-i.340130812.22898138672",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.27364+00:00",
-          "updated_at": "2026-10-02T03:05:45.27364+00:00"
+          "researched_at": "2026-10-02T03:24:23.173911+00:00",
+          "updated_at": "2026-10-02T03:24:23.173911+00:00"
         }
       ],
       "updated_at": "2026-09-21T16:13:13.786938+00:00",
@@ -6457,8 +6457,8 @@
           "url": "https://shopee.com.br/Esterilizador-UV-e-Dispensador-Autom%C3%A1tico-de-Pasta-de-Dente-i.390802268.58217229098?extraParams=%7B%22display_model_id%22%3A238812806851%2C%22model_selection_logic%22%3A3%7D",
           "confidence": "Média",
           "note": "",
-          "researched_at": "2026-10-02T03:05:45.27364+00:00",
-          "updated_at": "2026-10-02T03:05:45.27364+00:00"
+          "researched_at": "2026-10-02T03:24:23.173911+00:00",
+          "updated_at": "2026-10-02T03:24:23.173911+00:00"
         }
       ],
       "updated_at": "2026-09-21T16:13:13.786938+00:00",
