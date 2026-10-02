@@ -11,7 +11,7 @@ export const DEFAULT_GITHUB_CONFIG: GitHubSyncConfig = {
   repo: 'contalayka/pesquisaproduto',
   branch: 'main',
   filePath: 'data/app_data_sync.json',
-  autoPush: false,
+  autoPush: true,
 };
 
 export function getStoredGitHubConfig(): GitHubSyncConfig {

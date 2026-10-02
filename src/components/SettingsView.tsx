@@ -130,12 +130,38 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setShowKey(false);
   };
 
-  const handleSavePricing = () => {
+  const handleSavePricing = async () => {
     localStorage.setItem('saas_settings_markup', defaultMarkup);
     localStorage.setItem('saas_settings_tax', defaultTaxRate);
     localStorage.setItem('saas_settings_packaging', defaultPackagingCost);
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2000);
+
+    // Se GitHub estiver configurado, envia as novas configurações de precificação para o repositório remoto
+    if (isGitHubSyncConfigured(ghConfig)) {
+      try {
+        const payload: GitHubSyncPayload = {
+          version: '2.0',
+          updatedAt: new Date().toISOString(),
+          source: 'settings-pricing-update',
+          totalProducts: products.length,
+          products,
+          pricingSettings: {
+            markup: defaultMarkup,
+            tax: defaultTaxRate,
+            packaging: defaultPackagingCost,
+          },
+        };
+        const res = await pushDataToGitHub(ghConfig, payload, `Atualização de parâmetros de precificação [${new Date().toLocaleString('pt-BR')}]`);
+        if (res.success) {
+          const updated = getStoredGitHubConfig();
+          setGhConfig(updated);
+          onUpdateGitHubConfig?.(updated);
+        }
+      } catch (e) {
+        console.warn('Falha ao sincronizar parâmetros de precificação no GitHub:', e);
+      }
+    }
   };
 
   const handleTestConnection = async () => {
@@ -154,11 +180,48 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   };
 
-  const handleSaveGitHubConfig = () => {
+  const handleSaveGitHubConfig = async () => {
     saveStoredGitHubConfig(ghConfig);
     onUpdateGitHubConfig?.(ghConfig);
     setGhSavedSuccess(true);
     setTimeout(() => setGhSavedSuccess(false), 2500);
+
+    // Se tiver credenciais preenchidas, testa e faz push das alterações imediatamente
+    if (isGitHubSyncConfigured(ghConfig)) {
+      setIsTestingGh(true);
+      setGhActionFeedback(null);
+      try {
+        const testRes = await testGitHubConnection(ghConfig);
+        setGhTestResult(testRes);
+        if (testRes.success) {
+          const payload: GitHubSyncPayload = {
+            version: '2.0',
+            updatedAt: new Date().toISOString(),
+            source: 'settings-save-auto-push',
+            totalProducts: products.length,
+            products,
+            pricingSettings: {
+              markup: defaultMarkup,
+              tax: defaultTaxRate,
+              packaging: defaultPackagingCost,
+            },
+          };
+          const pushRes = await pushDataToGitHub(ghConfig, payload);
+          if (pushRes.success) {
+            setGhActionFeedback({ type: 'success', message: `Configurações salvas e ${products.length} produtos sincronizados com o GitHub!` });
+            const updated = getStoredGitHubConfig();
+            setGhConfig(updated);
+            onUpdateGitHubConfig?.(updated);
+          } else {
+            setGhActionFeedback({ type: 'error', message: pushRes.message });
+          }
+        }
+      } catch (err: any) {
+        setGhActionFeedback({ type: 'error', message: err?.message || 'Falha ao sincronizar com GitHub.' });
+      } finally {
+        setIsTestingGh(false);
+      }
+    }
   };
 
   const handleTestGitHubConnection = async () => {
@@ -582,15 +645,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         </div>
 
-        {!isUnlocked ? (
-          <div className="p-4 rounded-lg bg-slate-900/60 border border-slate-800 text-center space-y-2">
-            <p className="text-xs text-slate-400">
-              Desbloqueie com a Senha Mestre acima para configurar ou alterar o token do GitHub.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3.5 pt-1">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="space-y-3.5 pt-1">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
                   Nome do Usuário (GitHub)
@@ -897,7 +953,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
             )}
           </div>
-        )}
       </div>
 
       {/* 3. Parâmetros Padrão de Precificação */}
