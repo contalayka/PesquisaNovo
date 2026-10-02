@@ -34,6 +34,7 @@ import {
   pullDataFromGitHub,
 } from './utils/githubSync';
 import { GitHubSyncPayload } from './types';
+import bundledSyncJson from '../data/app_data_sync.json';
 import { Header } from './components/Header';
 import { Sidebar, SidebarSection } from './components/Sidebar';
 import { ProductCard } from './components/ProductCard';
@@ -88,52 +89,60 @@ export default function App() {
   const [products, setProducts] = useState<Product[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
+      let rawList: any[] = [];
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          return parsed.map((p: any) => {
-            // Self-heal product image if missing, corrupted or set to scraper metadata/landing page
-            let finalImage = p.image;
-            if (
-              !finalImage ||
-              !isActualImageSource(finalImage) ||
-              String(finalImage).includes('web_scraper') ||
-              String(finalImage).includes('start_url') ||
-              String(finalImage).endsWith('/decoracao') ||
-              String(finalImage).endsWith('/decoracao/')
-            ) {
-              finalImage = resolveImageUrl(finalImage, p.rawColumns, p.name);
-            }
-
-            return {
-              ...p,
-              image: finalImage,
-              status: p.status || (p.research?.site ? 'Encontrado' : 'Pendente'),
-              available: p.available !== undefined ? p.available : true,
-              research_records: Array.isArray(p.research_records)
-                ? p.research_records
-                : p.research && (p.research.site || p.research.link)
-                ? [
-                    {
-                      id: `legacy_${p.id}`,
-                      product_id: p.id,
-                      found_name: p.research.foundName || p.name,
-                      platform: p.research.site || 'Mercado Livre',
-                      store: '',
-                      price: p.research.foundPrice || '',
-                      url: p.research.link || '',
-                      confidence: 'Média',
-                      note: p.research.observation || '',
-                      researched_at: new Date().toISOString(),
-                    },
-                  ]
-                : [],
-            };
-          });
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          rawList = parsed;
         }
       }
+      if (rawList.length === 0 && bundledSyncJson && Array.isArray((bundledSyncJson as any).products) && (bundledSyncJson as any).products.length > 0) {
+        rawList = (bundledSyncJson as any).products;
+      }
+
+      if (rawList.length > 0) {
+        return rawList.map((p: any) => {
+          // Self-heal product image if missing, corrupted or set to scraper metadata/landing page
+          let finalImage = p.image;
+          if (
+            !finalImage ||
+            !isActualImageSource(finalImage) ||
+            String(finalImage).includes('web_scraper') ||
+            String(finalImage).includes('start_url') ||
+            String(finalImage).endsWith('/decoracao') ||
+            String(finalImage).endsWith('/decoracao/')
+          ) {
+            finalImage = resolveImageUrl(finalImage, p.rawColumns, p.name);
+          }
+
+          return {
+            ...p,
+            image: finalImage,
+            status: p.status || (p.research?.site ? 'Encontrado' : 'Pendente'),
+            available: p.available !== undefined ? p.available : true,
+            research_records: Array.isArray(p.research_records)
+              ? p.research_records
+              : p.research && (p.research.site || p.research.link)
+              ? [
+                  {
+                    id: `legacy_${p.id}`,
+                    product_id: p.id,
+                    found_name: p.research.foundName || p.name,
+                    platform: p.research.site || 'Mercado Livre',
+                    store: '',
+                    price: p.research.foundPrice || '',
+                    url: p.research.link || '',
+                    confidence: 'Média',
+                    note: p.research.observation || '',
+                    researched_at: new Date().toISOString(),
+                  },
+                ]
+              : [],
+          };
+        });
+      }
     } catch (e) {
-      console.error('Erro ao ler do localStorage', e);
+      console.error('Erro ao ler dados iniciais', e);
     }
     return [];
   });
@@ -367,14 +376,13 @@ export default function App() {
     };
   }, [products, addToast]);
 
-  // Se abrir o app em máquina sem produtos locais, sincroniza automaticamente do GitHub se configurado
+  // Sincroniza automaticamente do GitHub ao abrir o app se configurado
   useEffect(() => {
     const ghConfig = getStoredGitHubConfig();
-    const hasLocal = localStorage.getItem(STORAGE_KEY);
-    if (!hasLocal && isGitHubSyncConfigured(ghConfig)) {
+    if (isGitHubSyncConfigured(ghConfig)) {
       pullDataFromGitHub(ghConfig)
         .then((res) => {
-          if (res.success && res.data && res.data.products.length > 0) {
+          if (res.success && res.data && Array.isArray(res.data.products) && res.data.products.length > 0) {
             setProducts(res.data.products);
             localStorage.setItem(STORAGE_KEY, JSON.stringify(res.data.products));
             if (res.data.pricingSettings) {
@@ -386,16 +394,11 @@ export default function App() {
                 localStorage.setItem('saas_settings_packaging', res.data.pricingSettings.packaging);
             }
             setGithubConfig(getStoredGitHubConfig());
-            addToast(
-              'Repositório GitHub',
-              `${res.data.products.length} produtos carregados do repositório remoto nesta máquina.`,
-              'info'
-            );
           }
         })
         .catch(console.error);
     }
-  }, [addToast]);
+  }, []);
 
   // Sincronização manual global solicitada pelo usuário no botão do topo
   const handleManualGlobalSync = useCallback(async () => {
@@ -417,34 +420,27 @@ export default function App() {
 
     let ghSuccess = false;
     let ghMessage = '';
-    let ghActionType: 'push' | 'pull' = 'push';
 
     if (isGhReady) {
       try {
-        // Se a máquina local não tiver produtos cadastrados, tenta fazer pull para carregar a base
-        if (products.length === 0) {
-          ghActionType = 'pull';
-          const pullRes = await pullDataFromGitHub(ghConfig);
-          if (pullRes.success && pullRes.data && pullRes.data.products.length > 0) {
-            ghSuccess = true;
-            ghMessage = pullRes.message;
-            setProducts(pullRes.data.products);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(pullRes.data.products));
-            if (pullRes.data.pricingSettings) {
-              if (pullRes.data.pricingSettings.markup)
-                localStorage.setItem('saas_settings_markup', pullRes.data.pricingSettings.markup);
-              if (pullRes.data.pricingSettings.tax)
-                localStorage.setItem('saas_settings_tax', pullRes.data.pricingSettings.tax);
-              if (pullRes.data.pricingSettings.packaging)
-                localStorage.setItem('saas_settings_packaging', pullRes.data.pricingSettings.packaging);
-            }
-            setGithubConfig(getStoredGitHubConfig());
-          } else {
-            ghSuccess = pullRes.success;
-            ghMessage = pullRes.message;
+        // 1. Tenta puxar a versão mais recente do GitHub
+        const pullRes = await pullDataFromGitHub(ghConfig);
+        if (pullRes.success && pullRes.data && Array.isArray(pullRes.data.products) && pullRes.data.products.length > 0) {
+          setProducts(pullRes.data.products);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(pullRes.data.products));
+          if (pullRes.data.pricingSettings) {
+            if (pullRes.data.pricingSettings.markup)
+              localStorage.setItem('saas_settings_markup', pullRes.data.pricingSettings.markup);
+            if (pullRes.data.pricingSettings.tax)
+              localStorage.setItem('saas_settings_tax', pullRes.data.pricingSettings.tax);
+            if (pullRes.data.pricingSettings.packaging)
+              localStorage.setItem('saas_settings_packaging', pullRes.data.pricingSettings.packaging);
           }
+          setGithubConfig(getStoredGitHubConfig());
+          ghSuccess = true;
+          ghMessage = `${pullRes.data.products.length} produtos sincronizados e atualizados do GitHub com sucesso!`;
         } else {
-          ghActionType = 'push';
+          // 2. Se o arquivo remoto ainda não existir, faz o push do catálogo local
           const payload: GitHubSyncPayload = {
             version: '2.0',
             updatedAt: new Date().toISOString(),
@@ -486,10 +482,8 @@ export default function App() {
     if (isGhReady) {
       if (ghSuccess) {
         addToast(
-          ghActionType === 'pull' ? 'GitHub: Dados Importados' : 'Sincronização Concluída',
-          ghActionType === 'pull'
-            ? ghMessage
-            : `Push realizado no GitHub com sucesso! As alterações estão seguras para fechar o navegador.`,
+          'Sincronização Concluída',
+          ghMessage || 'Alterações sincronizadas com o GitHub com sucesso!',
           'success'
         );
       } else {

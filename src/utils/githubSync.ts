@@ -258,7 +258,7 @@ export async function testGitHubConnection(config: GitHubSyncConfig): Promise<{
 
 /**
  * Obtém o SHA atual do arquivo no repositório remoto (se existir)
- * Suporta arquivos grandes via download_url ou blobs
+ * Suporta arquivos grandes via download_url ou blobs, com anti-cache garantido
  */
 async function getRemoteFileSha(
   owner: string,
@@ -270,9 +270,18 @@ async function getRemoteFileSha(
   const cleanPath = filePath.replace(/^\/+/, '');
   const url = `https://api.github.com/repos/${owner}/${repo}/contents/${cleanPath}?ref=${encodeURIComponent(
     branch
-  )}`;
+  )}&_cb=${Date.now()}`;
 
-  const res = await fetch(url, { method: 'GET', headers });
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      ...headers,
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      Pragma: 'no-cache',
+    },
+    cache: 'no-store',
+  });
+
   if (res.status === 404) {
     return { exists: false };
   }
@@ -286,6 +295,7 @@ async function getRemoteFileSha(
 
 /**
  * Faz Push (upload/commit) dos dados locais para o repositório GitHub
+ * Com retry automático contra conflitos de SHA (409 / 422)
  */
 export async function pushDataToGitHub(
   config: GitHubSyncConfig,
@@ -302,10 +312,7 @@ export async function pushDataToGitHub(
     const branch = config.branch?.trim() || 'main';
     const cleanPath = (config.filePath?.trim() || DEFAULT_GITHUB_CONFIG.filePath).replace(/^\/+/, '');
 
-    // 1. Busca o SHA atual se o arquivo já existir
-    const { sha: existingSha } = await getRemoteFileSha(owner, repoName, cleanPath, branch, headers);
-
-    // 2. Prepara o conteúdo
+    // Prepara o conteúdo em Base64
     const jsonStr = JSON.stringify(payload, null, 2);
     const contentBase64 = utf8ToBase64(jsonStr);
 
@@ -313,54 +320,72 @@ export async function pushDataToGitHub(
       'pt-BR'
     )}]`;
     const message = commitMessage || defaultMsg;
-
-    // 3. Executa o PUT /contents/{path}
     const putUrl = `https://api.github.com/repos/${owner}/${repoName}/contents/${cleanPath}`;
-    const body: Record<string, unknown> = {
-      message,
-      content: contentBase64,
-      branch,
-    };
-    if (existingSha) {
-      body.sha = existingSha;
-    }
 
-    let putRes = await fetch(putUrl, {
-      method: 'PUT',
-      headers: {
-        ...headers,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
+    let putRes: Response | null = null;
+    let lastErrorMsg = '';
 
-    // Se der conflito 409 (SHA concorrente ou desatualizado), tenta recuperar o SHA novo e reexecutar
-    if (putRes.status === 409) {
-      const refreshed = await getRemoteFileSha(owner, repoName, cleanPath, branch, headers);
-      if (refreshed.sha) {
-        body.sha = refreshed.sha;
-        putRes = await fetch(putUrl, {
-          method: 'PUT',
-          headers: {
-            ...headers,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(body),
-        });
+    // Loop com até 3 tentativas para resolver conflitos de SHA concorrentes automaticamente
+    for (let attempt = 0; attempt < 3; attempt++) {
+      // 1. Busca o SHA atual em tempo real sem cache
+      const { sha: currentSha } = await getRemoteFileSha(owner, repoName, cleanPath, branch, headers);
+
+      const body: Record<string, unknown> = {
+        message,
+        content: contentBase64,
+        branch,
+      };
+      if (currentSha) {
+        body.sha = currentSha;
+      }
+
+      putRes = await fetch(putUrl, {
+        method: 'PUT',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store',
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (putRes.ok) {
+        break;
+      }
+
+      const errData = await putRes.clone().json().catch(() => ({}));
+      lastErrorMsg = errData.message || '';
+
+      // Se for conflito de SHA desatualizado (409 ou 422 "does not match"), aguarda e tenta novamente com o SHA novo
+      const isShaConflict =
+        putRes.status === 409 ||
+        putRes.status === 422 ||
+        lastErrorMsg.toLowerCase().includes('does not match') ||
+        lastErrorMsg.toLowerCase().includes('conflict');
+
+      if (isShaConflict && attempt < 2) {
+        await new Promise((resolve) => setTimeout(resolve, 350));
+        continue;
+      } else {
+        break;
       }
     }
 
-    if (!putRes.ok) {
-      const err = await putRes.json().catch(() => ({}));
-      let msg = err.message || `Erro ao salvar arquivo no GitHub (HTTP ${putRes.status}).`;
-      if (putRes.status === 401) {
+    if (!putRes || !putRes.ok) {
+      const err = await putRes?.json().catch(() => ({}));
+      let msg = err?.message || lastErrorMsg || `Erro ao salvar arquivo no GitHub (HTTP ${putRes?.status || 500}).`;
+      if (putRes?.status === 401) {
         msg = 'Token de acesso inválido ou expirado (401). Gere um novo token no GitHub com permissão "repo".';
-      } else if (putRes.status === 404) {
+      } else if (putRes?.status === 404) {
         msg = `Repositório "${owner}/${repoName}" ou branch "${branch}" não encontrado. Verifique se o nome do repositório está correto.`;
-      } else if (putRes.status === 403) {
+      } else if (putRes?.status === 403) {
         msg = `Sem permissão de gravação no repositório "${owner}/${repoName}". Certifique-se de que o token possui permissão "repo" ou "Contents: Read & write".`;
-      } else if (putRes.status === 422) {
-        msg = `Erro de validação no GitHub (422): ${err.message || 'Verifique se a branch especificada existe'}.`;
+      } else if (putRes?.status === 422) {
+        if (msg.includes('does not match')) {
+          msg = 'Conflito de versão sincronizado. Clique em Sincronizar novamente para confirmar.';
+        } else {
+          msg = `Erro de validação no GitHub (422): ${msg}.`;
+        }
       }
       return {
         success: false,
@@ -427,12 +452,14 @@ export async function pullDataFromGitHub(config: GitHubSyncConfig): Promise<{
       decodedJson = base64ToUtf8(rawContent);
     } else if (fileInfo.rawData.download_url) {
       // Arquivo > 1MB: GitHub Contents API não inclui content base64, usa download_url
-      const dlRes = await fetch(fileInfo.rawData.download_url, {
+      const dlRes = await fetch(`${fileInfo.rawData.download_url}?_cb=${Date.now()}`, {
         method: 'GET',
         headers: {
           Authorization: headers.Authorization,
           Accept: 'application/json',
+          'Cache-Control': 'no-cache',
         },
+        cache: 'no-store',
       });
       if (!dlRes.ok) {
         throw new Error(`Falha ao baixar arquivo grande do GitHub (${dlRes.status})`);
@@ -440,9 +467,10 @@ export async function pullDataFromGitHub(config: GitHubSyncConfig): Promise<{
       decodedJson = await dlRes.text();
     } else if (fileInfo.sha) {
       // Fallback via Blob API
-      const blobRes = await fetch(`https://api.github.com/repos/${owner}/${repoName}/git/blobs/${fileInfo.sha}`, {
+      const blobRes = await fetch(`https://api.github.com/repos/${owner}/${repoName}/git/blobs/${fileInfo.sha}?_cb=${Date.now()}`, {
         method: 'GET',
         headers,
+        cache: 'no-store',
       });
       if (blobRes.ok) {
         const blobData = await blobRes.json();
