@@ -6,3 +6,9 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Cloudflare Pages uses npm for production builds
+bun.lock
+bun.lockb
+wrangler.json
+wrangler.toml
