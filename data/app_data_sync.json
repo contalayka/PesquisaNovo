@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "updatedAt": "2026-10-02T03:18:22.044Z",
+  "updatedAt": "2026-10-02T03:19:40.664Z",
   "source": "app-auto-push",
   "totalProducts": 345,
   "products": [
@@ -6492,6 +6492,6 @@
   "pricingSettings": {
     "markup": "100",
     "tax": "6",
-    "packaging": "3.50"
+    "packaging": "0"
   }
 }
