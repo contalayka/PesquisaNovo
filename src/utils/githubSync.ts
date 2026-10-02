@@ -19,10 +19,10 @@ export function getStoredGitHubConfig(): GitHubSyncConfig {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { ...DEFAULT_GITHUB_CONFIG };
     const parsed = JSON.parse(raw);
-    let username = parsed.username || '';
-    let repoName = parsed.repoName || '';
+    let username = (parsed.username || '').trim();
+    let repoName = (parsed.repoName || '').trim();
     if ((!username || !repoName) && parsed.repo) {
-      const parts = parsed.repo.split('/');
+      const parts = parsed.repo.trim().split('/').filter(Boolean);
       if (parts.length >= 2) {
         if (!username) username = parts[0];
         if (!repoName) repoName = parts[1];
@@ -33,12 +33,12 @@ export function getStoredGitHubConfig(): GitHubSyncConfig {
     const repo = `${username}/${repoName}`;
 
     return {
-      token: parsed.token || '',
+      token: (parsed.token || '').trim(),
       username,
       repoName,
       repo,
-      branch: parsed.branch || DEFAULT_GITHUB_CONFIG.branch,
-      filePath: parsed.filePath || DEFAULT_GITHUB_CONFIG.filePath,
+      branch: (parsed.branch || DEFAULT_GITHUB_CONFIG.branch).trim(),
+      filePath: (parsed.filePath || DEFAULT_GITHUB_CONFIG.filePath).trim(),
       autoPush: Boolean(parsed.autoPush),
       lastSyncedAt: parsed.lastSyncedAt,
       lastSyncType: parsed.lastSyncType,
@@ -53,12 +53,15 @@ export function saveStoredGitHubConfig(config: GitHubSyncConfig): void {
   try {
     const username = (config.username || '').trim();
     const repoName = (config.repoName || '').trim();
-    const repo = username && repoName ? `${username}/${repoName}` : config.repo || '';
+    const repo = username && repoName ? `${username}/${repoName}` : (config.repo || '').trim();
     const normalized: GitHubSyncConfig = {
       ...config,
+      token: (config.token || '').trim(),
       username,
       repoName,
       repo,
+      branch: (config.branch || 'main').trim(),
+      filePath: (config.filePath || DEFAULT_GITHUB_CONFIG.filePath).trim(),
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
   } catch (err) {
@@ -73,13 +76,15 @@ export function isGitHubSyncConfigured(config: GitHubSyncConfig = getStoredGitHu
 }
 
 /**
- * Codificação compatível com caracteres UTF-8 (acentos, cedilha, emojis)
+ * Codificação compatível com caracteres UTF-8 e grandes volumes de dados sem estouro de pilha
  */
 export function utf8ToBase64(str: string): string {
   const bytes = new TextEncoder().encode(str);
+  const CHUNK_SIZE = 0x8000; // 32KB chunks
   let binary = '';
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
+  for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
+    const chunk = bytes.subarray(i, Math.min(i + CHUNK_SIZE, bytes.length));
+    binary += String.fromCharCode.apply(null, Array.from(chunk));
   }
   return btoa(binary);
 }
@@ -97,17 +102,33 @@ export function base64ToUtf8(b64: string): string {
   return new TextDecoder().decode(bytes);
 }
 
-function parseRepo(config: GitHubSyncConfig | string): { owner: string; repoName: string } {
+export function parseRepo(config: GitHubSyncConfig | string): { owner: string; repoName: string } {
   if (typeof config === 'object') {
-    if (config.username?.trim() && config.repoName?.trim()) {
-      const owner = config.username.trim().replace(/^@/, '');
-      const rawRepo = config.repoName.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '');
-      if (rawRepo.includes('/')) {
-        const parts = rawRepo.split('/').filter(Boolean);
-        return { owner: parts[0], repoName: parts[1] };
+    let owner = (config.username || '').trim().replace(/^@/, '');
+    let repoName = (config.repoName || '').trim();
+
+    // Se usuário colou a URL completa ou formato user/repo no repoName
+    if (repoName.includes('github.com')) {
+      const match = repoName.match(/github\.com\/([^/]+)\/([^/.]+)/);
+      if (match) {
+        owner = match[1];
+        repoName = match[2];
       }
-      return { owner, repoName: rawRepo };
+    } else if (repoName.includes('/')) {
+      const parts = repoName.split('/').filter(Boolean);
+      if (parts.length >= 2) {
+        owner = parts[0];
+        repoName = parts[1];
+      }
     }
+
+    if (owner && repoName) {
+      return {
+        owner: owner.replace(/^@/, '').replace(/\.git$/, '').trim(),
+        repoName: repoName.replace(/\.git$/, '').trim(),
+      };
+    }
+
     if (config.repo?.trim()) {
       const clean = config.repo.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '');
       const parts = clean.split('/').filter(Boolean);
@@ -115,7 +136,7 @@ function parseRepo(config: GitHubSyncConfig | string): { owner: string; repoName
         return { owner: parts[0], repoName: parts[1] };
       }
     }
-    throw new Error('Informe o Nome do Usuário e o Nome do Repositório do GitHub.');
+    throw new Error('Informe o Nome do Usuário (ex: contalayka) e o Nome do Repositório (ex: pesquisaproduto).');
   }
 
   const clean = config.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '');
@@ -128,11 +149,13 @@ function parseRepo(config: GitHubSyncConfig | string): { owner: string; repoName
 
 function getHeaders(token: string) {
   const cleanToken = token.trim();
+  // Classic tokens e Fine-Grained tokens do GitHub aceitam Bearer ou token
+  const authHeader = cleanToken.startsWith('Bearer ') || cleanToken.startsWith('token ')
+    ? cleanToken
+    : `Bearer ${cleanToken}`;
   return {
     Accept: 'application/vnd.github+json',
-    Authorization: cleanToken.startsWith('Bearer ') || cleanToken.startsWith('token ')
-      ? cleanToken
-      : `Bearer ${cleanToken}`,
+    Authorization: authHeader,
     'X-GitHub-Api-Version': '2022-11-28',
   };
 }
@@ -168,14 +191,14 @@ export async function testGitHubConnection(config: GitHubSyncConfig): Promise<{
     if (repoRes.status === 401) {
       return {
         success: false,
-        message: 'Token de Acesso inválido ou expirado. Verifique as credenciais no GitHub.',
+        message: 'Token de Acesso inválido ou expirado (401). Gere um novo token no GitHub com escopo "repo".',
       };
     }
 
     if (repoRes.status === 404) {
       return {
         success: false,
-        message: `Repositório "${owner}/${repoName}" não encontrado ou token sem permissão de acesso.`,
+        message: `Repositório "${owner}/${repoName}" não encontrado ou token sem acesso (404). Verifique o nome do usuário e do repositório.`,
       };
     }
 
@@ -199,13 +222,13 @@ export async function testGitHubConnection(config: GitHubSyncConfig): Promise<{
 
     let branchMsg = `Branch "${targetBranch}" validada.`;
     if (!branchRes.ok && branchRes.status === 404) {
-      branchMsg = `Aviso: A branch "${targetBranch}" ainda não foi encontrada no repositório.`;
+      branchMsg = `Aviso: A branch "${targetBranch}" será criada automaticamente no primeiro Push.`;
     }
 
     if (!canPush) {
       return {
         success: false,
-        message: `Conectado ao repositório ${repoData.full_name}, mas o token NÃO tem permissão de escrita (push). Conceda permissão de Contents: Read & Write ou repo.`,
+        message: `Conectado a ${repoData.full_name}, mas o token NÃO possui permissão de gravação (push). Habilite o escopo "repo" ou "Contents: Read & write" no token.`,
         repoInfo: {
           fullName: repoData.full_name,
           defaultBranch: repoData.default_branch,
@@ -228,13 +251,14 @@ export async function testGitHubConnection(config: GitHubSyncConfig): Promise<{
   } catch (err: any) {
     return {
       success: false,
-      message: err.message || 'Falha de rede ao contatar a API do GitHub.',
+      message: err.message || 'Falha de rede ao contatar a API do GitHub. Verifique a conexão com a internet.',
     };
   }
 }
 
 /**
  * Obtém o SHA atual do arquivo no repositório remoto (se existir)
+ * Suporta arquivos grandes via download_url ou blobs
  */
 async function getRemoteFileSha(
   owner: string,
@@ -310,7 +334,7 @@ export async function pushDataToGitHub(
       body: JSON.stringify(body),
     });
 
-    // Se der conflito 409 (SHA concorrente), tenta recuperar o SHA novo e reexecutar
+    // Se der conflito 409 (SHA concorrente ou desatualizado), tenta recuperar o SHA novo e reexecutar
     if (putRes.status === 409) {
       const refreshed = await getRemoteFileSha(owner, repoName, cleanPath, branch, headers);
       if (refreshed.sha) {
@@ -328,9 +352,19 @@ export async function pushDataToGitHub(
 
     if (!putRes.ok) {
       const err = await putRes.json().catch(() => ({}));
+      let msg = err.message || `Erro ao salvar arquivo no GitHub (HTTP ${putRes.status}).`;
+      if (putRes.status === 401) {
+        msg = 'Token de acesso inválido ou expirado (401). Gere um novo token no GitHub com permissão "repo".';
+      } else if (putRes.status === 404) {
+        msg = `Repositório "${owner}/${repoName}" ou branch "${branch}" não encontrado. Verifique se o nome do repositório está correto.`;
+      } else if (putRes.status === 403) {
+        msg = `Sem permissão de gravação no repositório "${owner}/${repoName}". Certifique-se de que o token possui permissão "repo" ou "Contents: Read & write".`;
+      } else if (putRes.status === 422) {
+        msg = `Erro de validação no GitHub (422): ${err.message || 'Verifique se a branch especificada existe'}.`;
+      }
       return {
         success: false,
-        message: err.message || `Erro ao salvar arquivo no GitHub (HTTP ${putRes.status}).`,
+        message: msg,
       };
     }
 
@@ -361,6 +395,7 @@ export async function pushDataToGitHub(
 
 /**
  * Faz Pull (download) dos dados armazenados no repositório remoto para carregar na máquina atual
+ * Suporta arquivos grandes via API de contents ou download_url
  */
 export async function pullDataFromGitHub(config: GitHubSyncConfig): Promise<{
   success: boolean;
@@ -385,15 +420,45 @@ export async function pullDataFromGitHub(config: GitHubSyncConfig): Promise<{
       };
     }
 
+    let decodedJson = '';
     const rawContent = fileInfo.rawData.content;
-    if (!rawContent) {
+
+    if (rawContent) {
+      decodedJson = base64ToUtf8(rawContent);
+    } else if (fileInfo.rawData.download_url) {
+      // Arquivo > 1MB: GitHub Contents API não inclui content base64, usa download_url
+      const dlRes = await fetch(fileInfo.rawData.download_url, {
+        method: 'GET',
+        headers: {
+          Authorization: headers.Authorization,
+          Accept: 'application/json',
+        },
+      });
+      if (!dlRes.ok) {
+        throw new Error(`Falha ao baixar arquivo grande do GitHub (${dlRes.status})`);
+      }
+      decodedJson = await dlRes.text();
+    } else if (fileInfo.sha) {
+      // Fallback via Blob API
+      const blobRes = await fetch(`https://api.github.com/repos/${owner}/${repoName}/git/blobs/${fileInfo.sha}`, {
+        method: 'GET',
+        headers,
+      });
+      if (blobRes.ok) {
+        const blobData = await blobRes.json();
+        if (blobData.content) {
+          decodedJson = base64ToUtf8(blobData.content);
+        }
+      }
+    }
+
+    if (!decodedJson || !decodedJson.trim()) {
       return {
         success: false,
-        message: 'O arquivo remoto está vazio ou em formato não suportado.',
+        message: 'O arquivo remoto no GitHub está vazio.',
       };
     }
 
-    const decodedJson = base64ToUtf8(rawContent);
     const parsed = JSON.parse(decodedJson);
 
     // Valida payload
@@ -465,7 +530,7 @@ export function getGitHubSyncStatusInfo(config: GitHubSyncConfig): GitHubSyncSta
     return {
       status: 'yellow',
       label: 'Pendente',
-      relativeTime: 'Nunca',
+      relativeTime: 'Pendente',
       tooltip: `Conectado a ${config.username || 'user'}/${config.repoName || 'repo'} (${config.branch || 'main'}), mas nenhum push/pull foi realizado ainda.`,
       formattedDate: '',
     };
@@ -494,7 +559,7 @@ export function getGitHubSyncStatusInfo(config: GitHubSyncConfig): GitHubSyncSta
       status = 'green';
     } else if (diffMin < 60) {
       relativeTime = `há ${diffMin} min`;
-      status = diffMin <= 30 ? 'green' : 'green';
+      status = 'green';
     } else if (diffHours < 24) {
       relativeTime = `há ${diffHours}h`;
       status = diffHours <= 4 ? 'green' : 'yellow';
@@ -503,7 +568,7 @@ export function getGitHubSyncStatusInfo(config: GitHubSyncConfig): GitHubSyncSta
       status = 'yellow';
     }
 
-    const typeDesc = config.lastSyncType === 'pull' ? 'Pull' : 'Push';
+    const typeDesc = config.lastSyncType === 'pull' ? 'Pull (Download)' : 'Push (Envio)';
     const tooltip = `Último ${typeDesc}: ${syncDate.toLocaleString('pt-BR')} (${config.username}/${config.repoName} @ ${config.branch})`;
 
     return {

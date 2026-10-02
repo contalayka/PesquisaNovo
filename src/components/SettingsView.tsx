@@ -57,6 +57,7 @@ interface SettingsViewProps {
     importedProducts: Product[],
     pricing?: { markup: string; tax: string; packaging: string }
   ) => void;
+  onUpdateGitHubConfig?: (config: GitHubSyncConfig) => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -69,6 +70,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onForceFullSync,
   isSyncingSupabase = false,
   onGitHubPullSuccess,
+  onUpdateGitHubConfig,
 }) => {
   const [config, setConfig] = useState<SupabaseConfig>(getStoredSupabaseConfig());
   const [showKey, setShowKey] = useState(false);
@@ -154,6 +156,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const handleSaveGitHubConfig = () => {
     saveStoredGitHubConfig(ghConfig);
+    onUpdateGitHubConfig?.(ghConfig);
     setGhSavedSuccess(true);
     setTimeout(() => setGhSavedSuccess(false), 2500);
   };
@@ -163,10 +166,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setGhTestResult(null);
     setGhActionFeedback(null);
     try {
+      saveStoredGitHubConfig(ghConfig);
+      onUpdateGitHubConfig?.(ghConfig);
       const res = await testGitHubConnection(ghConfig);
       setGhTestResult(res);
       if (res.success) {
         saveStoredGitHubConfig(ghConfig);
+        onUpdateGitHubConfig?.(ghConfig);
       }
     } catch (err: any) {
       setGhTestResult({ success: false, message: err?.message || 'Falha ao testar conexão com GitHub.' });
@@ -179,6 +185,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setIsPushingGh(true);
     setGhActionFeedback(null);
     try {
+      saveStoredGitHubConfig(ghConfig);
+      onUpdateGitHubConfig?.(ghConfig);
       const payload: GitHubSyncPayload = {
         version: '2.0',
         updatedAt: new Date().toISOString(),
@@ -194,7 +202,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       const res = await pushDataToGitHub(ghConfig, payload);
       if (res.success) {
         setGhActionFeedback({ type: 'success', message: res.message });
-        setGhConfig(getStoredGitHubConfig());
+        const updated = getStoredGitHubConfig();
+        setGhConfig(updated);
+        onUpdateGitHubConfig?.(updated);
       } else {
         setGhActionFeedback({ type: 'error', message: res.message });
       }
@@ -209,6 +219,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setIsPullingGh(true);
     setGhActionFeedback(null);
     try {
+      saveStoredGitHubConfig(ghConfig);
+      onUpdateGitHubConfig?.(ghConfig);
       const res = await pullDataFromGitHub(ghConfig);
       if (res.success && res.data) {
         if (onGitHubPullSuccess) {
@@ -225,7 +237,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           type: 'success',
           message: `${res.data.totalProducts} produtos importados do GitHub com sucesso! Dados sincronizados.`,
         });
-        setGhConfig(getStoredGitHubConfig());
+        const updated = getStoredGitHubConfig();
+        setGhConfig(updated);
+        onUpdateGitHubConfig?.(updated);
       } else {
         setGhActionFeedback({ type: 'error', message: res.message });
       }

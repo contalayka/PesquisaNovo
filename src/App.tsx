@@ -417,30 +417,56 @@ export default function App() {
 
     let ghSuccess = false;
     let ghMessage = '';
+    let ghActionType: 'push' | 'pull' = 'push';
 
     if (isGhReady) {
       try {
-        const payload: GitHubSyncPayload = {
-          version: '2.0',
-          updatedAt: new Date().toISOString(),
-          source: 'manual-header-button',
-          totalProducts: products.length,
-          products,
-          pricingSettings: {
-            markup: localStorage.getItem('saas_settings_markup') || '100',
-            tax: localStorage.getItem('saas_settings_tax') || '6',
-            packaging: localStorage.getItem('saas_settings_packaging') || '3.50',
-          },
-        };
-        const res = await pushDataToGitHub(
-          ghConfig,
-          payload,
-          `Sincronização manual antes de fechar o navegador: ${products.length} produtos [${new Date().toLocaleString('pt-BR')}]`
-        );
-        ghSuccess = res.success;
-        ghMessage = res.message;
-        if (res.success) {
-          setGithubConfig(getStoredGitHubConfig());
+        // Se a máquina local não tiver produtos cadastrados, tenta fazer pull para carregar a base
+        if (products.length === 0) {
+          ghActionType = 'pull';
+          const pullRes = await pullDataFromGitHub(ghConfig);
+          if (pullRes.success && pullRes.data && pullRes.data.products.length > 0) {
+            ghSuccess = true;
+            ghMessage = pullRes.message;
+            setProducts(pullRes.data.products);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(pullRes.data.products));
+            if (pullRes.data.pricingSettings) {
+              if (pullRes.data.pricingSettings.markup)
+                localStorage.setItem('saas_settings_markup', pullRes.data.pricingSettings.markup);
+              if (pullRes.data.pricingSettings.tax)
+                localStorage.setItem('saas_settings_tax', pullRes.data.pricingSettings.tax);
+              if (pullRes.data.pricingSettings.packaging)
+                localStorage.setItem('saas_settings_packaging', pullRes.data.pricingSettings.packaging);
+            }
+            setGithubConfig(getStoredGitHubConfig());
+          } else {
+            ghSuccess = pullRes.success;
+            ghMessage = pullRes.message;
+          }
+        } else {
+          ghActionType = 'push';
+          const payload: GitHubSyncPayload = {
+            version: '2.0',
+            updatedAt: new Date().toISOString(),
+            source: 'manual-header-button',
+            totalProducts: products.length,
+            products,
+            pricingSettings: {
+              markup: localStorage.getItem('saas_settings_markup') || '100',
+              tax: localStorage.getItem('saas_settings_tax') || '6',
+              packaging: localStorage.getItem('saas_settings_packaging') || '3.50',
+            },
+          };
+          const res = await pushDataToGitHub(
+            ghConfig,
+            payload,
+            `Sincronização manual: ${products.length} produtos [${new Date().toLocaleString('pt-BR')}]`
+          );
+          ghSuccess = res.success;
+          ghMessage = res.message;
+          if (res.success) {
+            setGithubConfig(getStoredGitHubConfig());
+          }
         }
       } catch (err: any) {
         ghMessage = err?.message || 'Erro ao sincronizar com GitHub';
@@ -460,12 +486,14 @@ export default function App() {
     if (isGhReady) {
       if (ghSuccess) {
         addToast(
-          'Sincronização Concluída',
-          `Push realizado no GitHub com sucesso! As alterações estão seguras para fechar o navegador.`,
+          ghActionType === 'pull' ? 'GitHub: Dados Importados' : 'Sincronização Concluída',
+          ghActionType === 'pull'
+            ? ghMessage
+            : `Push realizado no GitHub com sucesso! As alterações estão seguras para fechar o navegador.`,
           'success'
         );
       } else {
-        addToast('Falha na Sincronização GitHub', ghMessage, 'error');
+        addToast('Falha na Sincronização GitHub', ghMessage || 'Verifique as credenciais e o repositório nas Configurações.', 'error');
       }
     } else if (isSupaReady) {
       addToast(
@@ -2070,6 +2098,7 @@ export default function App() {
               onSyncNow={() => loadFromSupabase(false)}
               onForceFullSync={handleForceFullCloudSync}
               isSyncingSupabase={isSyncingSupabase}
+              onUpdateGitHubConfig={(cfg) => setGithubConfig(cfg)}
             />
           )}
 
