@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
-import { Database, FileSpreadsheet, Image as ImageIcon, Search, Upload, X, RefreshCw } from 'lucide-react';
+import { Database, FileSpreadsheet, Image as ImageIcon, Search, Upload, X, RefreshCw, ExternalLink } from 'lucide-react';
 import { getSupabaseClient } from '../utils/supabase';
 
 type InternalItem = {
@@ -331,6 +331,7 @@ export const InternalInventoryView: React.FC = () => {
                 <tr>
                   <th className="p-3 w-24 text-center">Foto</th>
                   <th className="p-3">Produto</th>
+                  <th className="p-3 text-center whitespace-nowrap">Pesquisa por Imagem</th>
                   <th className="p-3 font-mono">Estoque</th>
                   <th className="p-3 font-mono">Custo Unitário</th>
                   <th className="p-3 font-mono">Valor Total</th>
@@ -384,6 +385,27 @@ export const InternalInventoryView: React.FC = () => {
                       </div>
                     </td>
                     <td className="p-3 font-medium text-slate-200">{i.product_name}</td>
+                    <td className="p-3 text-center align-middle whitespace-nowrap">
+                      <a
+                        href={
+                          i.image_url
+                            ? `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(i.image_url)}`
+                            : `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(i.product_name)}`
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs border border-indigo-400/40 shadow-sm transition hover:scale-[1.02] active:scale-[0.98] group/lens"
+                        title={
+                          i.image_url
+                            ? `Pesquisar "${i.product_name}" no Google Lens por Imagem (abre em nova guia)`
+                            : `Buscar "${i.product_name}" no Google Imagens (abre em nova guia)`
+                        }
+                      >
+                        <Search className="w-3.5 h-3.5 text-white group-hover/lens:scale-110 transition-transform" />
+                        <span>Google Lens</span>
+                        <ExternalLink className="w-3 h-3 text-white/80 group-hover/lens:text-white transition-colors" />
+                      </a>
+                    </td>
                     <td className="p-3 text-slate-300 font-mono tabular-nums whitespace-nowrap">
                       {Number(i.stock).toLocaleString('pt-BR')} {i.unit || ''}
                     </td>
@@ -440,6 +462,29 @@ export const InternalInventoryView: React.FC = () => {
                 alt={previewImage.name}
                 className="max-h-[60vh] max-w-full object-contain rounded-lg shadow-lg"
               />
+            </div>
+            <div className="flex items-center justify-between border-t border-slate-800 pt-3">
+              <a
+                href={
+                  previewImage.url
+                    ? `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(previewImage.url)}`
+                    : `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(previewImage.name)}`
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition shadow-md"
+              >
+                <Search className="w-3.5 h-3.5" />
+                <span>Pesquisar no Google Lens</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+              <button
+                type="button"
+                onClick={() => setPreviewImage(null)}
+                className="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition"
+              >
+                Fechar
+              </button>
             </div>
           </div>
         </div>
