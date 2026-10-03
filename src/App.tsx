@@ -54,7 +54,7 @@ import { ConversionView } from './components/ConversionView';
 import { MarketplacesView } from './components/MarketplacesView';
 import { GeneratedFilesView } from './components/GeneratedFilesView';
 import { SettingsView } from './components/SettingsView';
-import { InternalInventoryView } from './components/InternalInventoryView';
+import { InternalInventoryView, InternalItem } from './components/InternalInventoryView';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import { useDevice } from './utils/device';
 import {
@@ -1177,6 +1177,94 @@ export default function App() {
     addToast('Produto Adicionado!', `"${newProduct.name}" foi salvo com sucesso no catálogo.`, 'success');
   };
 
+  // Add single product directly from Internal Inventory into Products catalog as new item
+  const handleAddProductFromInternal = async (item: InternalItem) => {
+    const prodId = `prod_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const newProduct: Product = {
+      id: prodId,
+      name: item.product_name.trim(),
+      cost: item.cost !== null && item.cost !== undefined ? Number(item.cost) : 0,
+      available: item.status ? item.status.toLowerCase().trim() === 'ativo' : true,
+      image: item.image_url ? item.image_url.trim() : '',
+      status: 'Pendente',
+      is_new: true,
+      research_records: [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    let nextList: Product[] = [];
+    setProducts((prev) => {
+      nextList = [newProduct, ...prev];
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(nextList));
+      } catch (e) {
+        console.error('Falha ao salvar no localStorage', e);
+      }
+      return nextList;
+    });
+
+    if (isSupabaseConfigured()) {
+      try {
+        await upsertProductsToSupabase([newProduct]);
+      } catch (e) {
+        console.warn('Erro ao sincronizar produto com Supabase:', e);
+      }
+    }
+
+    addToast(
+      'Produto Adicionado!',
+      `"${newProduct.name}" foi inserido com sucesso em "PRODUTOS" como NOVO item!`,
+      'success'
+    );
+  };
+
+  // Add multiple products directly from Internal Inventory into Products catalog as new items
+  const handleAddMultipleProductsFromInternal = async (items: InternalItem[]) => {
+    if (!items || items.length === 0) return;
+
+    const newProducts: Product[] = items.map((item, idx) => {
+      const prodId = `prod_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 6)}`;
+      return {
+        id: prodId,
+        name: item.product_name.trim(),
+        cost: item.cost !== null && item.cost !== undefined ? Number(item.cost) : 0,
+        available: item.status ? item.status.toLowerCase().trim() === 'ativo' : true,
+        image: item.image_url ? item.image_url.trim() : '',
+        status: 'Pendente',
+        is_new: true,
+        research_records: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+    });
+
+    let nextList: Product[] = [];
+    setProducts((prev) => {
+      nextList = [...newProducts, ...prev];
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(nextList));
+      } catch (e) {
+        console.error('Falha ao salvar no localStorage', e);
+      }
+      return nextList;
+    });
+
+    if (isSupabaseConfigured()) {
+      try {
+        await upsertProductsToSupabase(newProducts);
+      } catch (e) {
+        console.warn('Erro ao sincronizar produtos com Supabase:', e);
+      }
+    }
+
+    addToast(
+      'Lote Adicionado!',
+      `${newProducts.length} produtos do Estoque Interno foram inseridos em "PRODUTOS" como NOVOS!`,
+      'success'
+    );
+  };
+
   // Save research record
   const handleSaveRecord = async (productId: string, record: ResearchRecord) => {
     let updatedProductToSync: Product | null = null;
@@ -2059,7 +2147,17 @@ export default function App() {
           )}
 
           {/* VIEW: ESTOQUE / CUSTO INTERNO — base totalmente separada do catálogo principal */}
-          {currentSidebarSection === 'estoque_interno' && <InternalInventoryView />}
+          {currentSidebarSection === 'estoque_interno' && (
+            <InternalInventoryView
+              catalogProducts={products}
+              onAddProductToCatalog={handleAddProductFromInternal}
+              onAddMultipleProductsToCatalog={handleAddMultipleProductsFromInternal}
+              onNavigateToProducts={(query) => {
+                if (query) setSearchQuery(query);
+                setCurrentSidebarSection('produtos');
+              }}
+            />
+          )}
 
           {/* VIEW: CONFIGURAÇÕES */}
           {currentSidebarSection === 'configuracoes' && (
