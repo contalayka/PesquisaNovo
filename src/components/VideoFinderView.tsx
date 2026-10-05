@@ -7,7 +7,7 @@ type SavedVideo = { url: string; videoUrl?: string; platform: string; duration: 
 type SavedMap = Record<string, SavedVideo>;
 const KEY = 'marketpreco_video_finder_v2';
 const DOWNLOADED_KEY = 'marketpreco_video_downloaded_v1';
-const normalizeKeyPart = (value: unknown) => String(value ?? '').trim().toLocaleLowerCase('pt-BR').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').replace(/\\s+/g, ' ');
+const normalizeKeyPart = (value: unknown) => String(value ?? '').trim().toLocaleLowerCase('pt-BR').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
 const productKey = (product: Product) => {
   const sku = normalizeKeyPart(product.sku);
   if (sku) return 'sku:' + sku;
