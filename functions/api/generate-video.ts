@@ -1,5 +1,3 @@
-import { GoogleGenAI } from "@google/genai";
-
 interface Env {
   GEMINI_API_KEY?: string;
 }
@@ -19,10 +17,7 @@ const toBase64 = (bytes: Uint8Array) => {
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (!env.GEMINI_API_KEY) {
     return Response.json(
-      {
-        error:
-          "A geração com Gemini ainda não está configurada. Cadastre GEMINI_API_KEY nas variáveis secretas do Cloudflare Pages.",
-      },
+      { error: "A geração com Gemini não está configurada. Cadastre GEMINI_API_KEY nos Secrets do Cloudflare Pages." },
       { status: 503 }
     );
   }
@@ -49,10 +44,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   }
 
   if (!promptText) {
-    return Response.json(
-      { error: "A descrição do vídeo está vazia." },
-      { status: 400 }
-    );
+    return Response.json({ error: "A descrição do vídeo está vazia." }, { status: 400 });
   }
 
   try {
@@ -63,73 +55,111 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
     if (!imageResponse.ok) {
       return Response.json(
-        { error: "Não foi possível baixar a imagem do produto para enviar ao Gemini." },
+        { error: "Não foi possível baixar a imagem do produto." },
         { status: 400 }
       );
     }
 
-    const mimeType = (
-      imageResponse.headers.get("content-type") || "image/jpeg"
-    )
+    const mimeType = (imageResponse.headers.get("content-type") || "image/jpeg")
       .split(";")[0]
       .trim()
       .toLowerCase();
 
     if (!["image/jpeg", "image/png", "image/webp"].includes(mimeType)) {
       return Response.json(
-        { error: "A imagem do produto precisa estar em JPG, PNG ou WebP." },
+        { error: "A imagem precisa estar em JPG, PNG ou WebP." },
         { status: 400 }
       );
     }
 
     const imageBytes = new Uint8Array(await imageResponse.arrayBuffer());
     if (!imageBytes.length) {
+      return Response.json({ error: "A imagem do produto está vazia." }, { status: 400 });
+    }
+
+    // Gemini Omni Flash: vídeo MP4 vertical de 10 segundos, adequado ao requisito do marketplace.
+    const response = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/interactions?key=" +
+        encodeURIComponent(env.GEMINI_API_KEY),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "gemini-omni-1.1-flash",
+          input: [
+            {
+              type: "image",
+              data: toBase64(imageBytes),
+              mime_type: mimeType,
+            },
+            {
+              type: "text",
+              text:
+                "Create a polished ecommerce product video. " +
+                "Use the supplied product image as the exact product reference. " +
+                "Preserve the product's real shape, colors, labels, logo, packaging and details. " +
+                "Do not invent another product, accessories, text or branding. " +
+                promptText,
+            },
+          ],
+          response_format: {
+            type: "video",
+            delivery: "uri",
+            aspect_ratio: "9:16",
+            resolution: "720p",
+            duration: "10s",
+          },
+          generation_config: {
+            video_config: {
+              task: "image_to_video",
+            },
+          },
+        }),
+      }
+    );
+
+    const data = await response.json() as any;
+
+    if (!response.ok) {
+      console.error("Gemini error:", data);
+      const detail =
+        data?.error?.message ||
+        data?.message ||
+        "O Gemini recusou a solicitação de vídeo.";
+      return Response.json({ error: detail }, { status: 502 });
+    }
+
+    const videoUri = data?.output_video?.uri;
+    const interactionId = data?.id;
+
+    if (!videoUri) {
       return Response.json(
-        { error: "A imagem do produto está vazia." },
-        { status: 400 }
+        { error: "O Gemini não retornou o arquivo do vídeo. Tente novamente." },
+        { status: 502 }
       );
     }
 
-    const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
-    const operation = await ai.models.generateVideos({
-      model: "veo-3.1-fast-generate-preview",
-      prompt: `Product: ${productName}. ${promptText}`,
-      image: {
-        imageBytes: toBase64(imageBytes),
-        mimeType,
-      },
-      config: {
-        aspectRatio: "9:16",
-        durationSeconds: 8,
-        resolution: "720p",
-      },
-    });
+    const fileMatch = String(videoUri).match(/files\/([^/]+)/);
+    const fileId = fileMatch?.[1];
 
-    if (!operation.name) {
+    if (!fileId) {
       return Response.json(
-        { error: "O Gemini não retornou o identificador da geração." },
+        { error: "O Gemini retornou um identificador de vídeo inválido." },
         { status: 502 }
       );
     }
 
     return Response.json({
-      taskId: encodeToken(operation.name),
-      provider: "Gemini Veo 3.1 Fast",
-      duration: "8 segundos",
+      taskId: encodeToken(fileId),
+      interactionId,
+      provider: "Gemini Omni Flash",
+      duration: "10 segundos",
+      format: "MP4",
+      maxSize: "30 MB",
     });
   } catch (error) {
     console.error("Erro ao iniciar vídeo Gemini:", error);
-    const message =
-      error instanceof Error ? error.message : "Erro desconhecido ao chamar o Gemini.";
-
-    return Response.json(
-      {
-        error:
-          message.includes("API key") || message.includes("API_KEY")
-            ? "A chave GEMINI_API_KEY foi recusada pelo Google. Confira a chave do Google AI Studio e o faturamento do projeto."
-            : "O Gemini não conseguiu iniciar a geração do vídeo. " + message,
-      },
-      { status: 502 }
-    );
+    const message = error instanceof Error ? error.message : "Erro desconhecido.";
+    return Response.json({ error: "O Gemini não conseguiu iniciar o vídeo: " + message }, { status: 502 });
   }
 };
