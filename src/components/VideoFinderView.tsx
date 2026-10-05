@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import JSZip from 'jszip';
 import { Video, Search, ExternalLink, Download, CheckCircle2, Circle, ShoppingBag, Clock3 } from 'lucide-react';
 import { Product, ResearchRecord } from '../types';
 
@@ -69,7 +70,47 @@ export const VideoFinderView: React.FC<{products: Product[]}> = ({products}) => 
       alert('O navegador não conseguiu baixar este vídeo diretamente. O servidor pode bloquear o acesso externo (CORS) ou exigir uma sessão da plataforma. Use o link direto do arquivo .mp4, ou baixe pelo anúncio/extensão do marketplace. O sistema não abriu outra aba porque isso não seria um download.');
     }
   };
-  const downloadSelected = () => { const ids = selected.filter(id => !!saved[id]?.videoUrl?.trim()); if (!ids.length) { alert('Nenhum dos produtos selecionados tem um link direto de vídeo salvo.'); return; } ids.forEach((id, index) => window.setTimeout(() => downloadVideo(id), index * 350)); };
+  const downloadSelected = async () => {
+    const ids = selected.filter(id => !!saved[id]?.videoUrl?.trim());
+    if (!ids.length) { alert('Nenhum dos produtos selecionados tem um link direto de vídeo salvo.'); return; }
+    if (ids.length === 1) { await downloadVideo(ids[0]); return; }
+    const zip = new JSZip();
+    const failures: string[] = [];
+    for (const id of ids) {
+      const url = saved[id]?.videoUrl?.trim();
+      const productName = found.find(p => p.id === id)?.name || 'video';
+      const filename = productName.replace(/[^a-z0-9-_ ]/gi,'').trim().replace(/\s+/g,'_') || 'video';
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const blob = await response.blob();
+        if (!blob.size) throw new Error('Arquivo vazio');
+        zip.file(filename + '.mp4', blob);
+      } catch (error) {
+        console.error('Falha ao incluir vídeo no ZIP:', productName, error);
+        failures.push(productName);
+      }
+    }
+    if (!Object.keys(zip.files).length) {
+      alert('Não foi possível baixar nenhum vídeo. Os servidores podem bloquear o acesso externo (CORS). Tente usar os links diretos dos arquivos de vídeo.');
+      return;
+    }
+    try {
+      const blob = await zip.generateAsync({type:'blob'});
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = 'MARKETPRECO_videos_selecionados.zip';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 3000);
+      if (failures.length) alert('O ZIP foi criado, mas ' + failures.length + ' vídeo(s) não puderam ser incluídos por bloqueio do servidor: ' + failures.join(', '));
+    } catch (error) {
+      console.error('Falha ao criar ZIP:', error);
+      alert('Não foi possível montar o ZIP. Tente baixar menos vídeos por vez.');
+    }
+  };
   const selectAllVisible = () => setSelected(rows.map(p=>p.id));
   const exportCsv = () => {
     const data = [['Produto','SKU','Status','Marketplace','Duração aproximada','Link do anúncio com vídeo','Observações'], ...found.map(p => [p.name,p.sku || '',saved[p.id]?.url ? 'Revisado' : 'Pendente',saved[p.id]?.platform || '',saved[p.id]?.duration || '',saved[p.id]?.url || '',saved[p.id]?.notes || ''])];
