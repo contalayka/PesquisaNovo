@@ -428,9 +428,10 @@ export const ResearchModal: React.FC<ResearchModalProps> = ({
           <div>
             <div className="flex items-center gap-2 mb-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
               <Search className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-              <span>Pesquisar em Marketplaces (abre em nova guia):</span>
+              <span>Busca prioritária por imagem (abre em nova guia):</span>
             </div>
 
+            <p className="mb-3 text-xs leading-relaxed text-slate-500 dark:text-slate-400">Use a foto do catálogo como referência principal. O Google Lens procura imagens visualmente semelhantes mesmo quando o anúncio usa outro título. Confira formato, cor, modelo e acessórios antes de salvar como encontrado.</p>
             <div className="flex flex-wrap items-center gap-2.5">
               {/* Google Lens Imagem - Visual vibrante e alto contraste */}
               <a
@@ -439,7 +440,7 @@ export const ResearchModal: React.FC<ResearchModalProps> = ({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-3 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 hover:from-blue-500 hover:via-indigo-500 hover:to-indigo-600 text-white font-bold text-xs shadow-md shadow-indigo-950/40 border border-blue-400/40 hover:scale-[1.02] active:scale-[0.98] transition-all group"
-                title="Pesquisar este produto por imagem no Google Lens (abre em nova guia)"
+                title="Usar a foto do catálogo para encontrar produtos visualmente semelhantes no Google Lens"
               >
                 <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center shrink-0 border border-white/30 group-hover:bg-white/30 transition">
                   <Search className="w-3.5 h-3.5 text-white" />
