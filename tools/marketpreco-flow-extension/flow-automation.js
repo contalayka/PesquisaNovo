@@ -1,134 +1,250 @@
 (() => {
-  const sleep = ms => new Promise(r => setTimeout(r, ms));
-  const all = (s, r = document) => Array.from(r.querySelectorAll(s));
-  const visible = e => {
-    if (!e) return false;
-    const st = getComputedStyle(e), r = e.getBoundingClientRect();
-    return st.display !== 'none' && st.visibility !== 'hidden' && r.width > 0 && r.height > 0;
+  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+  function roots(root = document, out = []) {
+    out.push(root);
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+    let node;
+    while ((node = walker.nextNode())) {
+      if (node.shadowRoot) roots(node.shadowRoot, out);
+    }
+    return out;
+  }
+
+  const each = (selector) => {
+    const found = [];
+    for (const root of roots()) {
+      try { found.push(...root.querySelectorAll(selector)); } catch {}
+    }
+    return [...new Set(found)];
   };
-  const textOf = e => String(e?.innerText || e?.textContent || e?.getAttribute?.('aria-label') || e?.getAttribute?.('title') || e?.getAttribute?.('placeholder') || '').replace(/\s+/g,' ').trim();
 
-  async function waitFor(fn, timeout=90000, interval=250, label='elemento') {
-    const start = Date.now();
-    while (Date.now()-start < timeout) {
-      try { const v=fn(); if(v) return v; } catch {}
-      await sleep(interval);
+  const visible = el => {
+    if (!el) return false;
+    const r = el.getBoundingClientRect?.();
+    if (!r || r.width <= 0 || r.height <= 0) return false;
+    const s = getComputedStyle(el);
+    return s.display !== 'none' && s.visibility !== 'hidden' && s.opacity !== '0';
+  };
+
+  const label = el => String(
+    el?.innerText ||
+    el?.textContent ||
+    el?.getAttribute?.('aria-label') ||
+    el?.getAttribute?.('data-tooltip') ||
+    el?.getAttribute?.('title') ||
+    el?.getAttribute?.('placeholder') ||
+    ''
+  ).replace(/\s+/g, ' ').trim();
+
+  const click = el => {
+    if (!el) return false;
+    el.scrollIntoView?.({block:'center', inline:'center'});
+    el.click();
+    return true;
+  };
+
+  async function waitFor(fn, timeout, name) {
+    const end = Date.now() + timeout;
+    while (Date.now() < end) {
+      try {
+        const value = fn();
+        if (value) return value;
+      } catch {}
+      await sleep(300);
     }
-    throw new Error('Tempo esgotado aguardando '+label+'. A interface atual do Google Flow não expôs o elemento esperado.');
+    throw new Error('Tempo esgotado aguardando ' + name + '. O Google Flow mudou a interface.');
   }
 
-  function findEditor() {
-    const selectors = [
-      'flow-rich-text-editor.prompt-input div.ProseMirror',
-      'flow-rich-text-editor [contenteditable="true"]',
-      'flow-prompt-box [contenteditable="true"]',
-      '[contenteditable="true"][role="textbox"]',
-      '[contenteditable="true"]',
-      'textarea',
-      'input[type="text"]'
-    ];
-    for (const s of selectors) {
-      const e=all(s).find(visible);
-      if(e) return e;
-    }
-    return all('[role="textbox"],[aria-label],[placeholder]').filter(visible)
-      .find(e=>/prompt|comando|command|describe|descreva|scene|cena/i.test(textOf(e))) || null;
+  function findPrompt() {
+    const candidates = [
+      ...each('[contenteditable="true"]'),
+      ...each('textarea'),
+      ...each('input[type="text"]')
+    ].filter(visible);
+
+    const preferred = candidates.find(el => {
+      const t = label(el);
+      return /prompt|command|comando|describe|descreva|scene|cena/i.test(t) ||
+             el.matches?.('.ProseMirror');
+    });
+    return preferred || candidates[0] || null;
   }
 
-  function setPrompt(e,value) {
-    e.focus();
-    if(e instanceof HTMLTextAreaElement || e instanceof HTMLInputElement) {
-      const proto=Object.getPrototypeOf(e);
-      const setter=Object.getOwnPropertyDescriptor(proto,'value')?.set;
-      if(setter) setter.call(e,value); else e.value=value;
-      e.dispatchEvent(new Event('input',{bubbles:true}));
-      e.dispatchEvent(new Event('change',{bubbles:true}));
+  function setText(el, value) {
+    el.focus();
+    if (el.matches?.('textarea,input')) {
+      const proto = Object.getPrototypeOf(el);
+      const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+      setter ? setter.call(el, value) : (el.value = value);
+      el.dispatchEvent(new InputEvent('input', {bubbles:true, inputType:'insertText', data:value}));
+      el.dispatchEvent(new Event('change', {bubbles:true}));
       return;
     }
     try {
-      document.execCommand('selectAll',false,null);
-      document.execCommand('insertText',false,value);
-    } catch {}
-    e.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:value}));
-  }
-
-  async function attachImage(editor,bytes,mime,name) {
-    const buffer=bytes instanceof ArrayBuffer ? bytes : new Uint8Array(bytes).buffer;
-    const file=new File([buffer],name||'produto.jpg',{type:mime||'image/jpeg'});
-    const dt=new DataTransfer();
-    dt.items.add(file);
-    editor.focus();
-    editor.dispatchEvent(new ClipboardEvent('paste',{clipboardData:dt,bubbles:true,cancelable:true}));
-    await sleep(1500);
-    await waitFor(()=>all('img,video,[role="img"],[class*="ingredient" i],[data-testid*="ingredient" i]')
-      .filter(visible).some(e=>e!==editor),30000,300,'imagem de referência');
-  }
-
-  const buttons=()=>all('button,[role="button"]').filter(visible);
-  const findButton=re=>buttons().find(b=>re.test(textOf(b)))||null;
-  async function clickIfFound(re) {
-    const b=findButton(re);
-    if(b){b.click();await sleep(500);return true;}
-    return false;
-  }
-
-  async function configure() {
-    await clickIfFound(/^vídeo$|^video$/i);
-    const model=findButton(/Nano Banana Pro|Nano Banana|Omni Flash|Gemini Omni|Veo/i);
-    if(model){
-      model.click(); await sleep(500);
-      const omni=findButton(/Omni Flash|Gemini Omni/i);
-      if(omni){omni.click();await sleep(500);}
+      document.execCommand('selectAll', false);
+      document.execCommand('insertText', false, value);
+    } catch {
+      el.textContent = value;
     }
-    await clickIfFound(/9\s*:\s*16|vertical/i);
-    await clickIfFound(/10\s*(s|sec|seg|segundos)\b/i);
-    await clickIfFound(/^1\s*(resultado|result|results?)$/i);
-    document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+    el.dispatchEvent(new InputEvent('input', {bubbles:true, inputType:'insertText', data:value}));
   }
 
-  function completedTiles(){
-    return all('flow-video-tile,[data-testid*="video" i],video').filter(visible)
-      .filter(t=>!t.querySelector('[role="progressbar"],progress,.progress-bar,.error'));
+  async function uploadImage(bytes, mime, name) {
+    const buffer = bytes instanceof ArrayBuffer ? bytes : new Uint8Array(bytes).buffer;
+    const file = new File([buffer], name || 'produto.jpg', {type: mime || 'image/jpeg'});
+    const inputs = each('input[type="file"]').filter(visible);
+
+    if (inputs.length) {
+      const input = inputs[0];
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      Object.defineProperty(input, 'files', {value: dt.files, configurable: true});
+      input.dispatchEvent(new Event('input', {bubbles:true}));
+      input.dispatchEvent(new Event('change', {bubbles:true}));
+    } else {
+      const editor = findPrompt();
+      if (!editor) throw new Error('Caixa de comando do Google Flow não encontrada.');
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      editor.focus();
+      editor.dispatchEvent(new ClipboardEvent('paste', {
+        clipboardData: dt, bubbles:true, cancelable:true
+      }));
+    }
+
+    await waitFor(() => {
+      const media = each('img,video,[role="img"],[data-testid*="ingredient" i],[class*="ingredient" i]')
+        .filter(visible);
+      return media.length > 0;
+    }, 30000, 'a imagem do produto');
   }
 
-  async function waitVideo(base){
-    return waitFor(()=>{
-      const tiles=completedTiles();
-      return tiles.length>base ? tiles[tiles.length-1] : null;
-    },9*60*1000,1500,'vídeo concluído');
+  function findButton(regex) {
+    return each('button,[role="button"]').filter(visible).find(b => regex.test(label(b)));
   }
 
-  async function download(tile){
-    let d=all('button,[role="button"]',tile||document).find(x=>visible(x)&&/download|baixar/i.test(textOf(x)));
-    if(!d) d=buttons().find(x=>/download|baixar/i.test(textOf(x)));
-    if(d){d.click();await sleep(1800);return;}
-    const more=buttons().find(x=>/more options|mais opções|more_vert|menu/i.test(textOf(x)));
-    if(more){more.click();await sleep(500);}
-    d=await waitFor(()=>all('button,[role="menuitem"]').find(x=>visible(x)&&/download|baixar/i.test(textOf(x))),12000,250,'opção de download');
-    d.click(); await sleep(1000);
-    const quality=all('button,[role="menuitem"]').find(x=>visible(x)&&/720p/i.test(textOf(x)));
-    if(quality){quality.click();await sleep(1800);}
+  function clickButton(regex) {
+    const b = findButton(regex);
+    return b ? click(b) : false;
   }
 
-  async function generate(p){
-    const editor=await waitFor(()=>findEditor(),90000,300,'caixa de comando do Google Flow');
-    const base=completedTiles().length;
-    await attachImage(editor,p.imageBytes,p.mimeType,p.imageName);
-    await configure();
-    setPrompt(editor,p.prompt);
-    const g=await waitFor(()=>findButton(/^gerar(?:\s+(?:imagem|vídeo))?$|^generate(?:\s+(?:image|video))?$|gerar vídeo|generate video|generate image|gerar image/i),30000,250,'botão Gerar');
-    g.click();
-    const tile=await waitVideo(base);
-    await download(tile);
+  async function configureVideo() {
+    // Flow's current desktop flow: model selector -> Video -> preferences.
+    clickButton(/^video$|^vídeo$/i);
+    await sleep(700);
+
+    const model = findButton(/Nano Banana Pro|Nano Banana|Omni Flash|Gemini Omni|Veo/i);
+    if (model) {
+      click(model);
+      await sleep(500);
+      const omni = findButton(/Omni Flash|Gemini Omni/i);
+      if (omni) {
+        click(omni);
+        await sleep(500);
+      }
+    }
+
+    clickButton(/9\s*[:x]\s*16|vertical/i);
+    clickButton(/10\s*(s|sec|seg|segundos)\b/i);
+    clickButton(/^1\s*(output|outputs|result|results|resultado|resultados)$/i);
+
+    document.dispatchEvent(new KeyboardEvent('keydown', {key:'Escape', bubbles:true}));
   }
 
-  chrome.runtime.onMessage.addListener((m,s,sendResponse)=>{
-    if(m?.type==='FLOW_PING'){sendResponse({ready:true,url:location.href});return;}
-    if(m?.source!=='marketpreco-flow-extension'||m.type!=='FLOW_GENERATE_PRODUCT')return;
-    generate(m.product).then(()=>sendResponse({ok:true})).catch(e=>{
-      console.error('[MARKETPREÇO Flow]',e);
-      sendResponse({ok:false,error:e?.message||String(e)});
-    });
+  function generatedMedia() {
+    return each('video,flow-video-tile,[data-testid*="video" i]')
+      .filter(visible)
+      .filter(el => !el.querySelector?.('[role="progressbar"],progress,[aria-busy="true"]'));
+  }
+
+  async function waitForNewVideo(before) {
+    return waitFor(() => {
+      const now = generatedMedia();
+      return now.length > before ? now[now.length - 1] : null;
+    }, 9 * 60 * 1000, 'o vídeo ser concluído');
+  }
+
+  async function downloadVideo(tile) {
+    let button = each('button,[role="button"]').filter(visible).find(b =>
+      /download|baixar/i.test(label(b)) && (!tile || tile.contains(b))
+    );
+
+    if (!button) {
+      button = each('button,[role="button"]').filter(visible).find(b =>
+        /download|baixar/i.test(label(b))
+      );
+    }
+
+    if (button) {
+      click(button);
+      await sleep(1800);
+      return;
+    }
+
+    const more = each('button,[role="button"]').filter(visible).find(b =>
+      /more|mais|options|opções|menu/i.test(label(b))
+    );
+    if (more) {
+      click(more);
+      await sleep(700);
+    }
+
+    const downloadItem = await waitFor(
+      () => each('[role="menuitem"],button,[role="option"]').filter(visible)
+        .find(x => /download|baixar/i.test(label(x))),
+      15000,
+      'a opção de download'
+    );
+
+    click(downloadItem);
+    await sleep(1200);
+
+    const quality = each('[role="menuitem"],button,[role="option"]').filter(visible)
+      .find(x => /720p/i.test(label(x)));
+    if (quality) {
+      click(quality);
+      await sleep(1800);
+    }
+  }
+
+  async function generate(product) {
+    const prompt = await waitFor(findPrompt, 45000, 'a caixa de comando do Google Flow');
+    const before = generatedMedia().length;
+
+    await uploadImage(product.imageBytes, product.mimeType, product.imageName);
+    await configureVideo();
+    setText(prompt, product.prompt);
+
+    const generateButton = await waitFor(
+      () => findButton(/^(generate|gerar)(\s+(image|video|imagem|vídeo))?$/i) ||
+            findButton(/generate|gerar/i),
+      30000,
+      'o botão Gerar'
+    );
+
+    click(generateButton);
+
+    const video = await waitForNewVideo(before);
+    await downloadVideo(video);
+  }
+
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message?.type === 'FLOW_PING') {
+      sendResponse({ready:true, url:location.href});
+      return;
+    }
+
+    if (message?.source !== 'marketpreco-flow-extension' ||
+        message.type !== 'FLOW_GENERATE_PRODUCT') return;
+
+    generate(message.product)
+      .then(() => sendResponse({ok:true}))
+      .catch(error => {
+        console.error('[MARKETPREÇO Flow]', error);
+        sendResponse({ok:false, error:error?.message || String(error)});
+      });
+
     return true;
   });
 })();
