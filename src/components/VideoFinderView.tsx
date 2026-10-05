@@ -10,8 +10,7 @@ const DOWNLOADED_KEY = 'marketpreco_video_downloaded_v1';
 const normalizeKeyPart = (value: unknown) => String(value ?? '').trim().toLocaleLowerCase('pt-BR').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
 const productKey = (product: Product) => {
   const sku = normalizeKeyPart(product.sku);
-  if (sku) return 'sku:' + sku;
-  return 'name:' + normalizeKeyPart(product.name) + '|image:' + String(product.image || '').trim();
+  return 'product:' + (sku ? sku + '|' : '') + normalizeKeyPart(product.name) + '|image:' + String(product.image || '').trim();
 };
 const load = (): SavedMap => {
   try {
@@ -132,15 +131,16 @@ export const VideoFinderView: React.FC<{products: Product[]}> = ({products}) => 
     }
   };
   const downloadSelected = async () => {
-    const ids = selected.filter(id => !!saved[id]?.videoUrl?.trim() && !downloaded.includes(id));
+    const ids = selected.filter(id => { const product = found.find(p => p.id === id); return !!(product && getSaved(product)?.videoUrl?.trim()) && !downloaded.includes(id); });
     if (!ids.length) { alert('Nenhum vídeo novo com link direto está selecionado. Os vídeos já baixados são ignorados para evitar baixar novamente.'); return; }
     if (ids.length === 1) { await downloadVideo(ids[0]); return; }
     const zip = new JSZip();
     const failures: string[] = [];
     const succeeded: string[] = [];
     for (const id of ids) {
-      const url = saved[id]?.videoUrl?.trim();
-      const productName = found.find(p => p.id === id)?.name || 'video';
+      const product = found.find(p => p.id === id);
+      const url = product ? getSaved(product)?.videoUrl?.trim() : '';
+      const productName = product?.name || 'video';
       const filename = productName.replace(/[^a-z0-9-_ ]/gi,'').trim().replace(/\s+/g,'_') || 'video';
       try {
         const response = await fetch(url);
@@ -207,7 +207,7 @@ export const VideoFinderView: React.FC<{products: Product[]}> = ({products}) => 
           const output = statusData.output;
           const videoUrl = Array.isArray(output) ? output.find((v: unknown) => typeof v === 'string') : typeof output === 'string' ? output : '';
           if (!videoUrl) throw new Error('A geração terminou, mas não foi retornado o link do vídeo.');
-          update(product.id, {videoUrl, duration:'10 segundos', notes: (getSaved(product)?.notes ? saved[product.id].notes + ' | ' : '') + 'Vídeo gerado por IA'});
+          update(product.id, {videoUrl, duration:'10 segundos', notes: (getSaved(product)?.notes ? getSaved(product)?.notes + ' | ' : '') + 'Vídeo gerado por IA'});
           setGenerationMessage(prev => ({...prev, [product.id]: 'Vídeo pronto! Você já pode pré-visualizar ou baixar.'}));
           finished = true;
           break;
@@ -229,7 +229,7 @@ export const VideoFinderView: React.FC<{products: Product[]}> = ({products}) => 
 
   const selectAllVisible = () => setSelected(rows.filter(p=>!downloaded.includes(p.id)).map(p=>p.id));
   const exportCsv = () => {
-    const data = [['Produto','SKU','Status','Marketplace','Duração aproximada','Link do anúncio com vídeo','Observações'], ...found.map(p => [p.name,p.sku || '',saved[p.id]?.url ? 'Revisado' : 'Pendente',saved[p.id]?.platform || '',saved[p.id]?.duration || '',saved[p.id]?.url || '',saved[p.id]?.notes || ''])];
+    const data = [['Produto','SKU','Status','Marketplace','Duração aproximada','Link do anúncio com vídeo','Observações'], ...found.map(p => { const s = getSaved(p); return [p.name,p.sku || '',s?.url ? 'Revisado' : 'Pendente',s?.platform || '',s?.duration || '',s?.url || '',s?.notes || '']; })];
     const csv = '\uFEFF' + data.map(r => r.map(v => '"' + String(v ?? '').replace(/"/g,'""') + '"').join(';')).join('\r\n');
     const a = document.createElement('a'); const u = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'})); a.href=u; a.download='MARKETPRECO_videos_marketplaces.csv'; a.click(); URL.revokeObjectURL(u);
   };
