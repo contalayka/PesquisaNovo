@@ -169,18 +169,19 @@ export const VideoFinderView: React.FC<{products: Product[]}> = ({products}) => 
       }
     };
     window.addEventListener('message', onFlowMessage);
-    window.postMessage({source:'marketpreco-app',type:'MARKETPRECO_FLOW_PING'}, window.location.origin);
-    return () => window.removeEventListener('message', onFlowMessage);
+    const ping = () => window.postMessage({source:'marketpreco-app',type:'MARKETPRECO_FLOW_PING'}, window.location.origin);
+    ping();
+    const pingTimers = [300, 1000, 2500].map(delay => window.setTimeout(ping, delay));
+    return () => {
+      pingTimers.forEach(timer => window.clearTimeout(timer));
+      window.removeEventListener('message', onFlowMessage);
+    };
   }, []);
 
   const sendToFlowExtension = (items: Product[]) => {
     const valid = items.filter(p => p.image && !generating.includes(p.id));
     if (!valid.length) {
       alert('Selecione produtos que tenham imagem no catálogo.');
-      return;
-    }
-    if (!flowExtensionReady) {
-      alert('A extensão MARKETPREÇO • Google Flow não foi detectada nesta página. Vá em chrome://extensions, confirme que ela está ativada e recarregue esta página (Ctrl+F5).');
       return;
     }
     const payload = valid.map(p => ({id:p.id,name:p.name,image:p.image,prompt:buildFlowPrompt(p)}));
