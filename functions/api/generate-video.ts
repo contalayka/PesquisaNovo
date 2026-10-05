@@ -15,9 +15,13 @@ const toBase64 = (bytes: Uint8Array) => {
 };
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
-  if (!env.GEMINI_API_KEY) {
+  // Secrets do Cloudflare chegam em context.env em runtime. Normalizamos o valor
+  // para evitar falhas por espaços acidentais ao cadastrar a chave.
+  const geminiApiKey = String(env.GEMINI_API_KEY || "").trim();
+
+  if (!geminiApiKey) {
     return Response.json(
-      { error: "A geração com Gemini não está configurada. Cadastre GEMINI_API_KEY nos Secrets do Cloudflare Pages." },
+      { error: "GEMINI_API_KEY não está disponível no runtime de Production. Verifique o Secret do projeto e faça um novo deploy após salvá-lo." },
       { status: 503 }
     );
   }
@@ -80,7 +84,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     // Gemini Omni Flash: vídeo MP4 vertical de 10 segundos, adequado ao requisito do marketplace.
     const response = await fetch(
       "https://generativelanguage.googleapis.com/v1beta/interactions?key=" +
-        encodeURIComponent(env.GEMINI_API_KEY),
+        encodeURIComponent(geminiApiKey),
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
