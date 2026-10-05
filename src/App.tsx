@@ -55,6 +55,7 @@ import { MarketplacesView } from './components/MarketplacesView';
 import { GeneratedFilesView } from './components/GeneratedFilesView';
 import { SettingsView } from './components/SettingsView';
 import { InternalInventoryView, InternalItem } from './components/InternalInventoryView';
+import { VideoFinderView } from './components/VideoFinderView';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import { useDevice } from './utils/device';
 import {
@@ -2145,6 +2146,9 @@ export default function App() {
               onNavigateToConversion={() => setCurrentSidebarSection('conversao')}
             />
           )}
+
+          {/* VIEW: BUSCA EM MASSA DE VÍDEOS */}
+          {currentSidebarSection === 'videos' && <VideoFinderView products={products} />}
 
           {/* VIEW: ESTOQUE / CUSTO INTERNO — base totalmente separada do catálogo principal */}
           {currentSidebarSection === 'estoque_interno' && (
