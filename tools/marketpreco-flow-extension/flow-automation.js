@@ -5,13 +5,11 @@
     out.push(root);
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
     let node;
-    while ((node = walker.nextNode())) {
-      if (node.shadowRoot) roots(node.shadowRoot, out);
-    }
+    while ((node = walker.nextNode())) if (node.shadowRoot) roots(node.shadowRoot, out);
     return out;
   }
 
-  const each = (selector) => {
+  const each = selector => {
     const found = [];
     for (const root of roots()) {
       try { found.push(...root.querySelectorAll(selector)); } catch {}
@@ -28,13 +26,9 @@
   };
 
   const label = el => String(
-    el?.innerText ||
-    el?.textContent ||
-    el?.getAttribute?.('aria-label') ||
-    el?.getAttribute?.('data-tooltip') ||
-    el?.getAttribute?.('title') ||
-    el?.getAttribute?.('placeholder') ||
-    ''
+    el?.innerText || el?.textContent || el?.getAttribute?.('aria-label') ||
+    el?.getAttribute?.('data-tooltip') || el?.getAttribute?.('title') ||
+    el?.getAttribute?.('placeholder') || ''
   ).replace(/\s+/g, ' ').trim();
 
   const click = el => {
@@ -47,13 +41,10 @@
   async function waitFor(fn, timeout, name) {
     const end = Date.now() + timeout;
     while (Date.now() < end) {
-      try {
-        const value = fn();
-        if (value) return value;
-      } catch {}
+      try { const value = fn(); if (value) return value; } catch {}
       await sleep(300);
     }
-    throw new Error('Tempo esgotado aguardando ' + name + '. O Google Flow mudou a interface.');
+    throw new Error('Tempo esgotado aguardando ' + name + '. O Google Flow pode ter alterado a interface.');
   }
 
   function findPrompt() {
@@ -62,13 +53,10 @@
       ...each('textarea'),
       ...each('input[type="text"]')
     ].filter(visible);
-
-    const preferred = candidates.find(el => {
+    return candidates.find(el => {
       const t = label(el);
-      return /prompt|command|comando|describe|descreva|scene|cena/i.test(t) ||
-             el.matches?.('.ProseMirror');
-    });
-    return preferred || candidates[0] || null;
+      return /prompt|command|comando|describe|descreva|scene|cena/i.test(t) || el.matches?.('.ProseMirror');
+    }) || candidates[0] || null;
   }
 
   function setText(el, value) {
@@ -84,9 +72,7 @@
     try {
       document.execCommand('selectAll', false);
       document.execCommand('insertText', false, value);
-    } catch {
-      el.textContent = value;
-    }
+    } catch { el.textContent = value; }
     el.dispatchEvent(new InputEvent('input', {bubbles:true, inputType:'insertText', data:value}));
   }
 
@@ -94,7 +80,6 @@
     const buffer = bytes instanceof ArrayBuffer ? bytes : new Uint8Array(bytes).buffer;
     const file = new File([buffer], name || 'produto.jpg', {type: mime || 'image/jpeg'});
     const inputs = each('input[type="file"]').filter(visible);
-
     if (inputs.length) {
       const input = inputs[0];
       const dt = new DataTransfer();
@@ -104,20 +89,14 @@
       input.dispatchEvent(new Event('change', {bubbles:true}));
     } else {
       const editor = findPrompt();
-      if (!editor) throw new Error('Caixa de comando do Google Flow não encontrada.');
+      if (!editor) throw new Error('Área de criação do Google Flow não encontrada.');
       const dt = new DataTransfer();
       dt.items.add(file);
       editor.focus();
-      editor.dispatchEvent(new ClipboardEvent('paste', {
-        clipboardData: dt, bubbles:true, cancelable:true
-      }));
+      editor.dispatchEvent(new ClipboardEvent('paste', {clipboardData:dt,bubbles:true,cancelable:true}));
     }
-
-    await waitFor(() => {
-      const media = each('img,video,[role="img"],[data-testid*="ingredient" i],[class*="ingredient" i]')
-        .filter(visible);
-      return media.length > 0;
-    }, 30000, 'a imagem do produto');
+    await waitFor(() => each('img,video,[role="img"],[data-testid*="ingredient" i],[class*="ingredient" i]')
+      .filter(visible).length > 0, 30000, 'a imagem do produto');
   }
 
   function findButton(regex) {
@@ -130,25 +109,18 @@
   }
 
   async function configureVideo() {
-    // Flow's current desktop flow: model selector -> Video -> preferences.
     clickButton(/^video$|^vídeo$/i);
     await sleep(700);
-
     const model = findButton(/Nano Banana Pro|Nano Banana|Omni Flash|Gemini Omni|Veo/i);
     if (model) {
       click(model);
       await sleep(500);
       const omni = findButton(/Omni Flash|Gemini Omni/i);
-      if (omni) {
-        click(omni);
-        await sleep(500);
-      }
+      if (omni) { click(omni); await sleep(500); }
     }
-
     clickButton(/9\s*[:x]\s*16|vertical/i);
     clickButton(/10\s*(s|sec|seg|segundos)\b/i);
     clickButton(/^1\s*(output|outputs|result|results|resultado|resultados)$/i);
-
     document.dispatchEvent(new KeyboardEvent('keydown', {key:'Escape', bubbles:true}));
   }
 
@@ -165,53 +137,56 @@
     }, 9 * 60 * 1000, 'o vídeo ser concluído');
   }
 
+  function extractVideoUrl(tile) {
+    const candidates = [];
+    if (tile) {
+      tile.querySelectorAll?.('video,source,a[href],a[data-url],button[data-url]').forEach(el => {
+        const v = el.currentSrc || el.src || el.href || el.getAttribute('data-url');
+        if (v) candidates.push(v);
+      });
+      for (const root of roots(tile)) {
+        try {
+          root.querySelectorAll('video,source,a[href],a[data-url],button[data-url]').forEach(el => {
+            const v = el.currentSrc || el.src || el.href || el.getAttribute('data-url');
+            if (v) candidates.push(v);
+          });
+        } catch {}
+      }
+    }
+    const preferred = candidates.find(v => /^https?:\/\//i.test(v) && /\.(mp4|webm)(?:[?#]|$)/i.test(v));
+    return preferred || candidates.find(v => /^https?:\/\//i.test(v)) || '';
+  }
+
   async function downloadVideo(tile) {
     let button = each('button,[role="button"]').filter(visible).find(b =>
       /download|baixar/i.test(label(b)) && (!tile || tile.contains(b))
     );
-
-    if (!button) {
-      button = each('button,[role="button"]').filter(visible).find(b =>
-        /download|baixar/i.test(label(b))
-      );
-    }
+    if (!button) button = each('button,[role="button"]').filter(visible).find(b => /download|baixar/i.test(label(b)));
 
     if (button) {
       click(button);
       await sleep(1800);
-      return;
+      return extractVideoUrl(tile);
     }
 
-    const more = each('button,[role="button"]').filter(visible).find(b =>
-      /more|mais|options|opções|menu/i.test(label(b))
-    );
-    if (more) {
-      click(more);
-      await sleep(700);
-    }
+    const more = each('button,[role="button"]').filter(visible).find(b => /more|mais|options|opções|menu/i.test(label(b)));
+    if (more) { click(more); await sleep(700); }
 
     const downloadItem = await waitFor(
-      () => each('[role="menuitem"],button,[role="option"]').filter(visible)
-        .find(x => /download|baixar/i.test(label(x))),
-      15000,
-      'a opção de download'
+      () => each('[role="menuitem"],button,[role="option"]').filter(visible).find(x => /download|baixar/i.test(label(x))),
+      15000, 'a opção de download'
     );
-
     click(downloadItem);
     await sleep(1200);
 
-    const quality = each('[role="menuitem"],button,[role="option"]').filter(visible)
-      .find(x => /720p/i.test(label(x)));
-    if (quality) {
-      click(quality);
-      await sleep(1800);
-    }
+    const quality = each('[role="menuitem"],button,[role="option"]').filter(visible).find(x => /720p/i.test(label(x)));
+    if (quality) { click(quality); await sleep(1800); }
+    return extractVideoUrl(tile);
   }
 
   async function generate(product) {
-    const prompt = await waitFor(findPrompt, 45000, 'a caixa de comando do Google Flow');
+    const prompt = await waitFor(findPrompt, 45000, 'a área de criação do Google Flow');
     const before = generatedMedia().length;
-
     await uploadImage(product.imageBytes, product.mimeType, product.imageName);
     await configureVideo();
     setText(prompt, product.prompt);
@@ -219,14 +194,13 @@
     const generateButton = await waitFor(
       () => findButton(/^(generate|gerar)(\s+(image|video|imagem|vídeo))?$/i) ||
             findButton(/generate|gerar|create|criar/i),
-      30000,
-      'o botão Gerar'
+      30000, 'o botão Gerar'
     );
-
     click(generateButton);
 
     const video = await waitForNewVideo(before);
-    await downloadVideo(video);
+    const videoUrl = await downloadVideo(video);
+    return {videoUrl, flowUrl: location.href};
   }
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -234,17 +208,14 @@
       sendResponse({ready:true, url:location.href});
       return;
     }
-
-    if (message?.source !== 'marketpreco-flow-extension' ||
-        message.type !== 'FLOW_GENERATE_PRODUCT') return;
+    if (message?.source !== 'marketpreco-flow-extension' || message.type !== 'FLOW_GENERATE_PRODUCT') return;
 
     generate(message.product)
-      .then(() => sendResponse({ok:true}))
+      .then(result => sendResponse({ok:true, ...result}))
       .catch(error => {
         console.error('[MARKETPREÇO Flow]', error);
         sendResponse({ok:false, error:error?.message || String(error)});
       });
-
     return true;
   });
 })();
