@@ -120,11 +120,10 @@ export const PriceSimulatorModal: React.FC<PriceSimulatorModalProps> = ({
     let marketplacePct = 0;
     let marketplaceFixed = 0;
     let platformShippingDeduction = 0;
+    let platformShippingPct = 0;
 
     if (platform === 'shopee') {
-      // Shopee:
-      // Padrão: 14% + R$ 4,00
-      // Programa Frete Grátis Extra: 14% + 6% = 20% + R$ 4,00 (teto R$ 105 na comissão %)
+      // Shopee: a taxa variável já inclui o programa de frete quando ativado.
       marketplacePct = shopeeFreeShipping ? 20.0 : 14.0;
       marketplaceFixed = parseVal(shopeeFixedFee);
     } else if (platform === 'tiktok') {
@@ -138,11 +137,11 @@ export const PriceSimulatorModal: React.FC<PriceSimulatorModalProps> = ({
         marketplacePct = 6.0;
         marketplaceFixed = 6.0;
       }
+
       if (tiktokShippingProgram) {
-        // Programa de Taxas de Envio: 6% do preço, limitado a R$ 50,00 por item.
-        // O valor é separado da comissão para que o demonstrativo mostre
-        // exatamente quanto foi descontado e para que o teto seja respeitado.
-        platformShippingDeduction = Math.min((price * 6) / 100, 50);
+        platformShippingPct = 6.0;
+        // Limite de R$ 50 por item.
+        platformShippingDeduction = Math.min((price * platformShippingPct) / 100, 50);
       }
     } else if (platform === 'shein') {
       marketplacePct = parseVal(sheinCommissionPct);
@@ -151,29 +150,50 @@ export const PriceSimulatorModal: React.FC<PriceSimulatorModalProps> = ({
 
     let commissionVal = (price * marketplacePct) / 100;
 
-    // Shopee commission cap
+    // Teto da comissão percentual da Shopee.
     const shopeeCapNum = parseVal(shopeeCommissionCap);
     if (platform === 'shopee' && shopeeCapNum > 0 && commissionVal > shopeeCapNum) {
       commissionVal = shopeeCapNum;
     }
 
     const totalMarketplaceFees = commissionVal + marketplaceFixed + platformShippingDeduction;
-    // Repasse líquido = o que sobra do preço depois das taxas da plataforma.
-    // Não desconta custo do produto, imposto ou embalagem: esses entram no lucro.
-    const netPayout = price - totalMarketplaceFees;
-    // Lucro líquido real = repasse - custo do produto - imposto - embalagem/operação.
-    // Isso evita confundir "líquido a receber" com "lucro".
-    const totalCosts = cost + totalMarketplaceFees + taxAmount + packCost;
-    const netProfit = price - totalCosts;
+
+    // REGRA GERAL PARA TODAS AS PLATAFORMAS:
+    // "Repasse líquido" é o que a plataforma repassa após as taxas dela.
+    // O custo do produto NÃO altera o repasse; ele altera o lucro.
+    const netPayout = Math.max(0, price - totalMarketplaceFees);
+
+    // "Lucro líquido real" começa no repasse e desconta tudo que é custo do vendedor.
+    // Assim, alterar o custo do produto sempre atualiza o lucro em todas as plataformas.
+    const netProfit = netPayout - cost - taxAmount - packCost;
+
     const netMarginPct = price > 0 ? (netProfit / price) * 100 : 0;
     const markupPct = cost > 0 ? ((price - cost) / cost) * 100 : 0;
 
-    // Preço sugerido baseado na margem pretendida:
-    // price = (cost + pack + marketplaceFixed + platformShipping) / (1 - (targetMargin% + tax% + marketplace%)/100)
-    const combinedVariablePct = (targetMarginPct + taxPct + marketplacePct) / 100;
+    // Preço sugerido: resolve a equação considerando todas as taxas variáveis,
+    // a taxa fixa, imposto, embalagem e margem desejada.
+    const totalVariablePct =
+      (marketplacePct + platformShippingPct + taxPct + targetMarginPct) / 100;
+
     let suggestedPrice = 0;
-    if (combinedVariablePct < 0.99) {
-      suggestedPrice = (cost + packCost + marketplaceFixed + platformShippingDeduction) / (1 - combinedVariablePct);
+    if (totalVariablePct < 0.99) {
+      suggestedPrice = (cost + packCost + marketplaceFixed) / (1 - totalVariablePct);
+
+      // A taxa de envio do TikTok possui teto de R$ 50.
+      // Acima do ponto em que o teto é atingido, recalculamos sem tratá-la como percentual.
+      if (platform === 'tiktok' && tiktokShippingProgram) {
+        const shippingAtSuggested = (suggestedPrice * platformShippingPct) / 100;
+        if (shippingAtSuggested > 50) {
+          const fixedShipping = 50;
+          const variableWithoutShipping =
+            (marketplacePct + taxPct + targetMarginPct) / 100;
+          if (variableWithoutShipping < 0.99) {
+            suggestedPrice =
+              (cost + packCost + marketplaceFixed + fixedShipping) /
+              (1 - variableWithoutShipping);
+          }
+        }
+      }
     }
 
     return {
@@ -185,6 +205,7 @@ export const PriceSimulatorModal: React.FC<PriceSimulatorModalProps> = ({
       marketplacePct,
       marketplaceFixed,
       platformShippingDeduction,
+      platformShippingPct,
       commissionVal,
       totalMarketplaceFees,
       netPayout,
@@ -207,7 +228,6 @@ export const PriceSimulatorModal: React.FC<PriceSimulatorModalProps> = ({
     sheinCommissionPct,
     sheinFixedFee,
   ]);
-
   if (isOpen === false) return null;
 
   const displayName = product?.name || productName;
