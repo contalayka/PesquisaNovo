@@ -10,7 +10,8 @@ export type AppView =
   | 'marketplaces'
   | 'arquivos'
   | 'configuracoes'
-  | 'estoque_interno';
+  | 'estoque_interno'
+  | 'videos';
 
 export interface ResearchRecord {
   id: string;
