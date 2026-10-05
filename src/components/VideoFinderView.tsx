@@ -45,7 +45,7 @@ const platformFor = (record: ResearchRecord) => {
 };
 const marketplaceNames = ['Shopee', 'SHEIN', 'TikTok Shop', 'Mercado Livre'];
 const FLOW_EXTENSION_FOLDER = 'https://github.com/contalayka/PesquisaNovo/tree/main/tools/marketpreco-flow-extension';
-const buildFlowPrompt = (product: Product) => `Crie um vídeo vertical de 10 segundos para anúncio de marketplace do produto "${product.name}". Use a imagem enviada como referência EXATA do produto. Preserve rigorosamente formato, cores, embalagem, rótulos, logotipo e todos os detalhes reais. Faça movimento de câmera premium e suave, com leve rotação e aproximação, iluminação realista e fundo limpo e atraente. O produto deve permanecer como protagonista. Não adicione texto, produtos, acessórios ou características que não existam na imagem. Resultado comercial, realista e adequado para anúncio de e-commerce.`;
+const buildFlowPrompt = (product: Product) => `Create a premium vertical 10-second marketplace advertisement video for the product "${product.name}". Use the uploaded product image as the EXACT visual reference. Preserve the real product faithfully: shape, colors, packaging, labels, logos, proportions and every visible detail. Keep the product as the main subject. Use smooth premium camera motion, a subtle push-in and gentle rotation, realistic lighting and a clean attractive background. Do not add text, extra products, accessories or features that are not present in the reference image. Photorealistic commercial e-commerce result. 9:16 vertical, 10 seconds, one result, 720p. Use Gemini Omni Flash 1.1.`;
 
 export const VideoFinderView: React.FC<{products: Product[]}> = ({products}) => {
   const found = useMemo(() => products.filter(p => p.status === 'Encontrado'), [products]);
