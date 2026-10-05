@@ -1,4 +1,4 @@
-const FLOW_URL='https://flow.google.com/';
+const FLOW_URL='https://labs.google/fx/tools/flow';
 let queue=[],running=false,marketTabId=null,flowTabId=null,currentProduct=null;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const sendMarket=async payload=>{if(marketTabId===null)return;try{await chrome.tabs.sendMessage(marketTabId,{source:'marketpreco-flow-extension',...payload});}catch{}};
