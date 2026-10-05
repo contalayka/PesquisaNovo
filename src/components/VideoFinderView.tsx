@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import JSZip from 'jszip';
-import { Video, Search, ExternalLink, Download, CheckCircle2, Circle, ShoppingBag, Clock3 } from 'lucide-react';
+import { Video, Search, ExternalLink, Download, CheckCircle2, Circle, ShoppingBag, Clock3, WandSparkles, LoaderCircle } from 'lucide-react';
 import { Product, ResearchRecord } from '../types';
 
 type SavedVideo = { url: string; videoUrl?: string; platform: string; duration: string; notes?: string };
@@ -37,6 +37,8 @@ export const VideoFinderView: React.FC<{products: Product[]}> = ({products}) => 
   const [platform, setPlatform] = useState('Todos');
   const [selected, setSelected] = useState<string[]>([]);
   const [downloaded, setDownloaded] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem(DOWNLOADED_KEY) || '[]'); } catch { return []; } });
+  const [generating, setGenerating] = useState<string[]>([]);
+  const [generationMessage, setGenerationMessage] = useState<Record<string,string>>({});
   const markDownloaded = (ids: string[]) => setDownloaded(prev => { const next = Array.from(new Set([...prev, ...ids])); try { localStorage.setItem(DOWNLOADED_KEY, JSON.stringify(next)); } catch {} return next; });
   const rows = useMemo(() => found.filter(p => {
     const q = query.trim().toLocaleLowerCase('pt-BR');
@@ -118,6 +120,58 @@ export const VideoFinderView: React.FC<{products: Product[]}> = ({products}) => 
       alert('Não foi possível montar o ZIP. Tente baixar menos vídeos por vez.');
     }
   };
+
+  const generateProductVideo = async (product: Product) => {
+    if (!product.image) { alert('Este produto não tem imagem no catálogo. Adicione uma imagem antes de gerar o vídeo.'); return; }
+    if (generating.includes(product.id)) return;
+    setGenerating(prev => [...prev, product.id]);
+    setGenerationMessage(prev => ({...prev, [product.id]: 'Enviando pedido de geração...'}));
+    try {
+      const response = await fetch('/api/generate-video', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          imageUrl: product.image,
+          productName: product.name,
+          promptText: `Create a polished 10-second vertical product showcase for the exact product shown in the reference image: ${product.name}. Preserve the real product's shape, colors, labels, branding, and details. Smooth premium studio camera movement, subtle rotation and close-up, clean attractive background, realistic lighting, product remains the hero, no added text, no extra products, no invented accessories. Short ecommerce ad suitable for marketplace product listing.`
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Não foi possível iniciar a geração.');
+      const taskId = data.taskId || data.id;
+      if (!taskId) throw new Error('O serviço não retornou o identificador da geração.');
+      setGenerationMessage(prev => ({...prev, [product.id]: 'Gerando vídeo de 10 segundos…'}));
+      let finished = false;
+      for (let attempt = 0; attempt < 60; attempt++) {
+        await new Promise(resolve => window.setTimeout(resolve, 8000));
+        const statusResponse = await fetch('/api/video-status/' + encodeURIComponent(taskId));
+        const statusData = await statusResponse.json().catch(() => ({}));
+        if (!statusResponse.ok) throw new Error(statusData.error || 'Falha ao consultar a geração.');
+        const status = String(statusData.status || '').toUpperCase();
+        if (status === 'SUCCEEDED' || status === 'COMPLETED') {
+          const output = statusData.output;
+          const videoUrl = Array.isArray(output) ? output.find((v: unknown) => typeof v === 'string') : typeof output === 'string' ? output : '';
+          if (!videoUrl) throw new Error('A geração terminou, mas não foi retornado o link do vídeo.');
+          update(product.id, {videoUrl, duration:'10 segundos', notes: (saved[product.id]?.notes ? saved[product.id].notes + ' | ' : '') + 'Vídeo gerado por IA'});
+          setGenerationMessage(prev => ({...prev, [product.id]: 'Vídeo pronto! Você já pode pré-visualizar ou baixar.'}));
+          finished = true;
+          break;
+        }
+        if (status === 'FAILED' || status === 'CANCELED' || status === 'CANCELLED') {
+          throw new Error(statusData.failure || statusData.error || 'O serviço não conseguiu gerar este vídeo.');
+        }
+        setGenerationMessage(prev => ({...prev, [product.id]: 'Gerando vídeo de 10 segundos… (' + (attempt + 1) + '/60)'}));
+      }
+      if (!finished) throw new Error('A geração está demorando mais que o esperado. Tente novamente em alguns minutos.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Erro desconhecido ao gerar vídeo.';
+      setGenerationMessage(prev => ({...prev, [product.id]: message}));
+      alert(message);
+    } finally {
+      setGenerating(prev => prev.filter(id => id !== product.id));
+    }
+  };
+
   const selectAllVisible = () => setSelected(rows.filter(p=>!downloaded.includes(p.id)).map(p=>p.id));
   const exportCsv = () => {
     const data = [['Produto','SKU','Status','Marketplace','Duração aproximada','Link do anúncio com vídeo','Observações'], ...found.map(p => [p.name,p.sku || '',saved[p.id]?.url ? 'Revisado' : 'Pendente',saved[p.id]?.platform || '',saved[p.id]?.duration || '',saved[p.id]?.url || '',saved[p.id]?.notes || ''])];
@@ -136,7 +190,7 @@ export const VideoFinderView: React.FC<{products: Product[]}> = ({products}) => 
     <div className="flex flex-wrap items-center gap-2"><button onClick={selectAllVisible} className="rounded-full border border-emerald-800 px-3 py-1.5 text-xs font-semibold text-emerald-200">Selecionar todos visíveis</button><button onClick={()=>setSelected([])} className="rounded-full border border-slate-700 px-3 py-1.5 text-xs text-slate-300">Limpar seleção</button>{[['com_video','Somente anúncios com vídeo confirmado'],['pendentes','Pendentes de verificação'],['baixados','Vídeos baixados'],['todos','Todos os produtos']].map(([v,l])=><button key={v} onClick={()=>setFilter(v)} className={'rounded-full border px-3 py-1.5 text-xs font-semibold '+(filter===v?'border-violet-500 bg-violet-600/20 text-violet-200':'border-slate-700 bg-[#121824] text-slate-400')}>{l}</button>)}</div>
     {!found.length ? <div className="rounded-xl border border-dashed border-slate-700 bg-[#121824] p-10 text-center"><Video className="mx-auto mb-3 h-8 w-8 text-slate-500"/><h3 className="font-semibold text-white">Nenhum produto marcado como Encontrado</h3><p className="mt-1 text-sm text-slate-400">Marque produtos como Encontrado na lista principal para aparecerem aqui.</p></div> : !rows.length ? <div className="rounded-xl border border-slate-800 bg-[#121824] p-8 text-center text-sm text-slate-400">Nenhum produto corresponde aos filtros atuais. Tente “Todos os produtos” ou ajuste a busca e o marketplace.</div> : <div className="space-y-3">{rows.map((p,i)=>{const rec=saved[p.id] || {url:'',platform:'Shopee',duration:'10 segundos',notes:''};const researchLinks=(p.research_records || []).filter(r=>r.url);return <article key={p.id} className="rounded-xl border border-slate-800 bg-[#121824] p-4"><div className="flex flex-col gap-4"><div className="flex min-w-0 gap-3"><input aria-label={'Selecionar '+p.name} type="checkbox" checked={selected.includes(p.id)} onChange={e=>setSelected(prev=>e.target.checked?(prev.includes(p.id)?prev:[...prev,p.id]):prev.filter(id=>id!==p.id))} className="mt-1 h-4 w-4 accent-emerald-500"/>{p.image ? <img src={p.image} alt="" className="h-16 w-16 shrink-0 rounded-lg border border-slate-700 bg-slate-900 object-contain" onError={e=>{e.currentTarget.style.display='none'}}/> : <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-slate-700 bg-slate-900"><Video className="h-6 w-6 text-slate-600"/></div>}<div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold text-white">{p.name}</h3>{downloaded.includes(p.id)?<span className="inline-flex items-center gap-1 rounded-full bg-sky-950/60 px-2 py-1 text-[10px] font-bold text-sky-300"><CheckCircle2 className="h-3 w-3"/> VÍDEO BAIXADO</span>:rec.url?<span className="inline-flex items-center gap-1 rounded-full bg-emerald-950/60 px-2 py-1 text-[10px] font-bold text-emerald-300"><CheckCircle2 className="h-3 w-3"/> LINK REVISADO</span>:<span className="inline-flex items-center gap-1 rounded-full bg-amber-950/50 px-2 py-1 text-[10px] font-bold text-amber-300"><Circle className="h-3 w-3"/> PENDENTE</span>}</div><p className="mt-1 text-xs text-slate-500">SKU: {p.sku || 'Não informado'}</p></div></div>
       {researchLinks.length>0 && <div className="rounded-lg border border-emerald-900/50 bg-emerald-950/20 p-3"><p className="mb-2 text-xs font-semibold text-emerald-200">Anúncios que você já encontrou</p><div className="flex flex-wrap gap-2">{researchLinks.map((r,idx)=><button key={r.id || idx} onClick={()=>openResearchListing(r)} className="inline-flex items-center gap-1 rounded-md border border-emerald-900 px-2.5 py-1.5 text-xs text-emerald-100 hover:bg-emerald-900/40"><ExternalLink className="h-3 w-3"/>{platformFor(r)}{r.store ? ' · '+r.store : ''}</button>)}</div></div>}
-      <div><p className="mb-2 flex items-center gap-2 text-xs font-semibold text-slate-300"><ShoppingBag className="h-4 w-4 text-violet-300"/> Procurar o produto dentro dos marketplaces</p><div className="flex flex-wrap gap-2">{p.image && <a target="_blank" rel="noreferrer" href={`https://lens.google.com/uploadbyurl?url=${encodeURIComponent(p.image)}`} className="inline-flex items-center gap-1.5 rounded-md border border-blue-500/70 bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-500"><Search className="h-3.5 w-3.5"/> Google Lens · Buscar pela foto</a>}{marketplaceNames.map(m=><a key={m} target="_blank" rel="noreferrer" href={marketplaceSearchUrl(p.name,m)} className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-medium text-slate-200 hover:border-violet-500 hover:text-white"><ExternalLink className="h-3 w-3"/>{m}</a>)}</div></div>
+      <div><p className="mb-2 flex items-center gap-2 text-xs font-semibold text-slate-300"><ShoppingBag className="h-4 w-4 text-violet-300"/> Procurar o produto dentro dos marketplaces ou gerar um vídeo</p><div className="flex flex-wrap gap-2"><button onClick={()=>generateProductVideo(p)} disabled={generating.includes(p.id)||!p.image} title={!p.image ? "Adicione uma imagem ao produto para gerar o vídeo" : "Gerar um vídeo de divulgação de 10 segundos com a foto do catálogo"} className="inline-flex items-center gap-1.5 rounded-md border border-fuchsia-500/70 bg-fuchsia-700 px-3 py-2 text-xs font-bold text-white hover:bg-fuchsia-600 disabled:cursor-not-allowed disabled:opacity-50">{generating.includes(p.id)?<LoaderCircle className="h-3.5 w-3.5 animate-spin"/>:<WandSparkles className="h-3.5 w-3.5"/>}{generating.includes(p.id)?"Gerando vídeo…":"Gerar vídeo com IA (10s)"}</button>{p.image && <a target="_blank" rel="noreferrer" href={`https://lens.google.com/uploadbyurl?url=${encodeURIComponent(p.image)}`} className="inline-flex items-center gap-1.5 rounded-md border border-blue-500/70 bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-500"><Search className="h-3.5 w-3.5"/> Google Lens · Buscar pela foto</a>}{marketplaceNames.map(m=><a key={m} target="_blank" rel="noreferrer" href={marketplaceSearchUrl(p.name,m)} className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-medium text-slate-200 hover:border-violet-500 hover:text-white"><ExternalLink className="h-3 w-3"/>{m}</a>)}</div>{generationMessage[p.id] && <p className="mt-2 text-xs text-fuchsia-200">{generationMessage[p.id]}</p>}</div></div>
       <div className="grid gap-3 lg:grid-cols-[1fr_1fr_180px_180px]"><div><label className="mb-1 block text-xs font-medium text-slate-400">Link do anúncio que contém o vídeo curto</label><input value={rec.url} onChange={e=>update(p.id,{url:e.target.value})} placeholder="Cole o link do anúncio do marketplace..." className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white placeholder:text-slate-600"/></div><div><label className="mb-1 block text-xs font-medium text-emerald-300">Link direto do arquivo de vídeo (para baixar)</label><input value={rec.videoUrl || ''} onChange={e=>update(p.id,{videoUrl:e.target.value})} placeholder="Cole a URL direta do vídeo, se disponível..." className="w-full rounded-lg border border-emerald-900 bg-slate-950 px-3 py-2.5 text-sm text-white placeholder:text-slate-600"/><button onClick={()=>downloadVideo(p.id)} disabled={!rec.videoUrl?.trim()} className="mt-2 inline-flex items-center gap-1 rounded-md bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40"><Download className="h-3 w-3"/> Baixar vídeo</button></div><div><label className="mb-1 block text-xs font-medium text-slate-400">Marketplace</label><select value={rec.platform} onChange={e=>update(p.id,{platform:e.target.value})} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white">{marketplaceNames.map(m=><option key={m}>{m}</option>)}</select></div><div><label className="mb-1 flex items-center gap-1 text-xs font-medium text-slate-400"><Clock3 className="h-3 w-3"/> Duração do vídeo</label><select value={rec.duration} onChange={e=>update(p.id,{duration:e.target.value})} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white"><option>Até 10 segundos</option><option>10 segundos</option><option>11–15 segundos</option><option>Mais de 15 segundos</option><option>Não confirmado</option></select></div></div>
       <div className="flex flex-col gap-2 sm:flex-row"><input value={rec.notes || ''} onChange={e=>update(p.id,{notes:e.target.value})} placeholder="Observação: modelo, cor, vendedor ou onde aparece o vídeo..." className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-300 placeholder:text-slate-600"/><button onClick={()=>rec.url.trim()&&window.open(rec.url.trim(),'_blank','noopener,noreferrer')} disabled={!rec.url.trim()} className="rounded-md bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">Abrir anúncio salvo</button><span className="self-center text-[11px] text-slate-500">Produto {i+1} de {rows.length}</span></div>
     </div></article>})}</div>}
