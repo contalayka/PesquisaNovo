@@ -12,6 +12,7 @@ import {
   Calculator,
   Menu,
   RefreshCw,
+  Video,
 } from 'lucide-react';
 import { AppView } from '../types';
 import { MarketPrepLogo } from './MarketPrepLogo';
@@ -96,6 +97,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'estoque_interno',
       label: 'Estoque / Custo Interno',
       icon: Database,
+    },
+    {
+      id: 'videos',
+      label: 'Buscar Vídeos',
+      icon: Video,
+      badge: foundCount > 0 ? foundCount : null,
+      badgeClass: 'bg-violet-950/50 text-violet-300 border-violet-800/40',
     },
     {
       id: 'configuracoes',
