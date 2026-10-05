@@ -6,6 +6,7 @@ import { Product, ResearchRecord } from '../types';
 type SavedVideo = { url: string; videoUrl?: string; platform: string; duration: string; notes?: string };
 type SavedMap = Record<string, SavedVideo>;
 const KEY = 'marketpreco_video_finder_v2';
+const DOWNLOADED_KEY = 'marketpreco_video_downloaded_v1';
 const load = (): SavedMap => { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { return {}; } };
 
 const marketplaceSearchUrl = (name: string, platform: string) => {
@@ -35,12 +36,14 @@ export const VideoFinderView: React.FC<{products: Product[]}> = ({products}) => 
   const [filter, setFilter] = useState('pendentes');
   const [platform, setPlatform] = useState('Todos');
   const [selected, setSelected] = useState<string[]>([]);
+  const [downloaded, setDownloaded] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem(DOWNLOADED_KEY) || '[]'); } catch { return []; } });
+  const markDownloaded = (ids: string[]) => setDownloaded(prev => { const next = Array.from(new Set([...prev, ...ids])); try { localStorage.setItem(DOWNLOADED_KEY, JSON.stringify(next)); } catch {} return next; });
   const rows = useMemo(() => found.filter(p => {
     const q = query.trim().toLocaleLowerCase('pt-BR');
     return (!q || p.name.toLocaleLowerCase('pt-BR').includes(q) || String(p.sku || '').toLocaleLowerCase('pt-BR').includes(q)) &&
-      (filter === 'todos' || (filter === 'pendentes' ? !saved[p.id]?.url : !!saved[p.id]?.url)) &&
+      (filter === 'todos' || (filter === 'pendentes' ? !saved[p.id]?.url : filter === 'baixados' ? downloaded.includes(p.id) : filter === 'com_video' ? !!saved[p.id]?.url : !saved[p.id]?.url)) &&
       (platform === 'Todos' || saved[p.id]?.platform === platform);
-  }), [found, query, filter, saved, platform]);
+  }), [found, query, filter, saved, platform, downloaded]);
   const count = found.filter(p => saved[p.id]?.url?.trim()).length;
   const update = (id: string, patch: Partial<SavedVideo>) => setSaved(prev => {
     const next = {...prev, [id]: {...(prev[id] || {url:'', platform:'Shopee', duration:'10 segundos', notes:''}), ...patch}};
@@ -65,17 +68,19 @@ export const VideoFinderView: React.FC<{products: Product[]}> = ({products}) => 
       a.click();
       a.remove();
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
+      markDownloaded([id]);
     } catch (error) {
       console.error('Falha ao baixar vídeo:', error);
       alert('O navegador não conseguiu baixar este vídeo diretamente. O servidor pode bloquear o acesso externo (CORS) ou exigir uma sessão da plataforma. Use o link direto do arquivo .mp4, ou baixe pelo anúncio/extensão do marketplace. O sistema não abriu outra aba porque isso não seria um download.');
     }
   };
   const downloadSelected = async () => {
-    const ids = selected.filter(id => !!saved[id]?.videoUrl?.trim());
-    if (!ids.length) { alert('Nenhum dos produtos selecionados tem um link direto de vídeo salvo.'); return; }
+    const ids = selected.filter(id => !!saved[id]?.videoUrl?.trim() && !downloaded.includes(id));
+    if (!ids.length) { alert('Nenhum vídeo novo com link direto está selecionado. Os vídeos já baixados são ignorados para evitar baixar novamente.'); return; }
     if (ids.length === 1) { await downloadVideo(ids[0]); return; }
     const zip = new JSZip();
     const failures: string[] = [];
+    const succeeded: string[] = [];
     for (const id of ids) {
       const url = saved[id]?.videoUrl?.trim();
       const productName = found.find(p => p.id === id)?.name || 'video';
@@ -86,6 +91,7 @@ export const VideoFinderView: React.FC<{products: Product[]}> = ({products}) => 
         const blob = await response.blob();
         if (!blob.size) throw new Error('Arquivo vazio');
         zip.file(filename + '.mp4', blob);
+        succeeded.push(id);
       } catch (error) {
         console.error('Falha ao incluir vídeo no ZIP:', productName, error);
         failures.push(productName);
@@ -105,13 +111,14 @@ export const VideoFinderView: React.FC<{products: Product[]}> = ({products}) => 
       a.click();
       a.remove();
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 3000);
+      markDownloaded(succeeded);
       if (failures.length) alert('O ZIP foi criado, mas ' + failures.length + ' vídeo(s) não puderam ser incluídos por bloqueio do servidor: ' + failures.join(', '));
     } catch (error) {
       console.error('Falha ao criar ZIP:', error);
       alert('Não foi possível montar o ZIP. Tente baixar menos vídeos por vez.');
     }
   };
-  const selectAllVisible = () => setSelected(rows.map(p=>p.id));
+  const selectAllVisible = () => setSelected(rows.filter(p=>!downloaded.includes(p.id)).map(p=>p.id));
   const exportCsv = () => {
     const data = [['Produto','SKU','Status','Marketplace','Duração aproximada','Link do anúncio com vídeo','Observações'], ...found.map(p => [p.name,p.sku || '',saved[p.id]?.url ? 'Revisado' : 'Pendente',saved[p.id]?.platform || '',saved[p.id]?.duration || '',saved[p.id]?.url || '',saved[p.id]?.notes || ''])];
     const csv = '\uFEFF' + data.map(r => r.map(v => '"' + String(v ?? '').replace(/"/g,'""') + '"').join(';')).join('\r\n');
@@ -126,8 +133,8 @@ export const VideoFinderView: React.FC<{products: Product[]}> = ({products}) => 
       <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">{([['Produtos encontrados',found.length,'text-white'],['Anúncios com link de vídeo',count,'text-emerald-300'],['Pendentes de verificação',found.length-count,'text-amber-300'],['Lista filtrada',rows.length,'text-violet-300']] as const).map(([label,n,color])=><div key={String(label)} className="rounded-xl border border-white/10 bg-black/20 p-3"><div className="text-xs text-slate-400">{label}</div><div className={'mt-1 text-2xl font-bold '+color}>{n}</div></div>)}</div>
     </section>
     <section className="rounded-2xl border border-slate-800 bg-[#121824] p-4 sm:p-5"><h2 className="mb-3 flex items-center gap-2 font-semibold text-white"><Search className="h-4 w-4 text-violet-300"/> Mostrar anúncios com vídeo</h2><div className="grid gap-3 sm:grid-cols-[1fr_220px]"><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Filtrar nome ou SKU..." className="min-w-0 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white placeholder:text-slate-500"/><select value={platform} onChange={e=>setPlatform(e.target.value)} className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white"><option>Todos</option>{marketplaceNames.map(p=><option key={p}>{p}</option>)}</select></div><p className="mt-2 text-xs text-slate-500">A lista mostra os produtos encontrados que ainda precisam ser verificados. Abra os anúncios nos marketplaces e salve o link somente quando confirmar que há vídeo. A busca não usa YouTube nem Google.</p></section>
-    <div className="flex flex-wrap items-center gap-2"><button onClick={selectAllVisible} className="rounded-full border border-emerald-800 px-3 py-1.5 text-xs font-semibold text-emerald-200">Selecionar todos visíveis</button><button onClick={()=>setSelected([])} className="rounded-full border border-slate-700 px-3 py-1.5 text-xs text-slate-300">Limpar seleção</button>{[['com_video','Somente anúncios com vídeo confirmado'],['pendentes','Pendentes de verificação'],['todos','Todos os produtos']].map(([v,l])=><button key={v} onClick={()=>setFilter(v)} className={'rounded-full border px-3 py-1.5 text-xs font-semibold '+(filter===v?'border-violet-500 bg-violet-600/20 text-violet-200':'border-slate-700 bg-[#121824] text-slate-400')}>{l}</button>)}</div>
-    {!found.length ? <div className="rounded-xl border border-dashed border-slate-700 bg-[#121824] p-10 text-center"><Video className="mx-auto mb-3 h-8 w-8 text-slate-500"/><h3 className="font-semibold text-white">Nenhum produto marcado como Encontrado</h3><p className="mt-1 text-sm text-slate-400">Marque produtos como Encontrado na lista principal para aparecerem aqui.</p></div> : !rows.length ? <div className="rounded-xl border border-slate-800 bg-[#121824] p-8 text-center text-sm text-slate-400">Nenhum produto corresponde aos filtros atuais. Tente “Todos os produtos” ou ajuste a busca e o marketplace.</div> : <div className="space-y-3">{rows.map((p,i)=>{const rec=saved[p.id] || {url:'',platform:'Shopee',duration:'10 segundos',notes:''};const researchLinks=(p.research_records || []).filter(r=>r.url);return <article key={p.id} className="rounded-xl border border-slate-800 bg-[#121824] p-4"><div className="flex flex-col gap-4"><div className="flex min-w-0 gap-3"><input aria-label={'Selecionar '+p.name} type="checkbox" checked={selected.includes(p.id)} onChange={e=>setSelected(prev=>e.target.checked?[...prev,p.id]:prev.filter(id=>id!==p.id))} className="mt-1 h-4 w-4 accent-emerald-500"/>{p.image ? <img src={p.image} alt="" className="h-16 w-16 shrink-0 rounded-lg border border-slate-700 bg-slate-900 object-contain" onError={e=>{e.currentTarget.style.display='none'}}/> : <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-slate-700 bg-slate-900"><Video className="h-6 w-6 text-slate-600"/></div>}<div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold text-white">{p.name}</h3>{rec.url?<span className="inline-flex items-center gap-1 rounded-full bg-emerald-950/60 px-2 py-1 text-[10px] font-bold text-emerald-300"><CheckCircle2 className="h-3 w-3"/> LINK REVISADO</span>:<span className="inline-flex items-center gap-1 rounded-full bg-amber-950/50 px-2 py-1 text-[10px] font-bold text-amber-300"><Circle className="h-3 w-3"/> PENDENTE</span>}</div><p className="mt-1 text-xs text-slate-500">SKU: {p.sku || 'Não informado'}</p></div></div>
+    <div className="flex flex-wrap items-center gap-2"><button onClick={selectAllVisible} className="rounded-full border border-emerald-800 px-3 py-1.5 text-xs font-semibold text-emerald-200">Selecionar todos visíveis</button><button onClick={()=>setSelected([])} className="rounded-full border border-slate-700 px-3 py-1.5 text-xs text-slate-300">Limpar seleção</button>{[['com_video','Somente anúncios com vídeo confirmado'],['pendentes','Pendentes de verificação'],['baixados','Vídeos baixados'],['todos','Todos os produtos']].map(([v,l])=><button key={v} onClick={()=>setFilter(v)} className={'rounded-full border px-3 py-1.5 text-xs font-semibold '+(filter===v?'border-violet-500 bg-violet-600/20 text-violet-200':'border-slate-700 bg-[#121824] text-slate-400')}>{l}</button>)}</div>
+    {!found.length ? <div className="rounded-xl border border-dashed border-slate-700 bg-[#121824] p-10 text-center"><Video className="mx-auto mb-3 h-8 w-8 text-slate-500"/><h3 className="font-semibold text-white">Nenhum produto marcado como Encontrado</h3><p className="mt-1 text-sm text-slate-400">Marque produtos como Encontrado na lista principal para aparecerem aqui.</p></div> : !rows.length ? <div className="rounded-xl border border-slate-800 bg-[#121824] p-8 text-center text-sm text-slate-400">Nenhum produto corresponde aos filtros atuais. Tente “Todos os produtos” ou ajuste a busca e o marketplace.</div> : <div className="space-y-3">{rows.map((p,i)=>{const rec=saved[p.id] || {url:'',platform:'Shopee',duration:'10 segundos',notes:''};const researchLinks=(p.research_records || []).filter(r=>r.url);return <article key={p.id} className="rounded-xl border border-slate-800 bg-[#121824] p-4"><div className="flex flex-col gap-4"><div className="flex min-w-0 gap-3"><input aria-label={'Selecionar '+p.name} type="checkbox" checked={selected.includes(p.id)} onChange={e=>setSelected(prev=>e.target.checked?(prev.includes(p.id)?prev:[...prev,p.id]):prev.filter(id=>id!==p.id))} className="mt-1 h-4 w-4 accent-emerald-500"/>{p.image ? <img src={p.image} alt="" className="h-16 w-16 shrink-0 rounded-lg border border-slate-700 bg-slate-900 object-contain" onError={e=>{e.currentTarget.style.display='none'}}/> : <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-slate-700 bg-slate-900"><Video className="h-6 w-6 text-slate-600"/></div>}<div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold text-white">{p.name}</h3>{downloaded.includes(p.id)?<span className="inline-flex items-center gap-1 rounded-full bg-sky-950/60 px-2 py-1 text-[10px] font-bold text-sky-300"><CheckCircle2 className="h-3 w-3"/> VÍDEO BAIXADO</span>:rec.url?<span className="inline-flex items-center gap-1 rounded-full bg-emerald-950/60 px-2 py-1 text-[10px] font-bold text-emerald-300"><CheckCircle2 className="h-3 w-3"/> LINK REVISADO</span>:<span className="inline-flex items-center gap-1 rounded-full bg-amber-950/50 px-2 py-1 text-[10px] font-bold text-amber-300"><Circle className="h-3 w-3"/> PENDENTE</span>}</div><p className="mt-1 text-xs text-slate-500">SKU: {p.sku || 'Não informado'}</p></div></div>
       {researchLinks.length>0 && <div className="rounded-lg border border-emerald-900/50 bg-emerald-950/20 p-3"><p className="mb-2 text-xs font-semibold text-emerald-200">Anúncios que você já encontrou</p><div className="flex flex-wrap gap-2">{researchLinks.map((r,idx)=><button key={r.id || idx} onClick={()=>openResearchListing(r)} className="inline-flex items-center gap-1 rounded-md border border-emerald-900 px-2.5 py-1.5 text-xs text-emerald-100 hover:bg-emerald-900/40"><ExternalLink className="h-3 w-3"/>{platformFor(r)}{r.store ? ' · '+r.store : ''}</button>)}</div></div>}
       <div><p className="mb-2 flex items-center gap-2 text-xs font-semibold text-slate-300"><ShoppingBag className="h-4 w-4 text-violet-300"/> Procurar o produto dentro dos marketplaces</p><div className="flex flex-wrap gap-2">{marketplaceNames.map(m=><a key={m} target="_blank" rel="noreferrer" href={marketplaceSearchUrl(p.name,m)} className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-medium text-slate-200 hover:border-violet-500 hover:text-white"><ExternalLink className="h-3 w-3"/>{m}</a>)}</div></div>
       <div className="grid gap-3 lg:grid-cols-[1fr_1fr_180px_180px]"><div><label className="mb-1 block text-xs font-medium text-slate-400">Link do anúncio que contém o vídeo curto</label><input value={rec.url} onChange={e=>update(p.id,{url:e.target.value})} placeholder="Cole o link do anúncio do marketplace..." className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white placeholder:text-slate-600"/></div><div><label className="mb-1 block text-xs font-medium text-emerald-300">Link direto do arquivo de vídeo (para baixar)</label><input value={rec.videoUrl || ''} onChange={e=>update(p.id,{videoUrl:e.target.value})} placeholder="Cole a URL direta do vídeo, se disponível..." className="w-full rounded-lg border border-emerald-900 bg-slate-950 px-3 py-2.5 text-sm text-white placeholder:text-slate-600"/><button onClick={()=>downloadVideo(p.id)} disabled={!rec.videoUrl?.trim()} className="mt-2 inline-flex items-center gap-1 rounded-md bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40"><Download className="h-3 w-3"/> Baixar vídeo</button></div><div><label className="mb-1 block text-xs font-medium text-slate-400">Marketplace</label><select value={rec.platform} onChange={e=>update(p.id,{platform:e.target.value})} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white">{marketplaceNames.map(m=><option key={m}>{m}</option>)}</select></div><div><label className="mb-1 flex items-center gap-1 text-xs font-medium text-slate-400"><Clock3 className="h-3 w-3"/> Duração do vídeo</label><select value={rec.duration} onChange={e=>update(p.id,{duration:e.target.value})} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white"><option>Até 10 segundos</option><option>10 segundos</option><option>11–15 segundos</option><option>Mais de 15 segundos</option><option>Não confirmado</option></select></div></div>
