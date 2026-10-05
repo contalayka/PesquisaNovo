@@ -73,7 +73,7 @@ export const VideoFinderView: React.FC<{products: Product[]}> = ({products}) => 
       if (cancelled) return;
 
       const local = localStorageSafeLoad();
-      const merged: SavedMap = { ...(cloud as SavedMap), ...local };
+      const merged: SavedMap = { ...local, ...(cloud as SavedMap) };
 
       setSaved(merged);
       try {
@@ -147,9 +147,48 @@ export const VideoFinderView: React.FC<{products: Product[]}> = ({products}) => 
       }
       if (detail.status === 'completed') {
         setFlowQueueRunning(true);
-        setFlowQueueMessage('Concluído: ' + (detail.productName || 'produto') + '. O MP4 foi salvo em Downloads/MARKETPRECO/Google-Flow/.');
+        const product = products.find(p => p.id === detail.productId);
+        if (detail.productId && product) {
+          const key = productKey(product);
+          const current = localStorageSafeLoad()[key] || {
+            url: '',
+            platform: 'Shopee',
+            duration: '10 segundos',
+            notes: ''
+          };
+          const record: SavedVideo = {
+            ...current,
+            productKey: key,
+            productName: product.name,
+            productSku: product.sku || '',
+            productBarcode: product.barcode || '',
+            productImage: product.image || '',
+            videoUrl: detail.videoUrl || current.videoUrl,
+            url: current.url || '',
+          };
+          setSaved(prev => ({...prev, [key]: record}));
+          try {
+            const next = {...localStorageSafeLoad(), [key]: record};
+            localStorage.setItem(KEY, JSON.stringify(next));
+            localStorage.setItem(KEY + '_backup', JSON.stringify(next));
+          } catch {}
+          void saveVideoRecord({
+            productKey: key,
+            productId: product.id,
+            productName: product.name,
+            productSku: product.sku || '',
+            productBarcode: product.barcode || '',
+            productImage: product.image || '',
+            url: record.url || '',
+            videoUrl: record.videoUrl,
+            platform: record.platform || 'Shopee',
+            duration: record.duration || '10 segundos',
+            notes: record.notes || '',
+          });
+        }
+        setFlowQueueMessage('Concluído: ' + (detail.productName || 'produto') + '. O link e o vídeo foram salvos na Central de Vídeos.');
         if (detail.productId) {
-          setGenerationMessage(prev => ({...prev, [detail.productId]: 'Vídeo gerado e baixado automaticamente pelo Google Flow.'}));
+          setGenerationMessage(prev => ({...prev, [detail.productId]: detail.videoUrl ? 'Vídeo gerado. Link capturado e salvo automaticamente.' : 'Vídeo gerado e baixado automaticamente; o Flow não expôs uma URL direta do MP4.'}));
           setGenerating(prev => prev.filter(id => id !== detail.productId));
         }
         return;
