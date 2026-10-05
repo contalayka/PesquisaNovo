@@ -160,6 +160,7 @@ export const VideoFinderView: React.FC<{products: Product[]}> = ({products}) => 
       }
     };
     window.addEventListener('message', onFlowMessage);
+    window.postMessage({source:'marketpreco-app',type:'MARKETPRECO_FLOW_PING'}, window.location.origin);
     return () => window.removeEventListener('message', onFlowMessage);
   }, []);
 
@@ -170,8 +171,7 @@ export const VideoFinderView: React.FC<{products: Product[]}> = ({products}) => 
       return;
     }
     if (!flowExtensionReady) {
-      window.open(FLOW_EXTENSION_FOLDER, '_blank', 'noopener,noreferrer');
-      alert('A automação do Google Flow ainda não está instalada no Chrome. Abra a pasta indicada, carregue a extensão em chrome://extensions e depois volte ao MARKETPREÇO.');
+      alert('A extensão MARKETPREÇO • Google Flow não foi detectada nesta página. Vá em chrome://extensions, confirme que ela está ativada e recarregue esta página (Ctrl+F5).');
       return;
     }
     const payload = valid.map(p => ({id:p.id,name:p.name,image:p.image,prompt:buildFlowPrompt(p)}));
