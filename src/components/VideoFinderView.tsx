@@ -46,7 +46,7 @@ export const VideoFinderView: React.FC<{products: Product[]}> = ({products}) => 
     try { localStorage.setItem(KEY, JSON.stringify(next)); } catch {}
     return next;
   });
-  const downloadVideo = (id: string) => { const url = saved[id]?.videoUrl?.trim(); if (!url) { alert('Cole primeiro o link direto do arquivo de vídeo (.mp4 ou similar). O link da página do anúncio não é o arquivo do vídeo.'); return; } const a = document.createElement('a'); a.href = url; a.download = (found.find(p=>p.id===id)?.name || 'video').replace(/[^a-z0-9-_ ]/gi,'').trim().replace(/\\s+/g,'_') + '.mp4'; a.target = '_blank'; a.rel = 'noopener noreferrer'; document.body.appendChild(a); a.click(); a.remove(); };
+  const downloadVideo = (id: string) => { const url = saved[id]?.videoUrl?.trim(); if (!url) { alert('Cole primeiro o link direto do arquivo de vídeo (.mp4 ou similar). O link da página do anúncio não é o arquivo do vídeo.'); return; } const a = document.createElement('a'); a.href = url; a.download = (found.find(p=>p.id===id)?.name || 'video').replace(/[^a-z0-9-_ ]/gi,'').trim().replace(/\s+/g,'_') + '.mp4'; a.target = '_blank'; a.rel = 'noopener noreferrer'; document.body.appendChild(a); a.click(); a.remove(); };
   const downloadSelected = () => { const ids = selected.filter(id => !!saved[id]?.videoUrl?.trim()); if (!ids.length) { alert('Nenhum dos produtos selecionados tem um link direto de vídeo salvo.'); return; } ids.forEach((id, index) => window.setTimeout(() => downloadVideo(id), index * 350)); };
   const selectAllVisible = () => setSelected(rows.map(p=>p.id));
   const exportCsv = () => {
