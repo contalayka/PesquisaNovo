@@ -1,34 +1,79 @@
+import { GoogleGenAI } from "@google/genai";
+
 interface Env {
-  RUNWAYML_API_SECRET?: string;
+  GEMINI_API_KEY?: string;
 }
 
-export const onRequestGet: PagesFunction<Env, "taskId"> = async ({ request, env, params }) => {
-  if (!env.RUNWAYML_API_SECRET) {
-    return Response.json({ error: "A geração de vídeo ainda não está configurada no Cloudflare Pages." }, { status: 503 });
+const decodeToken = (value: string) => {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((value.length + 3) % 4);
+  return atob(normalized);
+};
+
+export const onRequestGet: PagesFunction<Env, "taskId"> = async ({ env, params }) => {
+  if (!env.GEMINI_API_KEY) {
+    return Response.json(
+      { error: "A geração com Gemini não está configurada no Cloudflare Pages." },
+      { status: 503 }
+    );
   }
-  const taskId = String(params.taskId || "");
-  if (!/^[a-zA-Z0-9-]{8,100}$/.test(taskId)) {
+
+  const token = String(params.taskId || "");
+  if (!token || !/^[A-Za-z0-9_-]{10,2000}$/.test(token)) {
     return Response.json({ error: "ID de geração inválido." }, { status: 400 });
   }
-  const upstream = await fetch(`https://api.dev.runwayml.com/v1/tasks/${encodeURIComponent(taskId)}`, {
-    headers: {
-      "Authorization": `Bearer ${env.RUNWAYML_API_SECRET}`,
-      "X-Runway-Version": "2024-11-06"
-    }
-  });
-  const data = await upstream.json().catch(() => ({})) as {
-    status?: string;
-    output?: string[] | string;
-    failure?: string;
-    error?: { message?: string };
-    message?: string;
-  };
-  if (!upstream.ok) {
-    return Response.json({ error: data.error?.message || data.message || "Não foi possível consultar o status da geração." }, { status: 502 });
+
+  let operationName = "";
+  try {
+    operationName = decodeToken(token);
+  } catch {
+    return Response.json({ error: "ID de geração inválido." }, { status: 400 });
   }
-  return Response.json({
-    status: data.status || "UNKNOWN",
-    output: data.output || [],
-    failure: data.failure || ""
-  });
+
+  if (!operationName.startsWith("models/") || !operationName.includes("/operations/")) {
+    return Response.json({ error: "Operação Gemini inválida." }, { status: 400 });
+  }
+
+  try {
+    const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
+    const operation = await ai.operations.getVideosOperation({
+      operation: { name: operationName } as any,
+    });
+
+    if (operation.error) {
+      return Response.json(
+        {
+          status: "FAILED",
+          error:
+            (operation.error as any).message ||
+            "O Gemini informou um erro na geração.",
+        },
+      );
+    }
+
+    if (!operation.done) {
+      return Response.json({ status: "RUNNING" });
+    }
+
+    const video = operation.response?.generatedVideos?.[0]?.video as
+      | { uri?: string; videoBytes?: string; mimeType?: string }
+      | undefined;
+
+    if (!video) {
+      return Response.json(
+        { status: "FAILED", error: "O Gemini terminou a operação, mas não retornou o vídeo." },
+        { status: 502 }
+      );
+    }
+
+    return Response.json({
+      status: "SUCCEEDED",
+      videoUrl: "/api/video-result?op=" + encodeURIComponent(token),
+      duration: "8 segundos",
+    });
+  } catch (error) {
+    console.error("Erro ao consultar vídeo Gemini:", error);
+    const message =
+      error instanceof Error ? error.message : "Erro desconhecido ao consultar o Gemini.";
+    return Response.json({ error: message }, { status: 502 });
+  }
 };
