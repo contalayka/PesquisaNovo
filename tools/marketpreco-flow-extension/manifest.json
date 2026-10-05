@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "MARKETPREÇO • Google Flow",
+  "version": "1.0.0",
+  "description": "Automação local do MARKETPREÇO para gerar vídeos de produtos usando a conta Google Flow do usuário.",
+  "permissions": ["storage", "downloads", "tabs"],
+  "host_permissions": ["https://pesquisaproduto.pages.dev/*", "https://flow.google.com/*", "https://labs.google/*", "<all_urls>"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {"matches": ["https://pesquisaproduto.pages.dev/*"], "js": ["marketpreco-bridge.js"], "run_at": "document_start"},
+    {"matches": ["https://flow.google.com/*", "https://labs.google/*"], "js": ["flow-automation.js"], "run_at": "document_idle"}
+  ],
+  "externally_connectable": {"matches": ["https://pesquisaproduto.pages.dev/*"]},
+  "action": {"default_title": "MARKETPREÇO • Google Flow"}
+}
