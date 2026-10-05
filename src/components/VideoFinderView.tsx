@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import JSZip from 'jszip';
 import { Video, Search, ExternalLink, Download, CheckCircle2, Circle, ShoppingBag, Clock3, WandSparkles, LoaderCircle, Zap, DownloadCloud } from 'lucide-react';
 import { Product, ResearchRecord } from '../types';
+import { fetchVideoRecords, saveVideoRecord, saveVideoRecords, CloudVideoRecord } from '../utils/videoRecords';
 
 type SavedVideo = { url: string; videoUrl?: string; platform: string; duration: string; notes?: string; productKey?: string; productName?: string; productSku?: string; productBarcode?: string; productImage?: string };
 type SavedMap = Record<string, SavedVideo>;
@@ -22,6 +23,17 @@ const load = (): SavedMap => {
     return backup ? JSON.parse(backup) : {};
   } catch {
     try { return JSON.parse(localStorage.getItem(KEY + '_backup') || '{}'); } catch { return {}; }
+  }
+};
+
+const localStorageSafeLoad = (): SavedMap => {
+  try {
+    const primary = localStorage.getItem(KEY);
+    if (primary) return JSON.parse(primary);
+    const backup = localStorage.getItem(KEY + '_backup');
+    return backup ? JSON.parse(backup) : {};
+  } catch {
+    return {};
   }
 };
 
@@ -50,59 +62,56 @@ const buildFlowPrompt = (product: Product) => `Create a premium vertical 10-seco
 export const VideoFinderView: React.FC<{products: Product[]}> = ({products}) => {
   const found = useMemo(() => products.filter(p => p.status === 'Encontrado'), [products]);
   const [saved, setSaved] = useState<SavedMap>(load);
+  const [cloudVideosLoaded, setCloudVideosLoaded] = useState(false);
   const getSaved = (product: Product, map: SavedMap = saved) => map[productKey(product)] || map[product.id];
 
   React.useEffect(() => {
-    setSaved(prev => {
-      const next = { ...prev };
-      let changed = false;
-      const entries = Object.entries(prev) as [string, SavedVideo][];
+    let cancelled = false;
 
-      products.forEach(product => {
-        const stable = productKey(product);
-        if (next[stable]) {
-          if (next[stable].productName !== product.name || next[stable].productSku !== (product.sku || '')) {
-            next[stable] = { ...next[stable], productKey: stable, productName: product.name, productSku: product.sku || '', productBarcode: product.barcode || '', productImage: product.image || '' };
-            changed = true;
-          }
-          return;
-        }
+    const loadCloudVideos = async () => {
+      const cloud = await fetchVideoRecords();
+      if (cancelled) return;
 
-        // Recover links saved under the old product ID or an older generated key.
-        const oldEntry = next[product.id];
-        if (oldEntry) {
-          next[stable] = { ...oldEntry, productKey: stable, productName: product.name, productSku: product.sku || '', productImage: product.image || '' };
-          changed = true;
-          return;
-        }
+      const local = localStorageSafeLoad();
+      const merged: SavedMap = { ...(cloud as SavedMap), ...local };
 
-        const normalizedName = normalizeKeyPart(product.name);
-        const normalizedSku = normalizeKeyPart(product.sku);
-        const normalizedBarcode = normalizeKeyPart(product.barcode);
-        const match = entries.find(([key, value]) => {
-          if (!value) return false;
-          const savedSku = normalizeKeyPart(value.productSku);
-          const savedName = normalizeKeyPart(value.productName);
-          const savedBarcode = normalizeKeyPart((value as SavedVideo & { productBarcode?: string }).productBarcode);
-          if (normalizedSku && savedSku) return normalizedSku === savedSku;
-          if (normalizedBarcode && savedBarcode) return normalizedBarcode === savedBarcode;
-          return normalizedName && savedName === normalizedName;
-        });
-        if (match) {
-          next[stable] = { ...match[1], productKey: stable, productName: product.name, productSku: product.sku || '', productImage: product.image || '' };
-          changed = true;
-        }
-      });
+      setSaved(merged);
+      try {
+        localStorage.setItem(KEY, JSON.stringify(merged));
+        localStorage.setItem(KEY + '_backup', JSON.stringify(merged));
+      } catch {}
 
-      if (changed) {
-        try {
-          localStorage.setItem(KEY, JSON.stringify(next));
-          localStorage.setItem(KEY + '_backup', JSON.stringify(next));
-        } catch {}
+      const records: Record<string, CloudVideoRecord> = {};
+      for (const [key, value] of Object.entries(local)) {
+        if (cloud[key] || !value) continue;
+        const product = products.find(p => productKey(p) === key);
+        records[key] = {
+          productKey: key,
+          productId: product?.id,
+          productName: value.productName || product?.name,
+          productSku: value.productSku || product?.sku || '',
+          productBarcode: value.productBarcode || product?.barcode || '',
+          productImage: value.productImage || product?.image || '',
+          url: value.url || '',
+          videoUrl: value.videoUrl,
+          platform: value.platform || 'Shopee',
+          duration: value.duration || '10 segundos',
+          notes: value.notes || '',
+        };
       }
-      return changed ? next : prev;
+      if (Object.keys(records).length) await saveVideoRecords(records);
+
+      if (!cancelled) setCloudVideosLoaded(true);
+    };
+
+    loadCloudVideos().catch(error => {
+      console.warn('[Video records] Falha na sincronização inicial:', error);
+      if (!cancelled) setCloudVideosLoaded(true);
     });
+
+    return () => { cancelled = true; };
   }, [products]);
+
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('pendentes');
   const [platform, setPlatform] = useState('Todos');
@@ -189,29 +198,49 @@ export const VideoFinderView: React.FC<{products: Product[]}> = ({products}) => 
       (platform === 'Todos' || s?.platform === platform);
   }), [found, query, filter, saved, platform, downloaded]);
   const count = found.filter(p => getSaved(p)?.url?.trim()).length;
-  const update = (id: string, patch: Partial<SavedVideo>) => setSaved(prev => {
+  const update = (id: string, patch: Partial<SavedVideo>) => {
     const product = products.find(p => p.id === id);
-    if (!product) return prev;
-    const key = productKey(product);
-    const current = getSaved(product, prev) || {url:'', platform:'Shopee', duration:'10 segundos', notes:''};
-    const next = {
-      ...prev,
-      [key]: {
-        ...current,
-        ...patch,
+    if (!product) return;
+
+    setSaved(prev => {
+      const key = productKey(product);
+      const current = getSaved(product, prev) || {url:'', platform:'Shopee', duration:'10 segundos', notes:''};
+      const next = {
+        ...prev,
+        [key]: {
+          ...current,
+          ...patch,
+          productKey: key,
+          productName: product.name,
+          productSku: product.sku || '',
+          productBarcode: product.barcode || '',
+          productImage: product.image || ''
+        }
+      };
+      try {
+        localStorage.setItem(KEY, JSON.stringify(next));
+        localStorage.setItem(KEY + '_backup', JSON.stringify(next));
+      } catch {}
+
+      const record = next[key];
+      void saveVideoRecord({
         productKey: key,
+        productId: product.id,
         productName: product.name,
         productSku: product.sku || '',
         productBarcode: product.barcode || '',
-        productImage: product.image || ''
-      }
-    };
-    try {
-      localStorage.setItem(KEY, JSON.stringify(next));
-      localStorage.setItem(KEY + '_backup', JSON.stringify(next));
-    } catch {}
-    return next;
-  });
+        productImage: product.image || '',
+        url: record.url || '',
+        videoUrl: record.videoUrl,
+        platform: record.platform || 'Shopee',
+        duration: record.duration || '10 segundos',
+        notes: record.notes || '',
+      });
+
+      return next;
+    });
+  };
+
   const downloadVideo = async (id: string) => {
     const url = getSaved(found.find(p => p.id === id) as Product)?.videoUrl?.trim();
     if (!url) { alert('Cole primeiro o link direto do arquivo de vídeo (.mp4 ou similar). O link da página do anúncio não é o arquivo do vídeo.'); return; }
