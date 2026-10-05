@@ -20,7 +20,7 @@
     e.dispatchEvent(new ClipboardEvent('paste',{clipboardData:dt,bubbles:true,cancelable:true}));
     await sleep(700);
     const consent=document.querySelector(S.consent);if(consent&&visible(consent)){consent.click();await sleep(500);}
-    await waitFor(()=>all('flow-image-ingredient-chip, flow-ingredient-bar flow-image-ingredient-chip').length>0,true?20000:20000,300,'imagem de referência');
+    await waitFor(()=>all('flow-image-ingredient-chip, flow-ingredient-bar flow-image-ingredient-chip').length>0,20000,300,'imagem de referência');
   }
   const menuItems=()=>all('div.mat-mdc-menu-content flow-menu-item button[role="menuitem"]').filter(visible);
   async function openSettings(){const b=document.querySelector(S.settings);if(!b||!visible(b))throw new Error('Configurações de geração não encontradas.');b.click();await waitFor(()=>document.querySelector('flow-prompt-box-settings'),10000,200,'painel de configurações');}
@@ -42,7 +42,10 @@
   async function download(tile){
     const more=tile.querySelector(S.more);if(!more||!visible(more))throw new Error('Menu do vídeo não encontrado.');more.click();
     const d=await waitFor(()=>{const x=document.querySelector(S.download);return x&&visible(x)?x:null;},10000,200,'opção de download');d.click();
-    await sleep(1000);
+    await sleep(300);
+    const quality=await waitFor(()=>{const x=Array.from(document.querySelectorAll('div.mat-mdc-menu-content flow-menu-item button')).find(b=>visible(b)&&/720p/i.test(b.textContent||''));return x||null;},10000,200,'qualidade 720p');
+    quality.click();
+    await sleep(1800);
     await waitFor(()=>!document.querySelector(S.download),10000,200,'fechamento do menu');
   }
   async function generate(p){
