@@ -46,7 +46,29 @@ export const VideoFinderView: React.FC<{products: Product[]}> = ({products}) => 
     try { localStorage.setItem(KEY, JSON.stringify(next)); } catch {}
     return next;
   });
-  const downloadVideo = (id: string) => { const url = saved[id]?.videoUrl?.trim(); if (!url) { alert('Cole primeiro o link direto do arquivo de vídeo (.mp4 ou similar). O link da página do anúncio não é o arquivo do vídeo.'); return; } const a = document.createElement('a'); a.href = url; a.download = (found.find(p=>p.id===id)?.name || 'video').replace(/[^a-z0-9-_ ]/gi,'').trim().replace(/\s+/g,'_') + '.mp4'; a.target = '_blank'; a.rel = 'noopener noreferrer'; document.body.appendChild(a); a.click(); a.remove(); };
+  const downloadVideo = async (id: string) => {
+    const url = saved[id]?.videoUrl?.trim();
+    if (!url) { alert('Cole primeiro o link direto do arquivo de vídeo (.mp4 ou similar). O link da página do anúncio não é o arquivo do vídeo.'); return; }
+    if (!/^https?:\/\//i.test(url)) { alert('Informe uma URL http:// ou https:// válida para o arquivo de vídeo.'); return; }
+    const filename = (found.find(p=>p.id===id)?.name || 'video').replace(/[^a-z0-9-_ ]/gi,'').trim().replace(/\s+/g,'_') + '.mp4';
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const blob = await response.blob();
+      if (!blob.size) throw new Error('Arquivo vazio');
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
+    } catch (error) {
+      console.error('Falha ao baixar vídeo:', error);
+      alert('O navegador não conseguiu baixar este vídeo diretamente. O servidor pode bloquear o acesso externo (CORS) ou exigir uma sessão da plataforma. Use o link direto do arquivo .mp4, ou baixe pelo anúncio/extensão do marketplace. O sistema não abriu outra aba porque isso não seria um download.');
+    }
+  };
   const downloadSelected = () => { const ids = selected.filter(id => !!saved[id]?.videoUrl?.trim()); if (!ids.length) { alert('Nenhum dos produtos selecionados tem um link direto de vídeo salvo.'); return; } ids.forEach((id, index) => window.setTimeout(() => downloadVideo(id), index * 350)); };
   const selectAllVisible = () => setSelected(rows.map(p=>p.id));
   const exportCsv = () => {
