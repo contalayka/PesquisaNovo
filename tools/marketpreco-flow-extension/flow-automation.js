@@ -218,7 +218,7 @@
 
     const generateButton = await waitFor(
       () => findButton(/^(generate|gerar)(\s+(image|video|imagem|vídeo))?$/i) ||
-            findButton(/generate|gerar/i),
+            findButton(/generate|gerar|create|criar/i),
       30000,
       'o botão Gerar'
     );
