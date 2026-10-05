@@ -16,17 +16,31 @@ export interface ColumnDetectionResult {
 
 export function formatCurrency(value: number | string | undefined | null): string {
   if (value === undefined || value === null || value === '') return '-';
-  const num = typeof value === 'number' ? value : parseFloat(String(value).replace(/[^\d.,-]/g, '').replace(',', '.'));
-  if (isNaN(num)) return String(value);
+  if (typeof value === 'number') {
+    if (isNaN(value)) return '-';
+    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+  const str = String(value).trim();
+  if (!str) return '-';
+  let cleaned = str.replace(/[^\d.,-]/g, '');
+  if (!cleaned) return '-';
+  if (cleaned.includes(',') && cleaned.includes('.')) {
+    cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+  } else if (cleaned.includes(',')) {
+    cleaned = cleaned.replace(',', '.');
+  }
+  const num = parseFloat(cleaned);
+  if (isNaN(num)) return str;
   return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 export function parseNumber(value: number | string | undefined | null): number | string {
   if (value === undefined || value === null || value === '') return '';
-  if (typeof value === 'number') return value;
+  if (typeof value === 'number') return isNaN(value) ? '' : value;
   const str = String(value).trim();
   // Handle Brazilian currency formatting e.g. "R$ 1.250,50" or "15,90"
   let cleaned = str.replace(/[^\d.,-]/g, '');
+  if (!cleaned) return '';
   if (cleaned.includes(',') && cleaned.includes('.')) {
     // Both comma and dot: usually dot is thousand separator, comma is decimal
     cleaned = cleaned.replace(/\./g, '').replace(',', '.');

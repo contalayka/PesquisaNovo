@@ -10,6 +10,7 @@ import {
   ColumnDetectionResult,
   resolveImageUrl,
   isActualImageSource,
+  parseNumber,
 } from './utils/excel';
 import {
   getStoredSupabaseConfig,
@@ -1756,7 +1757,8 @@ export default function App() {
       }
 
       // Cost range
-      const numCost = typeof p.cost === 'number' ? p.cost : parseFloat(String(p.cost)) || 0;
+      const rawCostVal = typeof p.cost === 'number' ? p.cost : parseNumber(p.cost);
+      const numCost = typeof rawCostVal === 'number' && !isNaN(rawCostVal) ? rawCostVal : 0;
       if (minC !== null && !isNaN(minC) && numCost < minC) return false;
       if (maxC !== null && !isNaN(maxC) && numCost > maxC) return false;
 
@@ -1789,23 +1791,28 @@ export default function App() {
       });
     } else if (sortBy === 'lowest_cost') {
       return list.sort((a, b) => {
-        const cA = typeof a.cost === 'number' ? a.cost : parseFloat(String(a.cost).replace(',', '.')) || 0;
-        const cB = typeof b.cost === 'number' ? b.cost : parseFloat(String(b.cost).replace(',', '.')) || 0;
+        const rawA = typeof a.cost === 'number' ? a.cost : parseNumber(a.cost);
+        const rawB = typeof b.cost === 'number' ? b.cost : parseNumber(b.cost);
+        const cA = typeof rawA === 'number' && !isNaN(rawA) ? rawA : 0;
+        const cB = typeof rawB === 'number' && !isNaN(rawB) ? rawB : 0;
         return cA - cB;
       });
     } else if (sortBy === 'highest_cost') {
       return list.sort((a, b) => {
-        const cA = typeof a.cost === 'number' ? a.cost : parseFloat(String(a.cost).replace(',', '.')) || 0;
-        const cB = typeof b.cost === 'number' ? b.cost : parseFloat(String(b.cost).replace(',', '.')) || 0;
+        const rawA = typeof a.cost === 'number' ? a.cost : parseNumber(a.cost);
+        const rawB = typeof b.cost === 'number' ? b.cost : parseNumber(b.cost);
+        const cA = typeof rawA === 'number' && !isNaN(rawA) ? rawA : 0;
+        const cB = typeof rawB === 'number' && !isNaN(rawB) ? rawB : 0;
         return cB - cA;
       });
     } else if (sortBy === 'lowest_price') {
       const getBestPrice = (p: Product) => {
         if (!p.research_records || p.research_records.length === 0) return 99999999;
         const prices = p.research_records
-          .map((r) =>
-            typeof r.price === 'number' ? r.price : parseFloat(String(r.price).replace(',', '.')) || 0
-          )
+          .map((r) => {
+            const parsed = typeof r.price === 'number' ? r.price : parseNumber(r.price);
+            return typeof parsed === 'number' && !isNaN(parsed) ? parsed : 0;
+          })
           .filter((v) => v > 0);
         return prices.length > 0 ? Math.min(...prices) : 99999999;
       };
@@ -1814,9 +1821,10 @@ export default function App() {
       const getBestPrice = (p: Product) => {
         if (!p.research_records || p.research_records.length === 0) return -1;
         const prices = p.research_records
-          .map((r) =>
-            typeof r.price === 'number' ? r.price : parseFloat(String(r.price).replace(',', '.')) || 0
-          )
+          .map((r) => {
+            const parsed = typeof r.price === 'number' ? r.price : parseNumber(r.price);
+            return typeof parsed === 'number' && !isNaN(parsed) ? parsed : 0;
+          })
           .filter((v) => v > 0);
         return prices.length > 0 ? Math.max(...prices) : -1;
       };

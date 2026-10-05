@@ -84,8 +84,13 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
   // Best research price
   const bestRecord = product.research_records?.[0];
-  const numCost = typeof product.cost === 'number' ? product.cost : parseNumber(product.cost) || 0;
-  const suggestedPrice = typeof numCost === 'number' && numCost > 0 ? (numCost * 2.2).toFixed(2) : '0.00';
+  const parsedRawCost = typeof product.cost === 'number' ? product.cost : parseNumber(product.cost);
+  const numCost = typeof parsedRawCost === 'number' && !isNaN(parsedRawCost) ? parsedRawCost : 0;
+  const rawBestPrice = bestRecord ? (typeof bestRecord.price === 'number' ? bestRecord.price : parseNumber(bestRecord.price)) : null;
+  const suggestedPrice = numCost > 0 ? (numCost * 2.2).toFixed(2) : '0,00';
+  const numBestPrice = typeof rawBestPrice === 'number' && !isNaN(rawBestPrice) && rawBestPrice > 0 ? rawBestPrice : (numCost > 0 ? numCost * 2.2 : 0);
+  const grossProfit = Math.max(0, numBestPrice - numCost);
+  const grossMarginPct = numBestPrice > 0 ? (grossProfit / numBestPrice) * 100 : 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-xs overflow-y-auto">
@@ -340,48 +345,21 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
                     <span className="block text-[10px] text-slate-400">Preço Ref.</span>
                     <span className="text-xs font-mono font-bold text-cyan-300 tabular-nums">
-                      {bestRecord ? formatCurrency(bestRecord.price) : `R$ ${suggestedPrice}`}
+                      {formatCurrency(numBestPrice)}
                     </span>
                   </div>
 
                   <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
-                    <span className="block text-[10px] text-slate-400">Lucro Bruto</span>
+                    <span className="block text-[10px] text-slate-400">Lucro Bruto Estimado</span>
                     <span className="text-xs font-mono font-bold text-white tabular-nums">
-                      {formatCurrency(
-                        Math.max(
-                          0,
-                          (bestRecord
-                            ? (typeof bestRecord.price === 'number'
-                                ? bestRecord.price
-                                : parseFloat(String(bestRecord.price)) || 0)
-                            : parseFloat(suggestedPrice) || 0) - numCost
-                        )
-                      )}
+                      {formatCurrency(grossProfit)}
                     </span>
                   </div>
 
                   <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
                     <span className="block text-[10px] text-slate-400">Margem Bruta %</span>
                     <span className="text-xs font-mono font-bold text-indigo-400 tabular-nums">
-                      {numCost > 0
-                        ? `${(
-                            ((Math.max(
-                              0,
-                              (bestRecord
-                                ? (typeof bestRecord.price === 'number'
-                                    ? bestRecord.price
-                                    : parseFloat(String(bestRecord.price)) || 0)
-                                : parseFloat(suggestedPrice) || 0) - numCost
-                            ) /
-                              (bestRecord
-                                ? (typeof bestRecord.price === 'number'
-                                    ? bestRecord.price
-                                    : parseFloat(String(bestRecord.price)) || 0)
-                                : parseFloat(suggestedPrice) || 0)) *
-                              100) ||
-                            0
-                          ).toFixed(1)}%`
-                        : '--'}
+                      {numCost > 0 ? `${grossMarginPct.toFixed(1)}%` : '--'}
                     </span>
                   </div>
                 </div>

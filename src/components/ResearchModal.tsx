@@ -208,13 +208,16 @@ export const ResearchModal: React.FC<ResearchModalProps> = ({
   };
 
   // Instant margin preview
-  const parsedPriceNum = parseNumber(price);
-  const costNum = typeof product.cost === 'number' ? product.cost : parseFloat(String(product.cost)) || 0;
-  const instantMarkup = costNum > 0 && typeof parsedPriceNum === 'number' && parsedPriceNum > 0
-    ? (parsedPriceNum / costNum).toFixed(1)
+  const parsedPriceNum = typeof price === 'number' ? price : parseNumber(price);
+  const parsedCostNum = typeof product.cost === 'number' ? product.cost : parseNumber(product.cost);
+  const costNum = typeof parsedCostNum === 'number' && !isNaN(parsedCostNum) ? parsedCostNum : 0;
+  const priceVal = typeof parsedPriceNum === 'number' && !isNaN(parsedPriceNum) ? parsedPriceNum : 0;
+
+  const instantMarkup = costNum > 0 && priceVal > 0
+    ? (priceVal / costNum).toFixed(1)
     : null;
-  const instantSpread = typeof parsedPriceNum === 'number' && parsedPriceNum > costNum
-    ? parsedPriceNum - costNum
+  const instantSpread = priceVal > costNum
+    ? priceVal - costNum
     : null;
 
   // Keyboard navigation shortcuts
@@ -507,9 +510,11 @@ export const ResearchModal: React.FC<ResearchModalProps> = ({
               <div className="space-y-2.5">
                 {product.research_records.map((rec, index) => {
                   const isCopied = copiedLink === rec.id;
-                  const numCost = typeof product.cost === 'number' ? product.cost : parseFloat(String(product.cost));
-                  const numPrice = typeof rec.price === 'number' ? rec.price : parseFloat(String(rec.price));
-                  const diff = !isNaN(numCost) && !isNaN(numPrice) && numCost > 0 ? numPrice - numCost : null;
+                  const rawCost = typeof product.cost === 'number' ? product.cost : parseNumber(product.cost);
+                  const rawPrice = typeof rec.price === 'number' ? rec.price : parseNumber(rec.price);
+                  const numCost = typeof rawCost === 'number' && !isNaN(rawCost) ? rawCost : null;
+                  const numPrice = typeof rawPrice === 'number' && !isNaN(rawPrice) ? rawPrice : null;
+                  const diff = numCost !== null && numPrice !== null && numCost > 0 ? numPrice - numCost : null;
 
                   return (
                     <div
