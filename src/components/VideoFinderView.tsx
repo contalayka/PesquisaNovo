@@ -3,14 +3,16 @@ import JSZip from 'jszip';
 import { Video, Search, ExternalLink, Download, CheckCircle2, Circle, ShoppingBag, Clock3, WandSparkles, LoaderCircle } from 'lucide-react';
 import { Product, ResearchRecord } from '../types';
 
-type SavedVideo = { url: string; videoUrl?: string; platform: string; duration: string; notes?: string; productKey?: string; productName?: string; productSku?: string; productImage?: string };
+type SavedVideo = { url: string; videoUrl?: string; platform: string; duration: string; notes?: string; productKey?: string; productName?: string; productSku?: string; productBarcode?: string; productImage?: string };
 type SavedMap = Record<string, SavedVideo>;
 const KEY = 'marketpreco_video_finder_v2';
 const DOWNLOADED_KEY = 'marketpreco_video_downloaded_v1';
 const normalizeKeyPart = (value: unknown) => String(value ?? '').trim().toLocaleLowerCase('pt-BR').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
 const productKey = (product: Product) => {
   const sku = normalizeKeyPart(product.sku);
-  return 'product:' + (sku ? sku + '|' : '') + normalizeKeyPart(product.name) + '|image:' + String(product.image || '').trim();
+  const barcode = normalizeKeyPart(product.barcode);
+  const identity = sku ? 'sku:' + sku : barcode ? 'barcode:' + barcode : 'name:' + normalizeKeyPart(product.name);
+  return 'product:' + identity;
 };
 const load = (): SavedMap => {
   try {
@@ -52,13 +54,44 @@ export const VideoFinderView: React.FC<{products: Product[]}> = ({products}) => 
     setSaved(prev => {
       const next = { ...prev };
       let changed = false;
+      const entries = Object.entries(prev);
+
       products.forEach(product => {
         const stable = productKey(product);
-        if (!next[stable] && next[product.id]) {
-          next[stable] = { ...next[product.id], productKey: stable, productName: product.name, productSku: product.sku || '', productImage: product.image || '' };
+        if (next[stable]) {
+          if (next[stable].productName !== product.name || next[stable].productSku !== (product.sku || '')) {
+            next[stable] = { ...next[stable], productKey: stable, productName: product.name, productSku: product.sku || '', productBarcode: product.barcode || '', productImage: product.image || '' };
+            changed = true;
+          }
+          return;
+        }
+
+        // Recover links saved under the old product ID or an older generated key.
+        const oldEntry = next[product.id];
+        if (oldEntry) {
+          next[stable] = { ...oldEntry, productKey: stable, productName: product.name, productSku: product.sku || '', productImage: product.image || '' };
+          changed = true;
+          return;
+        }
+
+        const normalizedName = normalizeKeyPart(product.name);
+        const normalizedSku = normalizeKeyPart(product.sku);
+        const normalizedBarcode = normalizeKeyPart(product.barcode);
+        const match = entries.find(([key, value]) => {
+          if (!value) return false;
+          const savedSku = normalizeKeyPart(value.productSku);
+          const savedName = normalizeKeyPart(value.productName);
+          const savedBarcode = normalizeKeyPart((value as SavedVideo & { productBarcode?: string }).productBarcode);
+          if (normalizedSku && savedSku) return normalizedSku === savedSku;
+          if (normalizedBarcode && savedBarcode) return normalizedBarcode === savedBarcode;
+          return normalizedName && savedName === normalizedName;
+        });
+        if (match) {
+          next[stable] = { ...match[1], productKey: stable, productName: product.name, productSku: product.sku || '', productImage: product.image || '' };
           changed = true;
         }
       });
+
       if (changed) {
         try {
           localStorage.setItem(KEY, JSON.stringify(next));
@@ -97,6 +130,7 @@ export const VideoFinderView: React.FC<{products: Product[]}> = ({products}) => 
         productKey: key,
         productName: product.name,
         productSku: product.sku || '',
+        productBarcode: product.barcode || '',
         productImage: product.image || ''
       }
     };
