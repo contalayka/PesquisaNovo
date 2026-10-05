@@ -42,7 +42,7 @@ export const PriceSimulatorModal: React.FC<PriceSimulatorModalProps> = ({
   const [targetMarginInput, setTargetMarginInput] = useState<string>('20'); // % desejada
 
   // TikTok specific
-  const [tiktokShippingProgram, setTiktokShippingProgram] = useState<boolean>(false);
+  const [tiktokShippingProgram, setTiktokShippingProgram] = useState<boolean>(true);
 
   // Shopee specific
   const [shopeeFreeShipping, setShopeeFreeShipping] = useState<boolean>(true);
@@ -139,7 +139,10 @@ export const PriceSimulatorModal: React.FC<PriceSimulatorModalProps> = ({
         marketplaceFixed = 6.0;
       }
       if (tiktokShippingProgram) {
-        marketplacePct += 6.0;
+        // Programa de Taxas de Envio: 6% do preço, limitado a R$ 50,00 por item.
+        // O valor é separado da comissão para que o demonstrativo mostre
+        // exatamente quanto foi descontado e para que o teto seja respeitado.
+        platformShippingDeduction = Math.min((price * 6) / 100, 50);
       }
     } else if (platform === 'shein') {
       marketplacePct = parseVal(sheinCommissionPct);
@@ -155,7 +158,11 @@ export const PriceSimulatorModal: React.FC<PriceSimulatorModalProps> = ({
     }
 
     const totalMarketplaceFees = commissionVal + marketplaceFixed + platformShippingDeduction;
-    const netPayout = price - totalMarketplaceFees; // Repasse que cai na conta do seller
+    // Repasse líquido = o que sobra do preço depois das taxas da plataforma.
+    // Não desconta custo do produto, imposto ou embalagem: esses entram no lucro.
+    const netPayout = price - totalMarketplaceFees;
+    // Lucro líquido real = repasse - custo do produto - imposto - embalagem/operação.
+    // Isso evita confundir "líquido a receber" com "lucro".
     const totalCosts = cost + totalMarketplaceFees + taxAmount + packCost;
     const netProfit = price - totalCosts;
     const netMarginPct = price > 0 ? (netProfit / price) * 100 : 0;
@@ -473,10 +480,10 @@ export const PriceSimulatorModal: React.FC<PriceSimulatorModalProps> = ({
                     />
                     <div>
                       <span className="font-semibold text-slate-800 dark:text-slate-200">
-                        Programa de Frete TikTok (+6%)
+                        Programa de Frete TikTok (+6%, máx. R$ 50)
                       </span>
                       <p className="text-[10px] text-slate-400">
-                        Garante cupons de frete grátis aos compradores
+                        Taxa de serviço sobre a venda; limite de R$ 50 por item
                       </p>
                     </div>
                   </label>
@@ -686,7 +693,7 @@ export const PriceSimulatorModal: React.FC<PriceSimulatorModalProps> = ({
         {/* Modal Footer */}
         <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3 text-xs">
           <span className="text-slate-400 text-[11px] truncate">
-            * Margens estimadas conforme tabelas padrão das plataformas em 2025/2026.
+            * Repasse líquido = venda menos taxas da plataforma. Lucro líquido = repasse menos custo, imposto e embalagem.
           </span>
           <button
             type="button"
