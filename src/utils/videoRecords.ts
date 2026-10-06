@@ -85,6 +85,11 @@ export async function fetchVideoRecords(): Promise<Record<string, CloudVideoReco
       // 1. Index under product_key
       if (row.product_key) {
         (map[row.product_key] ||= []).push(record);
+        const trimmedKey = row.product_key.trim();
+        if (/^\d+$/.test(trimmedKey)) {
+          (map[trimmedKey] ||= []).push(record);
+          (map['id:' + trimmedKey] ||= []).push(record);
+        }
       }
 
       // 2. Index under product_id (e.g. '10', '108')

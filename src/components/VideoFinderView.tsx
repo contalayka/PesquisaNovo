@@ -21,6 +21,7 @@ import {
   saveVideoRecord,
   saveVideoRecords,
   deleteVideoRecord,
+  markVideoDownloaded,
   CloudVideoRecord,
   ensureUuid
 } from '../utils/videoRecords';
@@ -212,8 +213,9 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
     const normName = normalize(p.name);
     const stableKey = productKey(p);
 
-    const byId = map[p.id] || [];
-    const byIdPrefix = map['id:' + p.id] || [];
+    const strId = String(p.id ?? '').trim();
+    const byId = strId ? map[strId] || [] : [];
+    const byIdPrefix = strId ? map['id:' + strId] || [] : [];
     const byKey = map[stableKey] || [];
     const byName = map['name:' + normName] || [];
     const byProdName = map['product:name:' + normName] || [];
@@ -235,30 +237,49 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
     return unique;
   };
 
-  const visible = useMemo(() => {
-    return found.filter((p) => {
-      const q = normalize(query);
-      const videos = getVideos(p);
-      const hasVideo = videos.length > 0;
-      const hasDownloaded = videos.some((v) => v.id && downloaded.includes(v.id));
+  const isVideoDownloaded = (v: SavedVideo) => Boolean(v.downloaded || (v.id && downloaded.includes(v.id)));
 
-      const matchesText = !q || normalize(p.name).includes(q) || normalize(p.sku).includes(q);
-      const matchesFilter =
-        filter === 'todos' ||
-        (filter === 'pendentes' ? !hasVideo || !hasDownloaded : filter === 'com_video' ? hasVideo : hasDownloaded);
-      const matchesPlatform = platform === 'Todos' || videos.some((v) => v.platform === platform);
+  const productsWithVideoCount = useMemo(() => {
+    return found.filter((p) => getVideos(p).length > 0).length;
+  }, [found, saved]);
 
-      return matchesText && matchesFilter && matchesPlatform;
-    });
-  }, [found, query, filter, platform, saved, downloaded]);
+  const productsDownloadedCount = useMemo(() => {
+    return found.filter((p) => getVideos(p).some(isVideoDownloaded)).length;
+  }, [found, saved, downloaded]);
 
   const totalVideosCount = useMemo(() => {
     return found.reduce((total, p) => total + getVideos(p).length, 0);
   }, [found, saved]);
 
-  const productsWithVideoCount = useMemo(() => {
-    return found.filter((p) => getVideos(p).length > 0).length;
-  }, [found, saved]);
+  const visible = useMemo(() => {
+    return found.filter((p) => {
+      const q = normalize(query);
+      const videos = getVideos(p);
+      const hasVideo = videos.length > 0;
+      const hasDownloaded = videos.some(isVideoDownloaded);
+
+      const matchesText = !q || normalize(p.name).includes(q) || normalize(p.sku).includes(q);
+
+      let matchesFilter = true;
+      if (filter === 'com_video') {
+        matchesFilter = hasVideo;
+      } else if (filter === 'sem_video' || filter === 'pendentes') {
+        matchesFilter = !hasVideo;
+      } else if (filter === 'baixados') {
+        matchesFilter = hasDownloaded;
+      } else if (filter === 'todos') {
+        matchesFilter = true;
+      }
+
+      const matchesPlatform =
+        platform === 'Todos' ||
+        (hasVideo
+          ? videos.some((v) => v.platform === platform)
+          : (p.research_records || []).some((r) => platformFor(r) === platform));
+
+      return matchesText && matchesFilter && matchesPlatform;
+    });
+  }, [found, query, filter, platform, saved, downloaded]);
 
   // 3. REMOÇÃO DE VÍDEO DO SUPABASE E LOCAL
   const removeVideo = async (p: Product, record: SavedVideo) => {
@@ -505,12 +526,13 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
   };
 
   const scanPending = async () => {
-    const targets = visible.filter((p) => getVideos(p).length === 0);
+    // Escaneia especificamente os produtos que ainda não possuem anúncio com vídeo salvo
+    const targets = found.filter((p) => getVideos(p).length === 0);
     if (!targets.length) {
-      setScanMessage('Todos os produtos filtrados já possuem anúncios com vídeo salvos.');
+      setScanMessage('Todos os produtos já possuem anúncios com vídeo salvos.');
       return;
     }
-    setScanMessage(`Verificando anúncios de ${targets.length} produto(s) pendente(s)...`);
+    setScanMessage(`Verificando anúncios de ${targets.length} produto(s) sem vídeo...`);
     let totalFound = 0;
     for (const p of targets) {
       totalFound += await scanProduct(p);
@@ -518,7 +540,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
     if (totalFound > 0) {
       setScanMessage(`Concluído: novos anúncios com vídeo identificados!`);
     } else {
-      setScanMessage('Verificação concluída: nenhum novo anúncio com vídeo detectado nos itens pendentes.');
+      setScanMessage('Verificação concluída: nenhum novo anúncio com vídeo detectado nos itens sem vídeo.');
     }
   };
 
@@ -545,6 +567,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
       a.target = '_blank';
       a.download = `${normalize(p.name)}.mp4`;
       a.click();
+      if (v.id) markDownloaded([v.id]);
     }
   };
 
@@ -563,6 +586,9 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
       void saveVideoRecords(allVideos.filter((v) => v.id && ids.includes(v.id)));
       return next;
     });
+    for (const id of ids) {
+      void markVideoDownloaded(id);
+    }
   };
 
   const downloadSelected = async () => {
@@ -662,15 +688,20 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
         {/* Metrics Grid */}
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
-            ['Produtos encontrados', found.length],
-            ['Com anúncios de vídeo', productsWithVideoCount],
-            ['Total de vídeos salvos', totalVideosCount],
-            ['Produtos na lista', visible.length]
-          ].map(([label, n]) => (
-            <div key={String(label)} className="rounded-xl border border-white/10 bg-black/20 p-3">
+            ['Produtos encontrados', found.length, 'todos'],
+            ['Com anúncios de vídeo', productsWithVideoCount, 'com_video'],
+            ['Sem vídeo cadastrado', found.length - productsWithVideoCount, 'sem_video'],
+            ['Já baixados', productsDownloadedCount, 'baixados']
+          ].map(([label, n, targetFilter]) => (
+            <button
+              key={String(label)}
+              type="button"
+              onClick={() => setFilter(String(targetFilter))}
+              className="rounded-xl border border-white/10 bg-black/20 p-3 text-left transition hover:border-emerald-500/50 hover:bg-black/30"
+            >
               <div className="text-xs text-slate-400">{label}</div>
               <div className="mt-1 text-2xl font-bold text-white">{n}</div>
-            </div>
+            </button>
           ))}
         </div>
 
@@ -723,22 +754,25 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
       <div className="flex flex-wrap items-center gap-2">
         {[
           ['com_video', 'Com vídeo', productsWithVideoCount],
-          ['pendentes', 'Sem vídeo', found.length - productsWithVideoCount],
-          ['baixados', 'Já baixados', found.filter((p) => getVideos(p).some((v) => v.downloaded)).length],
+          ['sem_video', 'Sem vídeo', found.length - productsWithVideoCount],
+          ['baixados', 'Já baixados', productsDownloadedCount],
           ['todos', 'Todos os encontrados', found.length]
-        ].map(([f, label, count]) => (
-          <button
-            key={String(f)}
-            onClick={() => setFilter(String(f))}
-            className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-              filter === f
-                ? 'border-emerald-500 bg-emerald-600 text-white'
-                : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-600'
-            }`}
-          >
-            {label} <span className="ml-1 opacity-70">({count})</span>
-          </button>
-        ))}
+        ].map(([f, label, count]) => {
+          const isActive = filter === f || (f === 'sem_video' && filter === 'pendentes');
+          return (
+            <button
+              key={String(f)}
+              onClick={() => setFilter(String(f))}
+              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                isActive
+                  ? 'border-emerald-500 bg-emerald-600 text-white'
+                  : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-600'
+              }`}
+            >
+              {label} <span className="ml-1 opacity-70">({count})</span>
+            </button>
+          );
+        })}
         {selected.length > 0 && (
           <button onClick={() => setSelected([])} className="rounded-full border border-slate-700 px-3 py-1.5 text-xs text-slate-300">
             Limpar seleção ({selected.length})
