@@ -121,14 +121,19 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
   };
 
   const scanProduct = async (p: Product) => {
-    const client = getSupabaseClient();
-    if (!client) { alert('Supabase não está conectado.'); return 0; }
     setScanning(p.id);
     setScanMessage('Procurando anúncios e conferindo vídeos reais...');
     try {
-      const { data, error } = await client.functions.invoke('marketplace-video-scan', {
+      const client = getSupabaseClient();
+      if (!client) throw new Error('Supabase não está conectado nesta versão publicada.');
+
+      const invokePromise = client.functions.invoke('marketplace-video-scan', {
         body: { productName: p.name, productImage: p.image || '', platforms, maxCandidates: 20 }
       });
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('A busca demorou mais de 35 segundos. A Edge Function pode não estar publicada ou está sem resposta.')), 35000)
+      );
+      const { data, error } = await Promise.race([invokePromise, timeoutPromise]);
       if (error) throw new Error(error.message || 'A Edge Function não respondeu corretamente.');
       const candidates = Array.isArray(data?.candidates) ? data.candidates : [];
       const existing = getVideos(p);
@@ -228,7 +233,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
     <section className="rounded-2xl border border-violet-900/50 bg-gradient-to-br from-[#17152b] to-[#101522] p-5 sm:p-7">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div><div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-violet-300"><Video className="h-4 w-4"/> MARKETPREÇO • CENTRAL DE VÍDEOS</div><h1 className="text-2xl font-bold text-white sm:text-3xl">Vídeos dos anúncios dos marketplaces</h1><p className="mt-2 max-w-3xl text-sm text-slate-300">Encontre anúncios reais do mesmo produto e salve todos os vídeos encontrados. A Central não gera vídeos por IA.</p></div>
-        <div className="flex flex-wrap gap-2"><button onClick={scanPending} disabled={!!scanning} className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"><Search className="h-4 w-4"/>{scanning ? "Conferindo..." : "Buscar vídeos reais"}</button><button onClick={downloadSelected} className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white"><Download className="h-4 w-4"/> Baixar selecionados</button><button onClick={exportCsv} className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white">Exportar CSV</button></div>
+        <div className="flex flex-wrap gap-2"><button type="button" onClick={scanPending} disabled={!!scanning} className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"><Search className="h-4 w-4"/>{scanning ? "Conferindo..." : "Buscar vídeos reais"}</button><button onClick={downloadSelected} className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white"><Download className="h-4 w-4"/> Baixar selecionados</button><button onClick={exportCsv} className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white">Exportar CSV</button></div>
       </div>
       <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">{[['Produtos encontrados', found.length], ['Vídeos salvos', videoCount], ['Pendentes', found.filter(p => !getVideos(p).some(v => v.url?.trim() || v.videoUrl?.trim())).length], ['Na lista', visible.length]].map(([label,n]) => <div key={String(label)} className="rounded-xl border border-white/10 bg-black/20 p-3"><div className="text-xs text-slate-400">{label}</div><div className="mt-1 text-2xl font-bold text-white">{n}</div></div>)}</div>
       {scanMessage && <div className="mt-3 rounded-lg border border-emerald-900/50 bg-emerald-950/20 px-3 py-2 text-xs text-emerald-200">{scanMessage}</div>}
@@ -257,7 +262,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
         <div className="mt-4 flex flex-wrap gap-2">
           {p.image && <a target="_blank" rel="noreferrer" href={'https://lens.google.com/uploadbyurl?url=' + encodeURIComponent(p.image)} className="inline-flex items-center gap-1.5 rounded-md border border-blue-500/70 bg-blue-600 px-3 py-2 text-xs font-bold text-white"><Search className="h-3.5 w-3.5"/> Buscar pela foto</a>}
           {platforms.map(m => <a key={m} target="_blank" rel="noreferrer" href={marketplaceSearchUrl(p.name, m)} className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200"><ExternalLink className="h-3 w-3"/>{m}</a>)}
-          <button onClick={() => scanProduct(p)} disabled={scanning === p.id} className="inline-flex items-center gap-1.5 rounded-md bg-emerald-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-50"><Search className="h-3.5 w-3.5"/>{scanning === p.id ? "Conferindo..." : "Buscar vídeos reais"}</button><button onClick={() => addVideo(p)} className="inline-flex items-center gap-1.5 rounded-md bg-violet-700 px-3 py-2 text-xs font-bold text-white">+ Adicionar outro vídeo</button>
+          <button type="button" onClick={() => scanProduct(p)} disabled={scanning === p.id} className="inline-flex items-center gap-1.5 rounded-md bg-emerald-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-50"><Search className="h-3.5 w-3.5"/>{scanning === p.id ? "Conferindo..." : "Buscar vídeos reais"}</button><button onClick={() => addVideo(p)} className="inline-flex items-center gap-1.5 rounded-md bg-violet-700 px-3 py-2 text-xs font-bold text-white">+ Adicionar outro vídeo</button>
         </div>
 
         {researchLinks.length > 0 && <div className="mt-4 rounded-lg border border-emerald-900/50 bg-emerald-950/20 p-3"><p className="mb-2 text-xs font-semibold text-emerald-200">Anúncios já encontrados</p><div className="flex flex-wrap gap-2">{researchLinks.map((r, i) => <button key={r.id || i} onClick={() => window.open(r.url, '_blank', 'noopener,noreferrer')} className="inline-flex items-center gap-1 rounded-md border border-emerald-900 px-2.5 py-1.5 text-xs text-emerald-100"><ExternalLink className="h-3 w-3"/>{platformFor(r)}</button>)}</div></div>}
