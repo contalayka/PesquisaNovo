@@ -49,7 +49,7 @@ function isSearchPageUrl(url: string): boolean {
 
 function detectPlatform(url: string): string {
   const l = url.toLowerCase();
-  if (l.includes("shopee")) return "Shopee";
+  if (l.includes("shopee") || l.includes("susercontent.com")) return "Shopee";
   if (l.includes("shein")) return "SHEIN";
   if (l.includes("tiktok")) return "TikTok Shop";
   if (l.includes("mercadolivre") || l.includes("mercadolibre")) return "Mercado Livre";

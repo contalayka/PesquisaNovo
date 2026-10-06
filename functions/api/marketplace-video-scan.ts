@@ -21,7 +21,7 @@ const isSearchPageUrl = (url: string) => {
 
 const detectPlatform = (url: string) => {
   const lower = url.toLowerCase();
-  if (lower.includes('shopee')) return 'Shopee';
+  if (lower.includes('shopee') || lower.includes('susercontent.com')) return 'Shopee';
   if (lower.includes('shein')) return 'SHEIN';
   if (lower.includes('tiktok')) return 'TikTok Shop';
   if (lower.includes('mercadolivre') || lower.includes('mercadolibre')) return 'Mercado Livre';
@@ -178,6 +178,56 @@ export const onRequestPost: PagesFunction = async ({ request }) => {
     } catch {
       // Ignorar falhas isoladas de conexão sem quebrar a requisição
     }
+  }
+
+  // 4. Se nenhum vídeo foi detectado nos links existentes, pesquisar vídeos do produto no TikTok Shop
+  if (candidates.length === 0 && productName && requestedPlatforms.includes('TikTok Shop')) {
+    try {
+      if (!diagnostics['TikTok Shop']) diagnostics['TikTok Shop'] = { status: 'concluido', adsInspected: 0, videosFound: 0 };
+      diagnostics['TikTok Shop'].status = 'pesquisando_publico';
+      const cleanName = productName
+        .replace(/\b(?:un|pcs|pc|kit|c\/|com|em|de|da|do|para|new ion|original)\b/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const q = encodeURIComponent(`site:tiktok.com/video ${cleanName}`);
+      const searchRes = await fetch('https://html.duckduckgo.com/html/?q=' + q, {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'
+        }
+      });
+      if (searchRes.ok) {
+        const html = await searchRes.text();
+        const matches = [...html.matchAll(/uddg=([^&"]+)/g)].map((m) => decodeURIComponent(m[1]));
+        const tiktokLinks = matches.filter((u) => u.includes('tiktok.com') && u.includes('/video/'));
+        for (const tUrl of tiktokLinks.slice(0, 3)) {
+          if (!seenVideos.has(tUrl)) {
+            seenVideos.add(tUrl);
+            let title = productName;
+            let thumb = productImage || undefined;
+            try {
+              const oeRes = await fetch('https://www.tiktok.com/oembed?url=' + encodeURIComponent(tUrl));
+              if (oeRes.ok) {
+                const oeData = await oeRes.json();
+                if (oeData.title) title = oeData.title;
+                if (oeData.thumbnail_url) thumb = oeData.thumbnail_url;
+              }
+            } catch {}
+
+            candidates.push({
+              platform: 'TikTok Shop',
+              title,
+              adUrl: tUrl,
+              videoUrl: tUrl,
+              thumbnail: thumb,
+              duration: '10 segundos',
+              notes: 'Vídeo real encontrado no TikTok Shop para este produto.'
+            });
+            diagnostics['TikTok Shop'].videosFound++;
+          }
+        }
+      }
+    } catch {}
   }
 
   return Response.json({

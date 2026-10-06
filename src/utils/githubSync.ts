@@ -7,8 +7,8 @@ const STORAGE_KEY = 'saas_github_sync_config_v1';
 export const DEFAULT_GITHUB_CONFIG: GitHubSyncConfig = {
   token: '',
   username: 'contalayka',
-  repoName: 'pesquisaproduto',
-  repo: 'contalayka/pesquisaproduto',
+  repoName: 'PesquisaNovo',
+  repo: 'contalayka/PesquisaNovo',
   branch: 'main',
   filePath: 'data/app_data_sync.json',
   autoPush: true,

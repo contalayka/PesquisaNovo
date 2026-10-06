@@ -425,6 +425,9 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
     adUrls?: string[];
     platforms?: string[];
   }): Promise<{ candidates: ScanCandidateItem[]; diagnostics: Record<string, any> }> => {
+    let candidates: ScanCandidateItem[] = [];
+    let diagnostics: Record<string, any> = {};
+
     const client = getSupabaseClient();
 
     // 1. Tentar Edge Function Supabase 'marketplace-video-scan' com tokens de autenticação
@@ -433,11 +436,13 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
         const { data, error } = await client.functions.invoke('marketplace-video-scan', {
           body: payload
         });
-        if (!error && data && Array.isArray(data.candidates)) {
-          return {
-            candidates: data.candidates,
-            diagnostics: data.diagnostics || {}
-          };
+        if (!error && data) {
+          if (Array.isArray(data.candidates) && data.candidates.length > 0) {
+            candidates = [...data.candidates];
+          }
+          if (data.diagnostics && typeof data.diagnostics === 'object') {
+            diagnostics = { ...data.diagnostics };
+          }
         }
         if (error) {
           console.warn('[marketplace-video-scan] Aviso na Edge Function Supabase:', error.message);
@@ -447,25 +452,29 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
       }
     }
 
-    // 2. Fallback para a rota /api/marketplace-video-scan (Cloudflare Pages / Vite Middleware)
-    try {
-      const res = await fetch('/api/marketplace-video-scan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        const json = await res.json();
-        return {
-          candidates: Array.isArray(json?.candidates) ? json.candidates : [],
-          diagnostics: json?.diagnostics || {}
-        };
+    // 2. Se a Edge Function não retornou candidatos (ou falhou), executar varredura via /api
+    if (candidates.length === 0) {
+      try {
+        const res = await fetch('/api/marketplace-video-scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (Array.isArray(json?.candidates)) {
+            candidates = [...json.candidates];
+          }
+          if (json?.diagnostics && typeof json.diagnostics === 'object') {
+            diagnostics = { ...diagnostics, ...json.diagnostics };
+          }
+        }
+      } catch (err) {
+        console.warn('[marketplace-video-scan] Falha na chamada /api fallback:', err);
       }
-    } catch (err) {
-      console.warn('[marketplace-video-scan] Falha na chamada /api fallback:', err);
     }
 
-    return { candidates: [], diagnostics: {} };
+    return { candidates, diagnostics };
   };
 
   // 6. BUSCA DE VÍDEOS REAIS DO PRODUTO

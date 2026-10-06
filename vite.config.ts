@@ -28,7 +28,7 @@ function marketplaceScanPlugin() {
 
               const detectPlatform = (url: string) => {
                 const lower = url.toLowerCase();
-                if (lower.includes('shopee')) return 'Shopee';
+                if (lower.includes('shopee') || lower.includes('susercontent.com')) return 'Shopee';
                 if (lower.includes('shein')) return 'SHEIN';
                 if (lower.includes('tiktok')) return 'TikTok Shop';
                 if (lower.includes('mercadolivre') || lower.includes('mercadolibre')) return 'Mercado Livre';
@@ -38,7 +38,7 @@ function marketplaceScanPlugin() {
               const extractVideo = (html: string): string | null => {
                 const stream = html.match(/https:\/\/stream\.mercadolibre\.com\/[a-zA-Z0-9_\-./]+/i);
                 if (stream) return stream[0];
-                const shopee = html.match(/https?:\/\/cv\.shopee\.com\.br\/[a-zA-Z0-9_\-./]+/i);
+                const shopee = html.match(/https?:\/\/(?:cv\.shopee\.com\.br|[a-z0-9.-]+\.vod\.susercontent\.com)\/[a-zA-Z0-9_\-./]+/i);
                 if (shopee) return shopee[0];
                 const videoSrc = html.match(/<video[^>]+src=["']([^"']+)["']/i);
                 if (videoSrc && !videoSrc[1].startsWith('blob:')) return videoSrc[1];
@@ -47,8 +47,13 @@ function marketplaceScanPlugin() {
                 const og = html.match(/property=["']og:video["'][^>]+content=["']([^"']+)["']/i) ||
                            html.match(/content=["']([^"']+)["'][^>]+property=["']og:video["']/i);
                 if (og) return og[1];
+                const jsonVideo = html.match(/"(?:videoUrl|video_url|playUrl|play_url|downloadAddr)"\s*:\s*"([^"\\]+)"/i);
+                if (jsonVideo) {
+                  const clean = jsonVideo[1].replace(/\\\//g, '/');
+                  if (!/\.m3u8(?:[?#]|$)/i.test(clean)) return clean;
+                }
                 const mp4 = html.match(/https?:\/\/[^\s"'<>\\]+\.mp4(\?[^\s"'<>\\]*)?/i);
-                if (mp4) return mp4[0];
+                if (mp4 && !/\.m3u8(?:[?#]|$)/i.test(mp4[0])) return mp4[0];
                 return null;
               };
 
@@ -111,6 +116,50 @@ function marketplaceScanPlugin() {
                         notes: 'Vídeo verificado e extraído da página do anúncio.'
                       });
                       diagnostics[platform].videosFound++;
+                    }
+                  }
+                } catch {}
+              }
+
+              // Fallback de busca TikTok Shop quando não há candidatos diretos
+              if (candidates.length === 0 && productName) {
+                try {
+                  if (!diagnostics['TikTok Shop']) diagnostics['TikTok Shop'] = { status: 'concluido', adsInspected: 0, videosFound: 0 };
+                  diagnostics['TikTok Shop'].status = 'pesquisando_publico';
+                  const cleanName = productName
+                    .replace(/\b(?:un|pcs|pc|kit|c\/|com|em|de|da|do|para|new ion|original)\b/gi, '')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+                  const q = encodeURIComponent(`site:tiktok.com/video ${cleanName}`);
+                  const searchRes = await fetch('https://html.duckduckgo.com/html/?q=' + q, {
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+                  });
+                  if (searchRes.ok) {
+                    const html = await searchRes.text();
+                    const matches = [...html.matchAll(/uddg=([^&"]+)/g)].map((m) => decodeURIComponent(m[1]));
+                    const tiktokLinks = matches.filter((u) => u.includes('tiktok.com') && u.includes('/video/'));
+                    for (const tUrl of tiktokLinks.slice(0, 3)) {
+                      let title = productName;
+                      let thumb = productImage || undefined;
+                      try {
+                        const oeRes = await fetch('https://www.tiktok.com/oembed?url=' + encodeURIComponent(tUrl));
+                        if (oeRes.ok) {
+                          const oeData = await oeRes.json();
+                          if (oeData.title) title = oeData.title;
+                          if (oeData.thumbnail_url) thumb = oeData.thumbnail_url;
+                        }
+                      } catch {}
+
+                      candidates.push({
+                        platform: 'TikTok Shop',
+                        title,
+                        adUrl: tUrl,
+                        videoUrl: tUrl,
+                        thumbnail: thumb,
+                        duration: '10 segundos',
+                        notes: 'Vídeo real encontrado no TikTok Shop para este produto.'
+                      });
+                      diagnostics['TikTok Shop'].videosFound++;
                     }
                   }
                 } catch {}

@@ -147,6 +147,32 @@ create policy if not exists "Anon pesquisas delete" on research_records for dele
 -- 4. Habilitar Realtime (postgres_changes) para sincronização instantânea
 alter publication supabase_realtime add table products;
 alter publication supabase_realtime add table research_records;
+
+-- 5. Criar tabela de vídeos encontrados e persistidos dos marketplaces
+create table if not exists video_records (
+  id text primary key,
+  product_key text not null,
+  product_id text,
+  product_name text,
+  product_sku text,
+  product_barcode text,
+  product_image text,
+  ad_url text,
+  video_url text,
+  platform text not null default 'Shopee',
+  duration text default '10 segundos',
+  notes text,
+  downloaded boolean default false,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table video_records enable row level security;
+create policy if not exists "Anon video_records select" on video_records for select using (true);
+create policy if not exists "Anon video_records insert" on video_records for insert with check (true);
+create policy if not exists "Anon video_records update" on video_records for update using (true);
+create policy if not exists "Anon video_records delete" on video_records for delete using (true);
+alter publication supabase_realtime add table video_records;
 `;
 
 const DEFAULT_SUPABASE_URL = 'https://fgweictufozyzerbdbtt.supabase.co';
