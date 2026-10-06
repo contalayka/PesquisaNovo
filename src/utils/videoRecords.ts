@@ -1,6 +1,7 @@
 import { getSupabaseClient } from './supabase';
 
 export type CloudVideoRecord = {
+  id?: string;
   productKey: string;
   productId?: string;
   productName?: string;
@@ -15,6 +16,7 @@ export type CloudVideoRecord = {
 };
 
 type VideoRow = {
+  id: string;
   product_key: string;
   product_id: string | null;
   product_name: string | null;
@@ -28,7 +30,7 @@ type VideoRow = {
   notes: string | null;
 };
 
-export async function fetchVideoRecords(): Promise<Record<string, CloudVideoRecord>> {
+export async function fetchVideoRecords(): Promise<Record<string, CloudVideoRecord[]>> {
   const client = getSupabaseClient();
   if (!client) return {};
 
@@ -43,10 +45,11 @@ export async function fetchVideoRecords(): Promise<Record<string, CloudVideoReco
       return {};
     }
 
-    const map: Record<string, CloudVideoRecord> = {};
+    const map: Record<string, CloudVideoRecord[]> = {};
     for (const row of (data || []) as VideoRow[]) {
       if (!row.product_key) continue;
-      map[row.product_key] = {
+      const record: CloudVideoRecord = {
+        id: row.id,
         productKey: row.product_key,
         productId: row.product_id || undefined,
         productName: row.product_name || undefined,
@@ -59,6 +62,7 @@ export async function fetchVideoRecords(): Promise<Record<string, CloudVideoReco
         duration: row.duration || '10 segundos',
         notes: row.notes || '',
       };
+      (map[row.product_key] ||= []).push(record);
     }
     return map;
   } catch (error) {
@@ -72,7 +76,8 @@ export async function saveVideoRecord(record: CloudVideoRecord): Promise<{ error
   if (!client || !record.productKey) return { error: null };
 
   try {
-    const { error } = await client.from('video_records').upsert({
+    const payload = {
+      ...(record.id ? { id: record.id } : {}),
       product_key: record.productKey,
       product_id: record.productId || null,
       product_name: record.productName || null,
@@ -85,8 +90,9 @@ export async function saveVideoRecord(record: CloudVideoRecord): Promise<{ error
       duration: record.duration || '10 segundos',
       notes: record.notes || null,
       updated_at: new Date().toISOString(),
-    }, { onConflict: 'product_key' });
+    };
 
+    const { error } = await client.from('video_records').upsert(payload);
     if (error) {
       console.warn('[Video records] Falha ao salvar:', error.message);
       return { error: error.message };
@@ -99,13 +105,13 @@ export async function saveVideoRecord(record: CloudVideoRecord): Promise<{ error
   }
 }
 
-export async function saveVideoRecords(records: Record<string, CloudVideoRecord>): Promise<{ error: string | null }> {
+export async function saveVideoRecords(records: CloudVideoRecord[]): Promise<{ error: string | null }> {
   const client = getSupabaseClient();
-  const values = Object.values(records);
-  if (!client || values.length === 0) return { error: null };
+  if (!client || records.length === 0) return { error: null };
 
   try {
-    const rows = values.map(record => ({
+    const rows = records.map(record => ({
+      ...(record.id ? { id: record.id } : {}),
       product_key: record.productKey,
       product_id: record.productId || null,
       product_name: record.productName || null,
@@ -121,7 +127,7 @@ export async function saveVideoRecords(records: Record<string, CloudVideoRecord>
     }));
 
     for (let i = 0; i < rows.length; i += 100) {
-      const { error } = await client.from('video_records').upsert(rows.slice(i, i + 100), { onConflict: 'product_key' });
+      const { error } = await client.from('video_records').upsert(rows.slice(i, i + 100));
       if (error) return { error: error.message };
     }
     return { error: null };
