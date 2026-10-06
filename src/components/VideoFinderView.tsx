@@ -53,7 +53,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
   const found = useMemo(() => products.filter(p => p.status === 'Encontrado'), [products]);
   const [saved, setSaved] = useState<SavedMap>(loadLocal);
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState('pendentes');
+  const [filter, setFilter] = useState('todos');
   const [platform, setPlatform] = useState('Todos');
   const [selected, setSelected] = useState<string[]>([]);
   const [scanning, setScanning] = useState<string | null>(null);
@@ -91,7 +91,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
     const hasVideo = videos.some(v => v.url?.trim() || v.videoUrl?.trim());
     const hasDownloaded = videos.some(v => v.id && downloaded.includes(v.id));
     return (!q || normalize(p.name).includes(q) || normalize(p.sku).includes(q)) &&
-      (filter === 'todos' || (filter === 'pendentes' ? (hasVideo && !hasDownloaded) : filter === 'com_video' ? hasVideo : hasDownloaded)) &&
+      (filter === 'todos' || (filter === 'pendentes' ? (!hasVideo || !hasDownloaded) : filter === 'com_video' ? hasVideo : hasDownloaded)) &&
       (platform === 'Todos' || videos.some(v => v.platform === platform));
   }), [found, query, filter, platform, saved, downloaded]);
 
@@ -129,7 +129,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
       const { data, error } = await client.functions.invoke('marketplace-video-scan', {
         body: { productName: p.name, productImage: p.image || '', platforms, maxCandidates: 20 }
       });
-      if (error) throw error;
+      if (error) throw new Error(error.message || 'A Edge Function não respondeu corretamente.');
       const candidates = Array.isArray(data?.candidates) ? data.candidates : [];
       const existing = getVideos(p);
       const seen = new Set(existing.map(v => (v.url || '') + '|' + (v.videoUrl || '')));
@@ -167,8 +167,8 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
   };
 
   const scanPending = async () => {
-    const targets = visible.filter(p => !getVideos(p).some(v => v.url?.trim() || v.videoUrl?.trim()));
-    if (!targets.length) { alert('Não há produtos pendentes nesta lista.'); return; }
+    const targets = visible.filter(p => { const vs = getVideos(p); return !vs.some(v => v.url?.trim() || v.videoUrl?.trim()); });
+    if (!targets.length) { setScanMessage('Não há produtos sem vídeo nesta lista.'); return; }
     setScanMessage('Busca sequencial iniciada...');
     let total = 0;
     for (const p of targets) {
@@ -241,7 +241,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
 
     <div className="flex flex-wrap items-center gap-2">
       {[
-        ['pendentes','Novos',found.filter(p => getVideos(p).length > 0 && getVideos(p).some(v => !v.downloaded)).length],
+        ['pendentes','Novos',found.filter(p => { const vs = getVideos(p); const hv = vs.some(v => v.url?.trim() || v.videoUrl?.trim()); return !hv || vs.some(v => !v.downloaded); }).length],
         ['com_video','Com vídeo',found.filter(p => getVideos(p).some(v => v.url?.trim() || v.videoUrl?.trim())).length],
         ['baixados','Já baixados',found.filter(p => getVideos(p).some(v => v.downloaded)).length],
         ['todos','Todos',found.length]
