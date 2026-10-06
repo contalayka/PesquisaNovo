@@ -482,7 +482,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
 
   // 6. BUSCA DE VÍDEOS REAIS DO PRODUTO
   const scanProduct = async (p: Product, openResults = true) => {
-    setScanning(p.id);
+    if (openResults) setScanning(p.id);
     setScanMessage(`Procurando anúncios com vídeo para "${p.name}" nos marketplaces...`);
     setScanDiagnostics(null);
 
@@ -524,18 +524,18 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
           });
         }
         setScanMessage(`${validCandidates.length} anúncio(s) com vídeo encontrado(s) para "${p.name}"!`);
-        return validCandidates.length;
+        return validCandidates;
       }
 
       setScanMessage(
         `Nenhum anúncio com vídeo utilizável foi detectado para "${p.name}". Apenas anúncios que possuem vídeo real do produto são exibidos.`
       );
-      return 0;
+      return [];
     } catch (e) {
       setScanMessage(e instanceof Error ? e.message : 'Falha na busca de vídeos.');
       return [];
     } finally {
-      setTimeout(() => setScanning((curr) => (curr === p.id ? null : curr)), 500);
+      if (openResults) setTimeout(() => setScanning((curr) => (curr === p.id ? null : curr)), 500);
     }
   };
 
