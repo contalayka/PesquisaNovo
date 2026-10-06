@@ -76,6 +76,32 @@ const normalize = (v: unknown) =>
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/\s+/g, ' ');
 
+
+const normalizeVideoUrl = (value: unknown): string => {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+  try {
+    const u = new URL(raw);
+    u.hash = '';
+    u.hostname = u.hostname.toLowerCase();
+    const removable = /^(utm_[^=]*|fbclid|gclid|referrer?|source|spm|from|share_source|share_link_id)$/i;
+    for (const key of Array.from(u.searchParams.keys())) {
+      if (removable.test(key)) u.searchParams.delete(key);
+    }
+    return u.toString();
+  } catch {
+    return raw.split('#')[0].replace(/[?&](?:utm_[^=&]+|fbclid|gclid|referrer?|source|spm|from|share_source|share_link_id)=[^&]*/gi, '');
+  }
+};
+
+const videoIdentityKey = (v?: Partial<SavedVideo> | null): string => {
+  if (!v) return '';
+  const video = normalizeVideoUrl(v.videoUrl);
+  if (video) return 'video:' + video;
+  const ad = normalizeVideoUrl(v.url);
+  return ad ? 'ad:' + ad : '';
+};
+
 const productKey = (p: Product) => {
   const sku = normalize(p.sku);
   const barcode = normalize(p.barcode);
@@ -86,10 +112,15 @@ const sanitizeSavedMap = (rawMap: Record<string, SavedVideo | SavedVideo[]>): Sa
   const clean: SavedMap = {};
   for (const [key, val] of Object.entries(rawMap)) {
     const list = Array.isArray(val) ? val : [val];
-    const filtered = list.filter(hasProductVideo);
-    if (filtered.length > 0) {
-      clean[key] = filtered;
-    }
+    const seen = new Set<string>();
+    const filtered = list.filter((item) => {
+      if (!hasProductVideo(item)) return false;
+      const identity = videoIdentityKey(item);
+      if (!identity || seen.has(identity)) return false;
+      seen.add(identity);
+      return true;
+    });
+    if (filtered.length > 0) clean[key] = filtered;
   }
   return clean;
 };
@@ -228,7 +259,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
     const unique: SavedVideo[] = [];
 
     for (const v of all) {
-      const k = v.id || v.videoUrl || v.url;
+      const k = videoIdentityKey(v);
       if (k && !seen.has(k)) {
         seen.add(k);
         if (hasProductVideo(v)) {
@@ -334,6 +365,12 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
 
     const effectiveVideoUrl = videoUrlTrimmed || (isDirect ? adUrlTrimmed : '');
     const p = addingForProduct;
+    const identity = videoIdentityKey({ videoUrl: effectiveVideoUrl, url: adUrlTrimmed });
+    if (!identity || getVideos(p).some((v) => videoIdentityKey(v) === identity)) {
+      setFormError('Este vídeo já está salvo para este produto.');
+      return;
+    }
+
     const finalId = ensureUuid();
 
     const record: SavedVideo = {
@@ -374,6 +411,13 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
 
   // Salva um candidato detectado diretamente no Supabase
   const handleSaveCandidateToSupabase = async (p: Product, cand: ScanCandidateItem) => {
+    const identity = videoIdentityKey({ videoUrl: cand.videoUrl, url: cand.adUrl });
+    if (!identity) return;
+    if (getVideos(p).some((v) => videoIdentityKey(v) === identity)) {
+      setScanMessage('Este vídeo já está salvo para este produto.');
+      return;
+    }
+
     const finalId = ensureUuid();
     const record: SavedVideo = {
       id: finalId,
@@ -511,7 +555,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
 
     try {
       const existing = getVideos(p);
-      const seenVideos = new Set(existing.map((v) => (v.videoUrl || v.url || '').trim()));
+      const seenVideos = new Set(existing.map((v) => videoIdentityKey(v)).filter(Boolean));
       const candidateUrls: string[] = [];
 
       // Reunir links de anúncios reais salvos na pesquisa do catálogo
@@ -543,9 +587,14 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
       setScanDiagnostics(scanResult.diagnostics);
 
       // Filtrar estritamente candidatos que possuem vídeo e não foram salvos ainda
-      const validCandidates = scanResult.candidates.filter(
-        (c) => c.videoUrl && !isSearchPageUrl(c.videoUrl) && !seenVideos.has(c.videoUrl)
-      );
+      const candidateSeen = new Set<string>(seenVideos);
+      const validCandidates = scanResult.candidates.filter((c) => {
+        if (!c.videoUrl || isSearchPageUrl(c.videoUrl)) return false;
+        const identity = videoIdentityKey({ videoUrl: c.videoUrl, url: c.adUrl });
+        if (!identity || candidateSeen.has(identity)) return false;
+        candidateSeen.add(identity);
+        return true;
+      });
 
       if (validCandidates.length > 0) {
         if (openResults) {
