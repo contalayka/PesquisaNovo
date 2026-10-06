@@ -90,17 +90,17 @@ function videoUrls(html: string, base: string) {
     if (!u || isBadPage(u) || /\.m3u8(?:[?#]|$)/i.test(u)) return;
     const l = u.toLowerCase();
     const direct = /\.(mp4|webm|mov)(?:[?#]|$)/i.test(l);
-    const cdn = /susercontent\.com|tiktokcdn|ttlivecdn|cv\.shopee|mercadolibre.*video|shein.*video/i.test(l);
+    const cdn = /susercontent\.com|tiktokcdn|ttlivecdn|cv\.shopee|mercadolibre.*video|mlstatic.*video|mlstatic\.com.*(?:mp4|webm|mov)|shein.*video/i.test(l);
     if ((direct || cdn) && !seen.has(u)) { seen.add(u); out.push(u); }
   };
   let m: RegExpExecArray | null;
   const patterns = [
     /<(?:video|source)[^>]+(?:src|data-src|data-video-src|data-url)=["']([^"']+)["']/gi,
-    /"(?:videoUrl|videoURL|video_url|playUrl|play_url|playAddr|play_addr|downloadAddr|download_addr|mediaUrl|media_url|video_src|videoSrc)"\s*:\s*"((?:\\.|[^"\\])+)"/gi,
+    /"(?:videoUrl|videoURL|video_url|playUrl|play_url|playAddr|play_addr|downloadAddr|download_addr|mediaUrl|media_url|video_src|videoSrc|video|video_url_https|video_source|videoId|video_id)"\s*:\s*(?:"((?:\\.|[^"\\])+)"|\{[^}]*?(?:url|source|src)\s*:\s*"((?:\\.|[^"\\])+)")/gi,
     /<meta[^>]+property=["']og:video(?::secure_url)?["'][^>]+content=["']([^"']+)["']/gi,
     /https?:\/\/[^"'<>\s]+\.(?:mp4|webm|mov)(?:\?[^"'<>\s]*)?/gi,
   ];
-  for (const re of patterns) while ((m = re.exec(html))) add(m[1]);
+  for (const re of patterns) while ((m = re.exec(html))) add(m[1] || m[2]);
   // Muitos marketplaces entregam os dados do produto em JSON com URLs escapadas
   // (https:\\/\\/cdn...); o regex antigo parava no primeiro backslash.
   const normalizedHtml = html.replace(/\\\//g, "/");
@@ -182,6 +182,44 @@ serve(async (req) => {
     };
 
     let visualMatchFound = false;
+
+    // 1a) Mercado Livre: usar o item_id da URL e consultar a API pública do item.
+    // A página PDP é dinâmica e frequentemente não entrega o player no HTML inicial.
+    const mlIds = [...new Set(knownAdUrls.filter(u => /mercadolivre|mercadolibre/i.test(u))
+      .map(u => u.match(/(?:item_id%3A|item_id=|MLB-?|MLB)(\\d{7,})/i)?.[1] || "")
+      .filter(Boolean))];
+    await Promise.allSettled(mlIds.slice(0, 3).map(async (itemId) => {
+      const d = diagnostics["Mercado Livre"] ||= { status: "processando", adsInspected: 0, videosFound: 0 };
+      d.adsInspected++;
+      const api = await fetchText("https://api.mercadolibre.com/items/MLB" + itemId, 3500);
+      if (!api.ok) return;
+      const apiVideos = videoUrls(api.text, api.url);
+      for (const v of apiVideos) {
+        add({
+          platform: "Mercado Livre",
+          title: productName,
+          adUrl: "https://www.mercadolivre.com.br/p/MLB" + itemId,
+          videoUrl: v,
+          thumbnail: productImage,
+          duration: "10 segundos",
+          notes: "Vídeo detectado nos dados do item do Mercado Livre."
+        });
+      }
+      try {
+        const data = JSON.parse(api.text);
+        const direct = [data.video_url, data.videoUrl, data.video, data.video_source, data.multimedia?.video_url]
+          .filter((v): v is string => typeof v === "string" && /^https?:/i.test(v));
+        for (const v of direct) add({
+          platform: "Mercado Livre",
+          title: productName,
+          adUrl: "https://www.mercadolivre.com.br/p/MLB" + itemId,
+          videoUrl: v,
+          thumbnail: productImage,
+          duration: "10 segundos",
+          notes: "Vídeo detectado pela API do item do Mercado Livre."
+        });
+      } catch {}
+    }));
 
     // 1) Primeiro: anúncios reais que o catálogo já conhece (executados em paralelo com timeout de 3s)
     const knownAdUrls = [...new Set(inputAds)].map(cleanUrl).filter(u => u && !isBadPage(u)).slice(0, 5);
