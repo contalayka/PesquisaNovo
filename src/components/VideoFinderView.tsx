@@ -639,7 +639,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
 
     if (!targets.length) {
       const visiblePending = visible.filter((p) => getVideos(p).length === 0);
-      targets = (visiblePending.length > 0 ? visiblePending : (pendingInFound.length > 0 ? pendingInFound : pendingInAll)).slice(0, 12);
+      targets = visiblePending.length > 0 ? visiblePending : (pendingInFound.length > 0 ? pendingInFound : pendingInAll);
     }
 
     if (!targets.length) {
@@ -1317,13 +1317,11 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
                 <button
                   type="button"
                   onClick={() => scanProduct(p)}
-                  disabled={!!scanning}
+                  disabled={!!scanning && scanning !== p.id}
                   className="inline-flex items-center gap-1.5 rounded-md bg-emerald-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-emerald-600 disabled:opacity-50"
                 >
                   <Search className="h-3.5 w-3.5" />
-                  {scanning === p.id || (scanning === '__bulk__' && scanProgress?.currentProduct === p.name)
-                    ? 'Verificando...'
-                    : 'Buscar vídeos reais'}
+                  {scanning === p.id ? 'Verificando...' : 'Buscar vídeos reais'}
                 </button>
 
                 <button
