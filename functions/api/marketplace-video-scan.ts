@@ -73,6 +73,16 @@ const extractVideoFromHtml = (html: string): string | null => {
   return null;
 };
 
+async function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = 3500): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export const onRequestPost: PagesFunction = async ({ request }) => {
   let body: any = {};
   try {
@@ -146,16 +156,12 @@ export const onRequestPost: PagesFunction = async ({ request }) => {
     // 3. Marketplace ad URL
     try {
       diagnostics[platform].urlChecked = url;
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 4000);
-      const res = await fetch(url, {
+      const res = await fetchWithTimeout(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/130.0.0.0',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-        },
-        signal: controller.signal
-      });
-      clearTimeout(timer);
+        }
+      }, 3500);
 
       diagnostics[platform].httpStatus = res.status;
       if (res.ok) {
@@ -190,12 +196,12 @@ export const onRequestPost: PagesFunction = async ({ request }) => {
         .replace(/\s+/g, ' ')
         .trim();
       const q = encodeURIComponent(`site:tiktok.com/video ${cleanName}`);
-      const searchRes = await fetch('https://html.duckduckgo.com/html/?q=' + q, {
+      const searchRes = await fetchWithTimeout('https://html.duckduckgo.com/html/?q=' + q, {
         headers: {
           'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'
         }
-      });
+      }, 2500);
       if (searchRes.ok) {
         const html = await searchRes.text();
         const matches = [...html.matchAll(/uddg=([^&"]+)/g)].map((m) => decodeURIComponent(m[1]));
@@ -206,7 +212,7 @@ export const onRequestPost: PagesFunction = async ({ request }) => {
             let title = productName;
             let thumb = productImage || undefined;
             try {
-              const oeRes = await fetch('https://www.tiktok.com/oembed?url=' + encodeURIComponent(tUrl));
+              const oeRes = await fetchWithTimeout('https://www.tiktok.com/oembed?url=' + encodeURIComponent(tUrl), {}, 1500);
               if (oeRes.ok) {
                 const oeData = await oeRes.json();
                 if (oeData.title) title = oeData.title;
