@@ -127,6 +127,26 @@ function relevant(title: string, product: string) {
   return hits >= Math.min(2, words.length);
 }
 
+async function searchMarketplaceLinks(product: string, market: typeof MARKETS[number]) {
+  const q = encodeURIComponent(`site:${market.domains[0]} ${product}`);
+  const r = await fetchText("https://html.duckduckgo.com/html/?q=" + q, 2600);
+  if (!r.ok) return [];
+  const found: string[] = [];
+  const seen = new Set<string>();
+  const re = /uddg=([^&"]+)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(r.text))) {
+    try {
+      const u = cleanUrl(decodeURIComponent(m[1]));
+      if (!u || isBadPage(u) || seen.has(u)) continue;
+      if (!market.domains.some(d => u.toLowerCase().includes(d))) continue;
+      seen.add(u);
+      found.push(u);
+    } catch {}
+  }
+  return found.slice(0, 3);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: H });
   if (req.method !== "POST") return json({ success: false, candidates: [], error: "Método não permitido." }, 405);
@@ -211,6 +231,46 @@ serve(async (req) => {
       } catch {}
     }
 
+
+    // 3) Busca textual complementar em TODOS os marketplaces.
+    // A busca visual pode ser bloqueada por robots/dinâmica; por isso não dependemos
+    // somente do Lens. Procuramos páginas reais de produto e extraímos o vídeo embutido.
+    if (productName) {
+      const markets = MARKETS.filter(m => wanted.includes(m.name));
+      const searchResults = await Promise.allSettled(
+        markets.map(async (market) => ({ market, links: await searchMarketplaceLinks(productName, market) }))
+      );
+
+      const pages: Array<{ market: typeof MARKETS[number]; url: string }> = [];
+      for (const result of searchResults) {
+        if (result.status !== "fulfilled") continue;
+        for (const url of result.value.links) pages.push({ market: result.value.market, url });
+      }
+
+      await Promise.allSettled(
+        pages.map(async ({ market, url }) => {
+          if (candidates.length >= 20) return;
+          const d = diagnostics[market.name] ||= { status: "processando", adsInspected: 0, videosFound: 0 };
+          d.adsInspected++;
+          const r = await fetchText(url, 2600);
+          if (!r.ok) return;
+          const meta = titleAndImage(r.text);
+          for (const v of videoUrls(r.text, r.url)) {
+            add({
+              platform: market.name,
+              title: meta.title || productName,
+              adUrl: url,
+              videoUrl: v,
+              thumbnail: meta.thumbnail || productImage,
+              duration: "10 segundos",
+              notes: "Vídeo encontrado em página de produto do marketplace por busca textual."
+            });
+          }
+          if (candidates.some(x => x.platform === market.name)) d.status = "video_encontrado";
+        })
+      );
+    }
+
     // 3) Busca complementar textual rápida no TikTok Shop (se ainda não encontrou)
     if (candidates.length === 0 && productName && wanted.includes("TikTok Shop")) {
       try {
@@ -219,7 +279,7 @@ serve(async (req) => {
           .replace(/\b(?:un|pcs|pc|kit|c\/|com|em|de|da|do|para|new ion|original)\b/gi, "")
           .replace(/\s+/g, " ")
           .trim();
-        const q = encodeURIComponent(`site:tiktok.com/video ${cleanName}`);
+        const q = encodeURIComponent(`site:tiktok.com/video OR site:shop.tiktok.com ${cleanName}`);
         const searchRes = await fetchText("https://html.duckduckgo.com/html/?q=" + q, 3000);
         if (searchRes.ok) {
           const matches = [...searchRes.text.matchAll(/uddg=([^&"]+)/g)].map((m) => decodeURIComponent(m[1]));
