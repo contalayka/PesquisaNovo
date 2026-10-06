@@ -70,7 +70,8 @@ export const VideoFinderView: React.FC<{products: Product[]}> = ({products}) => 
       if (cancelled) return;
 
       const local = localStorageSafeLoad();
-      const merged: SavedMap = { ...local, ...(cloud as SavedMap) };
+      const cloudPrimary: SavedMap = Object.fromEntries(Object.entries(cloud).map(([key, records]) => [key, records[0]]));
+      const merged: SavedMap = { ...local, ...cloudPrimary };
 
       setSaved(merged);
       try {
@@ -78,11 +79,11 @@ export const VideoFinderView: React.FC<{products: Product[]}> = ({products}) => 
         localStorage.setItem(KEY + '_backup', JSON.stringify(merged));
       } catch {}
 
-      const records: Record<string, CloudVideoRecord> = {};
+      const records: CloudVideoRecord[] = [];
       for (const [key, value] of Object.entries(local)) {
-        if (cloud[key] || !value) continue;
+        if (cloud[key]?.length || !value) continue;
         const product = products.find(p => productKey(p) === key);
-        records[key] = {
+        records.push({
           productKey: key,
           productId: product?.id,
           productName: value.productName || product?.name,
@@ -94,9 +95,9 @@ export const VideoFinderView: React.FC<{products: Product[]}> = ({products}) => 
           platform: value.platform || 'Shopee',
           duration: value.duration || '10 segundos',
           notes: value.notes || '',
-        };
+        });
       }
-      if (Object.keys(records).length) await saveVideoRecords(records);
+      if (records.length) await saveVideoRecords(records);
 
       if (!cancelled) setCloudVideosLoaded(true);
     };
