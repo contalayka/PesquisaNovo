@@ -436,68 +436,69 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
     adUrls?: string[];
     platforms?: string[];
   }): Promise<{ candidates: ScanCandidateItem[]; diagnostics: Record<string, any> }> => {
-    let candidates: ScanCandidateItem[] = [];
-    let diagnostics: Record<string, any> = {};
-    let edgeSucceeded = false;
+    const empty = { candidates: [] as ScanCandidateItem[], diagnostics: {} as Record<string, any> };
 
-    const client = getSupabaseClient();
-
-    // 1. Tentar Edge Function Supabase 'marketplace-video-scan' com tokens de autenticação
-    if (client) {
+    // CAMINHO PRINCIPAL: API do próprio site/Cloudflare.
+    // Isso não depende de sessão JWT do Supabase e funciona também no preview do AI Studio.
+    try {
+      const controller = new AbortController();
+      const timer = window.setTimeout(() => controller.abort(), 7000);
       try {
-        const timeoutMs = 6000;
-        const invokePromise = client.functions.invoke('marketplace-video-scan', { body: payload });
-        const timeoutPromise = new Promise<{ data: any; error: any }>((resolve) =>
-          setTimeout(() => resolve({ data: null, error: new Error('Tempo limite excedido na Edge Function.') }), timeoutMs)
-        );
-        const { data, error } = await Promise.race([invokePromise, timeoutPromise]);
-        if (!error && data) {
-          edgeSucceeded = true;
-          if (Array.isArray(data.candidates)) {
-            candidates = [...data.candidates];
-          }
-          if (data.diagnostics && typeof data.diagnostics === 'object') {
-            diagnostics = { ...data.diagnostics };
-          }
-        }
-        if (error) {
-          console.warn('[marketplace-video-scan] Edge Function aviso:', error.message);
-        }
-      } catch (e) {
-        console.warn('[marketplace-video-scan] Exceção na Edge Function, acionando fallback:', e);
-      }
-    }
-
-    // 2. Apenas se a Edge Function falhou ou não respondeu, executar varredura via /api com timeout
-    if (!edgeSucceeded && typeof window !== 'undefined') {
-      try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 3000);
         const res = await fetch('/api/marketplace-video-scan', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
-          signal: controller.signal
+          signal: controller.signal,
+          cache: 'no-store'
         });
-        clearTimeout(timer);
+
         if (res.ok) {
-          const json = await res.json();
-          if (Array.isArray(json?.candidates)) {
-            candidates = [...json.candidates];
-          }
-          if (json?.diagnostics && typeof json.diagnostics === 'object') {
-            diagnostics = { ...diagnostics, ...json.diagnostics };
+          const data = await res.json().catch(() => null);
+          if (data && Array.isArray(data.candidates)) {
+            return {
+              candidates: data.candidates.filter((c: any) => c?.videoUrl),
+              diagnostics: data.diagnostics && typeof data.diagnostics === 'object' ? data.diagnostics : {}
+            };
           }
         }
-      } catch (err) {
-        console.warn('[marketplace-video-scan] Fallback /api:', err);
+      } finally {
+        window.clearTimeout(timer);
       }
+    } catch (e) {
+      console.warn('[VideoFinder] API /api indisponível:', e);
     }
 
-    if (!edgeSucceeded && !client) {
-      diagnostics = { ...diagnostics, sistema: { status: 'Supabase indisponível no navegador' } };
+    // SEGUNDO CAMINHO: Supabase como fallback.
+    try {
+      const client = getSupabaseClient();
+      if (client) {
+        const invoke = client.functions.invoke('marketplace-video-scan', { body: payload });
+        const timeout = new Promise<{ data: any; error: any }>((resolve) =>
+          window.setTimeout(() => resolve({
+            data: null,
+            error: new Error('Supabase demorou demais para responder.')
+          }), 5000)
+        );
+        const { data, error } = await Promise.race([invoke, timeout]);
+        if (!error && data && Array.isArray(data.candidates)) {
+          return {
+            candidates: data.candidates.filter((c: any) => c?.videoUrl),
+            diagnostics: data.diagnostics && typeof data.diagnostics === 'object' ? data.diagnostics : {}
+          };
+        }
+      }
+    } catch (e) {
+      console.warn('[VideoFinder] Supabase fallback:', e);
     }
-    return { candidates, diagnostics };
+
+    return {
+      ...empty,
+      diagnostics: {
+        sistema: {
+          status: 'Servidor de busca de vídeos indisponível.'
+        }
+      }
+    };
   };
 
   // 6. BUSCA DE VÍDEOS REAIS DO PRODUTO
