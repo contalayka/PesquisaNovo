@@ -188,7 +188,7 @@ serve(async (req) => {
     // 1a) Mercado Livre: usar o item_id da URL e consultar a API pública do item.
     // A página PDP é dinâmica e frequentemente não entrega o player no HTML inicial.
     const mlIds = [...new Set(knownAdUrls.filter(u => /mercadolivre|mercadolibre/i.test(u))
-      .map(u => u.match(/(?:item_id%3A|item_id=|MLB-?|MLB)(\\d{7,})/i)?.[1] || "")
+      .map(u => u.match(/(?:item_id%3A|item_id=|MLB-?|MLB)(\d{7,})/i)?.[1] || "")
       .filter(Boolean))];
     await Promise.allSettled(mlIds.slice(0, 3).map(async (itemId) => {
       const d = diagnostics["Mercado Livre"] ||= { status: "processando", adsInspected: 0, videosFound: 0 };
