@@ -91,7 +91,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
     const hasVideo = videos.some(v => v.url?.trim() || v.videoUrl?.trim());
     const hasDownloaded = videos.some(v => v.id && downloaded.includes(v.id));
     return (!q || normalize(p.name).includes(q) || normalize(p.sku).includes(q)) &&
-      (filter === 'todos' || (filter === 'pendentes' ? !hasVideo : filter === 'com_video' ? hasVideo : hasDownloaded)) &&
+      (filter === 'todos' || (filter === 'pendentes' ? (hasVideo && !hasDownloaded) : filter === 'com_video' ? hasVideo : hasDownloaded)) &&
       (platform === 'Todos' || videos.some(v => v.platform === platform));
   }), [found, query, filter, platform, saved, downloaded]);
 
