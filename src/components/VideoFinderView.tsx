@@ -442,7 +442,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
     // Isso não depende de sessão JWT do Supabase e funciona também no preview do AI Studio.
     try {
       const controller = new AbortController();
-      const timer = window.setTimeout(() => controller.abort(), 7000);
+      const timer = window.setTimeout(() => controller.abort(), 2500);
       try {
         const res = await fetch('/api/marketplace-video-scan', {
           method: 'POST',
@@ -534,7 +534,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
           window.setTimeout(() => resolve({
             candidates: [],
             diagnostics: { sistema: { status: 'A busca demorou mais que o permitido e foi encerrada.' } }
-          }), 8000);
+          }), 4000);
         })
       ]);
 
@@ -609,35 +609,49 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
     let completedCount = 0;
     let foundVideosTotal = 0;
 
-    // 2. Processamento SEQUENCIAL e INDIVIDUAL (isolando erros de cada produto)
-    for (let i = 0; i < targets.length; i++) {
+    // 2. Processamento em pequenos lotes PARALELOS.
+    // Antes era sequencial: 12 produtos x vários timeouts podiam deixar o botão
+    // aparentemente travado por dezenas de segundos. Cada lote tem no máximo 3.
+    const batchSize = 3;
+    for (let start = 0; start < targets.length; start += batchSize) {
       if (abortBulkScanRef.current) break;
 
-      const p = targets[i];
-      const currentNumber = i + 1;
-      const pct = Math.round((i / targets.length) * 100);
-
+      const batch = targets.slice(start, start + batchSize);
+      const firstNumber = start + 1;
       setScanProgress({
-        current: currentNumber,
+        current: firstNumber,
         total: targets.length,
-        currentProduct: p.name,
+        currentProduct: batch.map((x) => x.name).join(' • '),
         foundCount: foundVideosTotal
       });
-      setScanMessage(`Analisando ${currentNumber} de ${targets.length} (${pct}%) — ${p.name}`);
+      setScanMessage(`Analisando ${firstNumber}–${Math.min(start + batch.length, targets.length)} de ${targets.length} produto(s)...`);
 
-      try {
-        const candidates = await scanProduct(p, false);
+      const results = await Promise.all(
+        batch.map(async (p) => {
+          try {
+            const candidates = await scanProduct(p, false);
+            return { product: p, candidates };
+          } catch (prodErr) {
+            console.warn(`[VideoFinder] Falha no produto "${p.name}":`, prodErr);
+            return { product: p, candidates: [] as ScanCandidateItem[] };
+          }
+        })
+      );
+
+      for (const result of results) {
         completedCount++;
-
-        if (Array.isArray(candidates) && candidates.length > 0) {
-          foundVideosTotal += candidates.length;
-          allCandidates.push({ product: p, candidates });
-          setScanProgress((prev) => (prev ? { ...prev, foundCount: foundVideosTotal } : null));
+        if (Array.isArray(result.candidates) && result.candidates.length > 0) {
+          foundVideosTotal += result.candidates.length;
+          allCandidates.push(result);
         }
-      } catch (prodErr) {
-        console.warn(`[VideoFinder] Falha no produto "${p.name}":`, prodErr);
-        completedCount++;
       }
+
+      setScanProgress({
+        current: Math.min(start + batch.length, targets.length),
+        total: targets.length,
+        currentProduct: start + batch.length < targets.length ? targets[start + batch.length].name : 'Finalizando...',
+        foundCount: foundVideosTotal
+      });
     }
 
     // 3. Resultado final da varredura
