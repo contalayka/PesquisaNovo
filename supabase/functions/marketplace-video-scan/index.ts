@@ -103,7 +103,8 @@ function videoUrls(html: string, base: string) {
   for (const re of patterns) while ((m = re.exec(html))) add(m[1]);
   // Muitos marketplaces entregam os dados do produto em JSON com URLs escapadas
   // (https:\\/\\/cdn...); o regex antigo parava no primeiro backslash.
-  const escapedUrls = html.match(/https?:\\/\\/[^"'<>\\s]+/gi) || [];
+  const normalizedHtml = html.replace(/\\\//g, "/");
+  const escapedUrls = normalizedHtml.match(/https?:\/\/[^"'<>\s]+/gi) || [];
   for (const raw of escapedUrls) add(raw);
   return out.slice(0, 10);
 }
