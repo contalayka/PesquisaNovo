@@ -96,11 +96,15 @@ function videoUrls(html: string, base: string) {
   let m: RegExpExecArray | null;
   const patterns = [
     /<(?:video|source)[^>]+(?:src|data-src|data-video-src|data-url)=["']([^"']+)["']/gi,
-    /"(?:videoUrl|videoURL|video_url|playUrl|play_url|playAddr|play_addr|downloadAddr|download_addr|mediaUrl|media_url|video_src|videoSrc)"\s*:\s*"([^"\\]+)"/gi,
+    /"(?:videoUrl|videoURL|video_url|playUrl|play_url|playAddr|play_addr|downloadAddr|download_addr|mediaUrl|media_url|video_src|videoSrc)"\s*:\s*"((?:\\.|[^"\\])+)"/gi,
     /<meta[^>]+property=["']og:video(?::secure_url)?["'][^>]+content=["']([^"']+)["']/gi,
     /https?:\/\/[^"'<>\s]+\.(?:mp4|webm|mov)(?:\?[^"'<>\s]*)?/gi,
   ];
   for (const re of patterns) while ((m = re.exec(html))) add(m[1]);
+  // Muitos marketplaces entregam os dados do produto em JSON com URLs escapadas
+  // (https:\\/\\/cdn...); o regex antigo parava no primeiro backslash.
+  const escapedUrls = html.match(/https?:\\/\\/[^"'<>\\s]+/gi) || [];
+  for (const raw of escapedUrls) add(raw);
   return out.slice(0, 10);
 }
 
@@ -124,11 +128,11 @@ function relevant(title: string, product: string) {
   const words = norm(product).split(" ").filter(w => w.length > 2 && !["com","para","kit","the","new","original"].includes(w));
   if (!words.length) return true;
   const hits = words.filter(w => norm(title).includes(w)).length;
-  return hits >= Math.min(2, words.length);
+  return hits >= (words.length >= 4 ? 2 : 1);
 }
 
 async function searchMarketplaceLinks(product: string, market: typeof MARKETS[number]) {
-  const q = encodeURIComponent(`site:${market.domains[0]} ${product}`);
+  const q = encodeURIComponent(`site:${market.domains[0]} "${product}" (video OR vídeo OR mp4)`);
   const r = await fetchText("https://html.duckduckgo.com/html/?q=" + q, 2600);
   if (!r.ok) return [];
   const found: string[] = [];
@@ -144,7 +148,7 @@ async function searchMarketplaceLinks(product: string, market: typeof MARKETS[nu
       found.push(u);
     } catch {}
   }
-  return found.slice(0, 3);
+  return found.slice(0, 6);
 }
 
 serve(async (req) => {
