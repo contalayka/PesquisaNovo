@@ -1,16 +1,13 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
-const corsHeaders = {
+const H = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Content-Type": "application/json; charset=utf-8"
+  "Content-Type": "application/json; charset=utf-8",
 };
 
-const jsonResponse = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: corsHeaders });
-
-export type Candidate = {
+type Candidate = {
   platform: string;
   title: string;
   adUrl: string;
@@ -20,433 +17,222 @@ export type Candidate = {
   notes?: string;
 };
 
-const MARKETPLACE_CONFIGS = [
-  { name: "Shopee", domain: "shopee.com.br" },
-  { name: "Mercado Livre", domain: "mercadolivre.com.br" },
-  { name: "TikTok Shop", domain: "tiktok.com" },
-  { name: "SHEIN", domain: "shein.com" }
+const MARKETS = [
+  { name: "Shopee", domains: ["shopee.com.br", "susercontent.com"] },
+  { name: "SHEIN", domains: ["br.shein.com", "shein.com"] },
+  { name: "TikTok Shop", domains: ["shop.tiktok.com", "tiktok.com"] },
+  { name: "Mercado Livre", domains: ["mercadolivre.com.br", "mercadolibre.com"] },
 ];
 
-function normalize(v: unknown): string {
-  return String(v ?? "")
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, " ");
-}
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: H });
 
-function isSearchPageUrl(url: string): boolean {
-  if (!url) return false;
-  const l = url.toLowerCase();
-  return (
-    l.includes("/search") ||
-    l.includes("/pdsearch") ||
-    l.includes("lista.mercadolivre") ||
-    l.includes("registration?confirmation_url")
-  );
-}
+const norm = (v: unknown) =>
+  String(v ?? "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
 
-function detectPlatform(url: string): string {
+function platformOf(url: string) {
   const l = url.toLowerCase();
-  if (l.includes("shopee") || l.includes("susercontent.com")) return "Shopee";
+  if (l.includes("shopee") || l.includes("susercontent")) return "Shopee";
   if (l.includes("shein")) return "SHEIN";
   if (l.includes("tiktok")) return "TikTok Shop";
   if (l.includes("mercadolivre") || l.includes("mercadolibre")) return "Mercado Livre";
   return "Marketplace";
 }
 
-function sanitizeUrl(u: string, base?: string): string | null {
+function isBadPage(url: string) {
+  const l = url.toLowerCase();
+  return !/^https?:\/\//i.test(url) ||
+    /youtube\.com|youtu\.be/i.test(l) ||
+    /\/search(?:[/?#]|$)|\/pdsearch(?:[/?#]|$)|lista\.mercadolivre\.com\.br/i.test(l);
+}
+
+function cleanUrl(raw: string, base = "") {
   try {
-    let clean = u.trim().replace(/\\/g, "").replace(/&amp;/g, "&").replace(/\\u0026/g, "&");
-    if (!clean.startsWith("http")) {
-      if (base) clean = new URL(clean, base).href;
-      else return null;
-    }
-    const parsed = new URL(clean);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
-    return parsed.href;
-  } catch {
-    return null;
+    let s = String(raw).trim().replace(/\\/g, "").replace(/&amp;/g, "&");
+    if (!/^https?:\/\//i.test(s)) s = new URL(s, base).href;
+    const u = new URL(s);
+    if (!/^https?:$/.test(u.protocol)) return "";
+    return u.href;
+  } catch { return ""; }
+}
+
+async function fetchText(url: string, timeout = 6000) {
+  try {
+    const c = new AbortController();
+    const t = setTimeout(() => c.abort(), timeout);
+    const r = await fetch(url, {
+      signal: c.signal, redirect: "follow",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/154 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/json,*/*",
+        "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8",
+      }
+    });
+    const text = await r.text().catch(() => "");
+    clearTimeout(t);
+    return { ok: r.ok, status: r.status, url: r.url || url, text };
+  } catch (e) {
+    return { ok: false, status: 0, url, text: "", error: String(e) };
   }
 }
 
-// Rule 8: Detect videos in JSON, HTML attributes, scripts, data hydration, etc.
-// Rule 9: Reject .m3u8 videos.
-// Rule 1: No YouTube.
-function extractVideosFromHtml(html: string, baseUrl: string): string[] {
-  const list: string[] = [];
-  const seen = new Set<string>();
+function titleAndImage(html: string) {
+  const tm = html.match(/<meta[^>]+(?:property|name)=["']og:title["'][^>]+content=["']([^"']+)/i) ||
+             html.match(/<title[^>]*>([^<]+)/i);
+  const im = html.match(/<meta[^>]+(?:property|name)=["'](?:og:image|twitter:image)["'][^>]+content=["']([^"']+)/i);
+  return { title: tm?.[1]?.trim(), thumbnail: im?.[1]?.trim() };
+}
 
+function videoUrls(html: string, base: string) {
+  const out: string[] = [], seen = new Set<string>();
   const add = (raw: string) => {
-    const valid = sanitizeUrl(raw, baseUrl);
-    if (!valid) return;
+    const u = cleanUrl(raw, base);
+    if (!u || isBadPage(u) || /\.m3u8(?:[?#]|$)/i.test(u)) return;
+    const l = u.toLowerCase();
+    const direct = /\.(mp4|webm|mov)(?:[?#]|$)/i.test(l);
+    const cdn = /susercontent\.com|tiktokcdn|ttlivecdn|cv\.shopee|mercadolibre.*video|shein.*video/i.test(l);
+    if ((direct || cdn) && !seen.has(u)) { seen.add(u); out.push(u); }
+  };
+  let m: RegExpExecArray | null;
+  const patterns = [
+    /<(?:video|source)[^>]+(?:src|data-src|data-video-src|data-url)=["']([^"']+)["']/gi,
+    /"(?:videoUrl|videoURL|video_url|playUrl|play_url|playAddr|play_addr|downloadAddr|download_addr|mediaUrl|media_url|video_src|videoSrc)"\s*:\s*"([^"\\]+)"/gi,
+    /<meta[^>]+property=["']og:video(?::secure_url)?["'][^>]+content=["']([^"']+)["']/gi,
+    /https?:\/\/[^"'<>\s]+\.(?:mp4|webm|mov)(?:\?[^"'<>\s]*)?/gi,
+  ];
+  for (const re of patterns) while ((m = re.exec(html))) add(m[1]);
+  return out.slice(0, 10);
+}
 
-    // Rule 1: Reject YouTube
-    if (/youtube\.com|youtu\.be/i.test(valid)) return;
-
-    // Rule 9: Reject .m3u8
-    if (/\.m3u8(?:[?#]|$)/i.test(valid)) return;
-
-    // Reject search / redirect URLs
-    if (isSearchPageUrl(valid)) return;
-
-    // Check if it represents a real video URL or stream
-    const isDirectVideo = /\.(mp4|webm|mov)(?:[?#]|$)/i.test(valid);
-    const isMarketplaceVideoCdn =
-      valid.includes("vod.susercontent.com") ||
-      valid.includes("cv.shopee.com.br") ||
-      valid.includes("stream.mercadolibre.com") ||
-      valid.includes("tiktokcdn.com");
-
-    if ((isDirectVideo || isMarketplaceVideoCdn) && !seen.has(valid)) {
-      seen.add(valid);
-      list.push(valid);
+function marketplaceLinks(html: string, base: string) {
+  const out: string[] = [], seen = new Set<string>();
+  const add = (raw: string) => {
+    const u = cleanUrl(raw, base);
+    if (!u || isBadPage(u) || seen.has(u)) return;
+    if (MARKETS.some(m => m.domains.some(d => u.toLowerCase().includes(d)))) {
+      seen.add(u); out.push(u);
     }
   };
-
-  // 1. Check video and source attributes (src, data-src, data-video-src)
-  const attrRegex = /<(?:video|source)[^>]+(?:src|data-src|data-video-src)=["']([^"']+)["']/gi;
-  let m;
-  while ((m = attrRegex.exec(html))) add(m[1]);
-
-  // 2. Check JSON keys in embedded scripts/hydration data (Rule 8)
-  const jsonRegex =
-    /"(?:videoUrl|videoURL|video_url|playUrl|play_url|playAddr|play_addr|downloadAddr|download_addr|mediaUrl|media_url)"\s*:\s*"([^"\\]+)"/gi;
-  while ((m = jsonRegex.exec(html))) add(m[1]);
-
-  // 3. Check Open Graph video tags
-  const ogRegex = /<meta[^>]+property=["']og:video(?::secure_url)?["'][^>]+content=["']([^"']+)["']/gi;
-  while ((m = ogRegex.exec(html))) add(m[1]);
-
-  // 4. Raw video URLs in text/JSON
-  const rawRegex = /https?:\/\/[^"'\s<>]+\.(?:mp4|webm)(?:\?[^"'\s<>]*)?/gi;
-  while ((m = rawRegex.exec(html))) add(m[0]);
-
-  return list;
+  let m: RegExpExecArray | null;
+  const re = /https?:[^"'<>\s]+/gi;
+  while ((m = re.exec(html))) add(m[0]);
+  return out.slice(0, 30);
 }
 
-function extractMeta(html: string): { title?: string; thumbnail?: string } {
-  let title: string | undefined;
-  let thumbnail: string | undefined;
-
-  const titleMatch =
-    html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i) ||
-    html.match(/<title[^>]*>([^<]+)<\/title>/i);
-  if (titleMatch) title = titleMatch[1].trim();
-
-  const imgMatch =
-    html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
-    html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i);
-  if (imgMatch) thumbnail = imgMatch[1].trim();
-
-  return { title, thumbnail };
+function relevant(title: string, product: string) {
+  if (!title) return true;
+  const words = norm(product).split(" ").filter(w => w.length > 2 && !["com","para","kit","the","new","original"].includes(w));
+  if (!words.length) return true;
+  const hits = words.filter(w => norm(title).includes(w)).length;
+  return hits >= Math.min(2, words.length);
 }
 
-async function safeFetchHtml(url: string, timeoutMs = 4500): Promise<{ ok: boolean; status: number; html: string; finalUrl: string } | null> {
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: H });
+  if (req.method !== "POST") return json({ success: false, candidates: [], error: "Método não permitido." }, 405);
+
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const b = await req.json().catch(() => ({}));
+    const productName = String(b?.productName || "").trim();
+    const productImage = String(b?.productImage || "").trim();
+    const inputAds = Array.isArray(b?.adUrls) ? b.adUrls.map(String) : [];
+    const wanted = Array.isArray(b?.platforms) && b.platforms.length ? b.platforms.map(String) : MARKETS.map(x => x.name);
+    const diagnostics: Record<string, any> = {};
+    for (const p of wanted) diagnostics[p] = { status: "nao_iniciado", adsInspected: 0, videosFound: 0 };
 
-    const res = await fetch(url, {
-      signal: controller.signal,
-      redirect: "follow",
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7"
-      }
-    });
-    clearTimeout(timer);
-
-    const html = await res.text().catch(() => "");
-    return { ok: res.ok, status: res.status, html, finalUrl: res.url || url };
-  } catch {
-    return null;
-  }
-}
-
-// Generate query variations for matching (Rule 4)
-function generateQueryVariations(productName: string): string[] {
-  const norm = normalize(productName);
-  const variations: string[] = [norm];
-
-  // If name has a hyphen or separator like " - " (often Portuguese - English translation)
-  if (productName.includes(" - ")) {
-    const parts = productName.split(" - ").map(p => normalize(p)).filter(Boolean);
-    for (const p of parts) {
-      if (p.length >= 4 && !variations.includes(p)) variations.push(p);
-    }
-  }
-
-  // Strip noise words
-  const clean = norm
-    .replace(/\b(?:un|pcs|pc|kit|c\/|com|em|de|da|do|para|new ion|original)\b/gi, "")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (clean.length >= 4 && !variations.includes(clean)) {
-    variations.push(clean);
-  }
-
-  return variations.slice(0, 3);
-}
-
-// Avoid products with completely different names (Rule 5)
-function isRelevantTitle(candidateTitle: string, productName: string): boolean {
-  if (!candidateTitle) return true;
-  const normTitle = normalize(candidateTitle);
-  const words = normalize(productName)
-    .split(/\s+/)
-    .filter(w => w.length > 2 && !["com", "para", "kit", "new", "ion", "dos", "das", "the"].includes(w));
-
-  if (words.length === 0) return true;
-  const matchingWords = words.filter(w => normTitle.includes(w));
-  return matchingWords.length >= Math.min(2, words.length);
-}
-
-serve(async req => {
-  // Rule 15: Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders, status: 200 });
-  }
-
-  if (req.method !== "POST") {
-    return jsonResponse({ error: "Método não permitido." }, 405);
-  }
-
-  // Rule 12 & 14: Never return HTTP 500, always return valid JSON with diagnostics
-  try {
-    let body: any = {};
-    try {
-      body = await req.json();
-    } catch {
-      return jsonResponse({ error: "JSON inválido na requisição.", candidates: [], diagnostics: {} }, 400);
-    }
-
-    const productName = String(body?.productName || "").trim();
-    const productImage = String(body?.productImage || "").trim();
-    const productId = String(body?.productId || "").trim();
-    const inputAdUrls: string[] = Array.isArray(body?.adUrls) ? body.adUrls : [];
-    const requestedPlatforms: string[] = Array.isArray(body?.platforms) && body.platforms.length > 0
-      ? body.platforms
-      : MARKETPLACE_CONFIGS.map(x => x.name);
-
-    if (!productName && inputAdUrls.length === 0) {
-      return jsonResponse({ candidates: [], error: "Nome do produto ou links de anúncio não informados.", diagnostics: {} }, 400);
-    }
-
-    const diagnostics: Record<string, { status: string; httpStatus?: number; urlChecked?: string; adsInspected: number; videosFound: number; note?: string }> = {};
-    for (const p of requestedPlatforms) {
-      diagnostics[p] = { status: "nao_iniciado", adsInspected: 0, videosFound: 0 };
-    }
+    if (!productName && !inputAds.length && !productImage)
+      return json({ success: false, candidates: [], error: "Informe produto, imagem ou anúncio.", diagnostics }, 400);
 
     const candidates: Candidate[] = [];
-    const seenVideos = new Set<string>();
-
-    const addCandidate = (item: Candidate) => {
-      // Rule 1: No YouTube
-      if (/youtube\.com|youtu\.be/i.test(item.videoUrl) || /youtube\.com|youtu\.be/i.test(item.adUrl)) return;
-      // Rule 9: No .m3u8
-      if (/\.m3u8(?:[?#]|$)/i.test(item.videoUrl)) return;
-      // Rule 7: Must have a video
-      if (!item.videoUrl || item.videoUrl.trim().length === 0) return;
-      if (isSearchPageUrl(item.adUrl) || isSearchPageUrl(item.videoUrl)) return;
-
-      const key = item.platform + "|" + item.videoUrl;
-      if (seenVideos.has(key)) return;
-      seenVideos.add(key);
-
-      candidates.push(item);
-      if (diagnostics[item.platform]) {
-        diagnostics[item.platform].videosFound++;
-      }
+    const seen = new Set<string>();
+    const add = (c: Candidate) => {
+      if (!c.videoUrl || isBadPage(c.videoUrl) || isBadPage(c.adUrl) || /\.m3u8/i.test(c.videoUrl)) return;
+      if (!wanted.includes(c.platform)) return;
+      if (!relevant(c.title, productName)) return;
+      const k = c.platform + "|" + c.videoUrl;
+      if (seen.has(k)) return;
+      seen.add(k); candidates.push(c);
+      diagnostics[c.platform] ||= { status: "processando", adsInspected: 0, videosFound: 0 };
+      diagnostics[c.platform].videosFound++;
     };
 
-    // -------------------------------------------------------------------------
-    // ETAPA 1: Inspecionar URLs de anúncios fornecidos (ex: do catálogo / pesquisa)
-    // -------------------------------------------------------------------------
-    const validCandidateUrls = [...new Set(
-      inputAdUrls
-        .map(u => String(u || "").trim())
-        .filter(u => u && !isSearchPageUrl(u) && /^https?:\/\//i.test(u))
-    )];
-
-    for (const url of validCandidateUrls) {
-      const platform = detectPlatform(url);
-      if (!requestedPlatforms.includes(platform) && platform !== "Marketplace") continue;
-      if (!diagnostics[platform]) diagnostics[platform] = { status: "processando", adsInspected: 0, videosFound: 0 };
-      diagnostics[platform].adsInspected++;
-
-      // Caso 1: A própria URL já é um arquivo direto de vídeo (.mp4, etc.)
-      if (/\.(mp4|webm|mov)(?:[?#]|$)/i.test(url)) {
-        addCandidate({
-          platform,
-          title: productName || "Vídeo direto do anúncio",
-          adUrl: url,
-          videoUrl: url,
-          thumbnail: productImage || undefined,
-          duration: "10 segundos",
-          notes: "Arquivo de vídeo direto do anúncio."
-        });
-        diagnostics[platform].status = "video_direto_encontrado";
+    // 1) Primeiro: anúncios reais que o catálogo já conhece.
+    for (const raw of [...new Set(inputAds)]) {
+      const ad = cleanUrl(raw);
+      if (!ad || isBadPage(ad)) continue;
+      const p = platformOf(ad);
+      if (!wanted.includes(p)) continue;
+      diagnostics[p] ||= { status: "processando", adsInspected: 0, videosFound: 0 };
+      diagnostics[p].adsInspected++;
+      if (/\.(mp4|webm|mov)(?:[?#]|$)/i.test(ad)) {
+        add({ platform:p, title:productName, adUrl:ad, videoUrl:ad, thumbnail:productImage, duration:"10 segundos", notes:"Vídeo direto encontrado no link do catálogo." });
         continue;
       }
-
-      // Caso 2: URL de vídeo do TikTok
-      if (/tiktok\.com\/.*\/video\/\d+/i.test(url)) {
-        addCandidate({
-          platform: "TikTok Shop",
-          title: productName || "Vídeo TikTok",
-          adUrl: url,
-          videoUrl: url,
-          thumbnail: productImage || undefined,
-          duration: "10 segundos",
-          notes: "Vídeo do anúncio no TikTok."
-        });
-        diagnostics["TikTok Shop"].status = "video_tiktok_encontrado";
-        continue;
-      }
-
-      // Caso 3: Página HTML do marketplace (Shopee, Mercado Livre, SHEIN, etc.)
-      diagnostics[platform].urlChecked = url;
-      const resp = await safeFetchHtml(url);
-      if (!resp) {
-        diagnostics[platform].status = "falha_conexao_ou_timeout";
-        continue;
-      }
-
-      diagnostics[platform].httpStatus = resp.status;
-      if (!resp.ok) {
-        diagnostics[platform].status = `bloqueado_http_${resp.status}`;
-        continue;
-      }
-
-      const meta = extractMeta(resp.html);
-      const extractedVideos = extractVideosFromHtml(resp.html, resp.finalUrl);
-
-      if (extractedVideos.length > 0) {
-        for (const vUrl of extractedVideos) {
-          addCandidate({
-            platform,
-            title: meta.title || productName,
-            adUrl: url,
-            videoUrl: vUrl,
-            thumbnail: meta.thumbnail || productImage || undefined,
-            duration: "10 segundos",
-            notes: "Vídeo detectado no anúncio do marketplace."
-          });
-        }
-        diagnostics[platform].status = "video_extraido_com_sucesso";
-      } else {
-        diagnostics[platform].status = "sem_video_no_html";
-      }
+      const r = await fetchText(ad);
+      if (!r.ok) { diagnostics[p].status = "http_" + r.status; continue; }
+      const meta = titleAndImage(r.text);
+      for (const v of videoUrls(r.text, r.url))
+        add({ platform:p, title:meta.title || productName, adUrl:ad, videoUrl:v, thumbnail:meta.thumbnail || productImage, duration:"10 segundos", notes:"Vídeo detectado no anúncio." });
+      diagnostics[p].status = candidates.some(x=>x.platform===p) ? "video_encontrado" : "anuncio_inspecionado_sem_video";
     }
 
-    // -------------------------------------------------------------------------
-    // ETAPA 2: Tentar encontrar vídeos no Supabase se já foram salvos anteriormente
-    // -------------------------------------------------------------------------
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") || "https://fgweictufozyzerbdbtt.supabase.co";
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY") || "sb_publishable_IV3-SGFPpLo8v7EH-ZB9OQ_sSpXUZSn";
-
-    try {
-      const dbUrl = new URL(`${supabaseUrl}/rest/v1/video_records`);
-      dbUrl.searchParams.set("select", "*");
-      dbUrl.searchParams.set("limit", "10");
-
-      if (productId) {
-        dbUrl.searchParams.set("or", `(product_id.eq.${encodeURIComponent(productId)},product_key.eq.${encodeURIComponent(productId)})`);
-      } else if (productName) {
-        dbUrl.searchParams.set("product_name", `ilike.%${encodeURIComponent(productName)}%`);
-      }
-
-      const dbRes = await fetch(dbUrl.toString(), {
-        headers: {
-          apikey: supabaseKey,
-          Authorization: `Bearer ${supabaseKey}`
-        }
-      });
-
-      if (dbRes.ok) {
-        const rows = await dbRes.json();
-        if (Array.isArray(rows)) {
-          for (const row of rows) {
-            if (row.video_url && !isSearchPageUrl(row.video_url)) {
-              addCandidate({
-                platform: row.platform || "Shopee",
-                title: row.product_name || productName,
-                adUrl: row.ad_url || row.video_url,
-                videoUrl: row.video_url,
-                thumbnail: row.product_image || productImage || undefined,
-                duration: row.duration || "10 segundos",
-                notes: "Vídeo verificado já registrado no Supabase."
-              });
-            }
-          }
-        }
-      }
-    } catch {
-      // Supabase lookup falhou silenciosamente, continua com as outras etapas
-    }
-
-    // -------------------------------------------------------------------------
-    // ETAPA 3: Busca externa resiliente por variações de nome do produto
-    // -------------------------------------------------------------------------
-    if (candidates.length === 0 && productName) {
-      const variations = generateQueryVariations(productName);
-
-      // Pesquisar TikTok Shop via Bing
-      if (requestedPlatforms.includes("TikTok Shop")) {
-        try {
-          diagnostics["TikTok Shop"].status = "pesquisando_bing";
-          for (const variation of variations) {
-            if (candidates.some(c => c.platform === "TikTok Shop")) break;
-            const searchUrl = `https://www.bing.com/search?q=${encodeURIComponent(`site:tiktok.com/video "${variation}"`)}`;
-            const bResp = await safeFetchHtml(searchUrl, 3500);
-            if (bResp && bResp.ok) {
-              const uMatches = [...bResp.html.matchAll(/(?:&amp;|&)u=a1([a-zA-Z0-9_-]+)/g)].map(m => m[1]);
-              for (const p of uMatches.slice(0, 10)) {
-                try {
-                  const decoded = atob(p.replace(/-/g, "+").replace(/_/g, "/"));
-                  if (/tiktok\.com\/.*\/video\/\d+/i.test(decoded)) {
-                    diagnostics["TikTok Shop"].adsInspected++;
-                    addCandidate({
-                      platform: "TikTok Shop",
-                      title: productName,
-                      adUrl: decoded,
-                      videoUrl: decoded,
-                      thumbnail: productImage || undefined,
-                      duration: "10 segundos",
-                      notes: "Vídeo de produto encontrado no TikTok Shop."
-                    });
-                  }
-                } catch {}
-              }
-            }
-          }
-        } catch (err) {
-          diagnostics["TikTok Shop"].note = String(err);
+    // 2) Busca visual: Google Lens por URL da imagem, depois abrir os anúncios de marketplace encontrados.
+    if (productImage && candidates.length < 20) {
+      const lens = await fetchText("https://lens.google.com/uploadbyurl?url=" + encodeURIComponent(productImage), 9000);
+      diagnostics["Imagem"] = { status: lens.ok ? "lens_consultado" : "lens_indisponivel", httpStatus:lens.status, adsInspected:0, videosFound:0 };
+      if (lens.ok) {
+        const links = marketplaceLinks(lens.text, lens.url);
+        for (const ad of links.slice(0, 24)) {
+          const p = platformOf(ad);
+          if (!wanted.includes(p) || candidates.length >= 20) continue;
+          diagnostics[p] ||= { status:"processando", adsInspected:0, videosFound:0 };
+          diagnostics[p].adsInspected++;
+          const r = await fetchText(ad);
+          if (!r.ok) continue;
+          const meta = titleAndImage(r.text);
+          for (const v of videoUrls(r.text, r.url))
+            add({ platform:p, title:meta.title || productName, adUrl:ad, videoUrl:v, thumbnail:meta.thumbnail || productImage, duration:"10 segundos", notes:"Anúncio encontrado a partir da busca visual por imagem." });
         }
       }
     }
 
-    // Retorno final de sucesso, sempre JSON, sem nunca disparar 500
-    const max = Number(body?.maxCandidates) || 20;
-    return jsonResponse({
+    // 3) Busca textual complementar nos mecanismos de busca.
+    if (candidates.length < 20 && productName) {
+      const queries = [
+        `site:shopee.com.br "${productName}"`,
+        `site:br.shein.com "${productName}"`,
+        `site:shop.tiktok.com "${productName}"`,
+        `site:tiktok.com "${productName}"`,
+        `site:mercadolivre.com.br "${productName}"`,
+      ];
+      for (const q of queries) {
+        const p = platformOf(q);
+        const engine = await fetchText("https://www.google.com/search?q=" + encodeURIComponent(q), 5000);
+        const links = engine.ok ? marketplaceLinks(engine.text, engine.url) : [];
+        for (const ad of links.slice(0, 10)) {
+          const mp = platformOf(ad);
+          if (!wanted.includes(mp) || candidates.length >= 20) continue;
+          diagnostics[mp] ||= {status:"processando",adsInspected:0,videosFound:0};
+          diagnostics[mp].adsInspected++;
+          const r = await fetchText(ad);
+          if (!r.ok) continue;
+          const meta = titleAndImage(r.text);
+          for (const v of videoUrls(r.text, r.url))
+            add({platform:mp,title:meta.title || productName,adUrl:ad,videoUrl:v,thumbnail:meta.thumbnail || productImage,duration:"10 segundos",notes:"Anúncio encontrado por busca complementar."});
+        }
+      }
+    }
+
+    return json({
       success: true,
       productName,
-      candidates: candidates.slice(0, max),
+      candidates: candidates.slice(0, Number(b?.maxCandidates) || 20),
+      matchedImage: Boolean(productImage),
       diagnostics,
-      checkedCount: Object.values(diagnostics).reduce((sum, d) => sum + (d.adsInspected || 0), 0),
-      note: "Resultados contêm apenas anúncios e mídias de vídeo reais dos marketplaces suportados."
+      checkedCount: Object.values(diagnostics).reduce((n:any,d:any)=>n+(d.adsInspected||0),0),
+      note: "Busca prioriza anúncios já conhecidos, tenta correspondência visual pela imagem e usa busca textual como complemento. Só retorna URLs de vídeo detectadas."
     });
-  } catch (error) {
-    // Tratamento global para garantir que o retorno NUNCA seja 500 sem corpo JSON
-    return jsonResponse({
-      success: false,
-      candidates: [],
-      error: error instanceof Error ? error.message : "Falha na varredura.",
-      diagnostics: {}
-    }, 200);
+  } catch (e) {
+    return json({ success:false, candidates:[], error:e instanceof Error?e.message:"Falha na busca.", diagnostics:{} }, 200);
   }
 });
