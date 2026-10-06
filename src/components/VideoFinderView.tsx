@@ -519,7 +519,8 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
         }
       }
 
-      const scanResult = await callMarketplaceScan({
+      // Watchdog externo: nenhuma busca pode deixar o botão preso em "Verificando...".
+      const scanPromise = callMarketplaceScan({
         productId: p.id,
         productName: p.name,
         productImage: p.image || '',
@@ -527,6 +528,13 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
         adUrls: candidateUrls,
         platforms: platform === 'Todos' ? undefined : [platform]
       });
+      const watchdog = new Promise<{ candidates: ScanCandidateItem[]; diagnostics: Record<string, any> }>((resolve) => {
+        setTimeout(() => resolve({
+          candidates: [],
+          diagnostics: { sistema: { status: 'Tempo limite da busca. O servidor de vídeos não respondeu.' } }
+        }), 10000);
+      });
+      const scanResult = await Promise.race([scanPromise, watchdog]);
 
       setScanDiagnostics(scanResult.diagnostics);
 
