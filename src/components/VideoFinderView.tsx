@@ -433,9 +433,12 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
     // 1. Tentar Edge Function Supabase 'marketplace-video-scan' com tokens de autenticação
     if (client) {
       try {
-        const { data, error } = await client.functions.invoke('marketplace-video-scan', {
-          body: payload
-        });
+        const timeoutMs = 20000;
+        const invokePromise = client.functions.invoke('marketplace-video-scan', { body: payload });
+        const timeoutPromise = new Promise<{ data: any; error: any }>((resolve) =>
+          setTimeout(() => resolve({ data: null, error: new Error('Tempo limite de 20 segundos excedido na busca de vídeos.') }), timeoutMs)
+        );
+        const { data, error } = await Promise.race([invokePromise, timeoutPromise]);
         if (!error && data) {
           if (Array.isArray(data.candidates) && data.candidates.length > 0) {
             candidates = [...data.candidates];
@@ -478,7 +481,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
   };
 
   // 6. BUSCA DE VÍDEOS REAIS DO PRODUTO
-  const scanProduct = async (p: Product) => {
+  const scanProduct = async (p: Product, openResults = true) => {
     setScanning(p.id);
     setScanMessage(`Procurando anúncios com vídeo para "${p.name}" nos marketplaces...`);
     setScanDiagnostics(null);
@@ -514,10 +517,12 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
 
       if (validCandidates.length > 0) {
         // Se houver 1 ou mais candidatos com vídeo encontrados, abre modal para o usuário revisar e salvar
-        setCandidatesModal({
-          product: p,
-          candidates: validCandidates
-        });
+        if (openResults) {
+          setCandidatesModal({
+            product: p,
+            candidates: validCandidates
+          });
+        }
         setScanMessage(`${validCandidates.length} anúncio(s) com vídeo encontrado(s) para "${p.name}"!`);
         return validCandidates.length;
       }
@@ -528,28 +533,64 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
       return 0;
     } catch (e) {
       setScanMessage(e instanceof Error ? e.message : 'Falha na busca de vídeos.');
-      return 0;
+      return [];
     } finally {
       setTimeout(() => setScanning((curr) => (curr === p.id ? null : curr)), 500);
     }
   };
 
   const scanPending = async () => {
-    // Escaneia especificamente os produtos que ainda não possuem anúncio com vídeo salvo
+    // Varredura em lote com limite de concorrência para a interface não ficar travada.
     const targets = found.filter((p) => getVideos(p).length === 0);
     if (!targets.length) {
       setScanMessage('Todos os produtos já possuem anúncios com vídeo salvos.');
       return;
     }
-    setScanMessage(`Verificando anúncios de ${targets.length} produto(s) sem vídeo...`);
-    let totalFound = 0;
-    for (const p of targets) {
-      totalFound += await scanProduct(p);
-    }
-    if (totalFound > 0) {
-      setScanMessage(`Concluído: novos anúncios com vídeo identificados!`);
-    } else {
-      setScanMessage('Verificação concluída: nenhum novo anúncio com vídeo detectado nos itens sem vídeo.');
+
+    setScanning('__bulk__');
+    setScanDiagnostics(null);
+    setCandidatesModal(null);
+    setScanMessage(`Iniciando busca real em ${targets.length} produto(s) sem vídeo. Até 4 buscas simultâneas.`);
+
+    const allCandidates: Array<{ product: Product; candidates: ScanCandidateItem[] }> = [];
+    let completed = 0;
+
+    try {
+      for (let i = 0; i < targets.length; i += 4) {
+        const batch = targets.slice(i, i + 4);
+        const results = await Promise.all(
+          batch.map(async (p) => {
+            const candidates = await scanProduct(p, false);
+            completed += 1;
+            setScanMessage(`Buscando vídeos reais: ${completed}/${targets.length} produto(s) verificado(s)...`);
+            return { product: p, candidates };
+          })
+        );
+
+        for (const result of results) {
+          if (result.candidates.length) {
+            allCandidates.push(result);
+          }
+        }
+      }
+
+      if (allCandidates.length) {
+        // Mostra os resultados do primeiro produto encontrado; os demais continuam disponíveis
+        // pelo botão individual de cada produto, sem bloquear a varredura geral.
+        const first = allCandidates[0];
+        setCandidatesModal({ product: first.product, candidates: first.candidates });
+        setScanMessage(
+          `Varredura concluída: ${completed}/${targets.length} verificado(s), ${allCandidates.reduce((n, x) => n + x.candidates.length, 0)} anúncio(s) com vídeo encontrado(s).`
+        );
+      } else {
+        setScanMessage(
+          `Varredura concluída: ${completed}/${targets.length} produto(s). Nenhum anúncio com vídeo utilizável foi detectado.`
+        );
+      }
+    } catch (error) {
+      setScanMessage(error instanceof Error ? error.message : 'Falha na varredura em lote.');
+    } finally {
+      setScanning(null);
     }
   };
 
