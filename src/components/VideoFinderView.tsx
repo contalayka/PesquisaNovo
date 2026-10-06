@@ -492,8 +492,8 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
         const timeout = new Promise<{ data: any; error: any }>((resolve) =>
           window.setTimeout(() => resolve({
             data: null,
-            error: new Error('A busca no servidor ultrapassou 10 segundos.')
-          }), 10000)
+            error: new Error('A busca no servidor ultrapassou 20 segundos.')
+          }), 20000)
         );
         const { data, error } = await Promise.race([invoke, timeout]);
         if (!error && data && Array.isArray(data.candidates)) {
@@ -511,7 +511,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
     // SEGUNDO CAMINHO: API do próprio site/Cloudflare, se estiver publicada.
     try {
       const controller = new AbortController();
-      const timer = window.setTimeout(() => controller.abort(), 3000);
+      const timer = window.setTimeout(() => controller.abort(), 7000);
       try {
         const res = await fetch('/api/marketplace-video-scan', {
           method: 'POST',
