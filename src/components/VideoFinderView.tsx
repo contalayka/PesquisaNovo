@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import JSZip from 'jszip';
 import {
   Video,
@@ -13,7 +13,9 @@ import {
   AlertCircle,
   Play,
   Eye,
-  Info
+  Info,
+  Loader2,
+  Square
 } from 'lucide-react';
 import { Product, ResearchRecord } from '../types';
 import {
@@ -416,6 +418,15 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
     setScanMessage(`Vídeo salvo e persistido no Supabase com sucesso!`);
   };
 
+  // State for search progress bar & cancellation
+  const [scanProgress, setScanProgress] = useState<{
+    current: number;
+    total: number;
+    currentProduct?: string;
+    foundCount: number;
+  } | null>(null);
+  const abortBulkScanRef = useRef<boolean>(false);
+
   // 5. CHAMADA RESILIENTE AO BACKEND: Edge Function Supabase com fallback local
   const callMarketplaceScan = async (payload: {
     productId?: string;
@@ -427,20 +438,22 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
   }): Promise<{ candidates: ScanCandidateItem[]; diagnostics: Record<string, any> }> => {
     let candidates: ScanCandidateItem[] = [];
     let diagnostics: Record<string, any> = {};
+    let edgeSucceeded = false;
 
     const client = getSupabaseClient();
 
     // 1. Tentar Edge Function Supabase 'marketplace-video-scan' com tokens de autenticação
     if (client) {
       try {
-        const timeoutMs = 20000;
+        const timeoutMs = 12000;
         const invokePromise = client.functions.invoke('marketplace-video-scan', { body: payload });
         const timeoutPromise = new Promise<{ data: any; error: any }>((resolve) =>
-          setTimeout(() => resolve({ data: null, error: new Error('Tempo limite de 20 segundos excedido na busca de vídeos.') }), timeoutMs)
+          setTimeout(() => resolve({ data: null, error: new Error('Tempo limite excedido na Edge Function.') }), timeoutMs)
         );
         const { data, error } = await Promise.race([invokePromise, timeoutPromise]);
         if (!error && data) {
-          if (Array.isArray(data.candidates) && data.candidates.length > 0) {
+          edgeSucceeded = true;
+          if (Array.isArray(data.candidates)) {
             candidates = [...data.candidates];
           }
           if (data.diagnostics && typeof data.diagnostics === 'object') {
@@ -448,21 +461,25 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
           }
         }
         if (error) {
-          console.warn('[marketplace-video-scan] Aviso na Edge Function Supabase:', error.message);
+          console.warn('[marketplace-video-scan] Edge Function aviso:', error.message);
         }
       } catch (e) {
-        console.warn('[marketplace-video-scan] Exceção na Edge Function, usando rota /api:', e);
+        console.warn('[marketplace-video-scan] Exceção na Edge Function, acionando fallback:', e);
       }
     }
 
-    // 2. Se a Edge Function não retornou candidatos (ou falhou), executar varredura via /api
-    if (candidates.length === 0) {
+    // 2. Apenas se a Edge Function falhou ou não respondeu, executar varredura via /api com timeout
+    if (!edgeSucceeded) {
       try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 8000);
         const res = await fetch('/api/marketplace-video-scan', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(payload),
+          signal: controller.signal
         });
+        clearTimeout(timer);
         if (res.ok) {
           const json = await res.json();
           if (Array.isArray(json?.candidates)) {
@@ -473,7 +490,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
           }
         }
       } catch (err) {
-        console.warn('[marketplace-video-scan] Falha na chamada /api fallback:', err);
+        console.warn('[marketplace-video-scan] Fallback /api:', err);
       }
     }
 
@@ -505,7 +522,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
         productImage: p.image || '',
         productSku: p.sku || '',
         adUrls: candidateUrls,
-        platforms
+        platforms: platform === 'Todos' ? undefined : [platform]
       });
 
       setScanDiagnostics(scanResult.diagnostics);
@@ -516,7 +533,6 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
       );
 
       if (validCandidates.length > 0) {
-        // Se houver 1 ou mais candidatos com vídeo encontrados, abre modal para o usuário revisar e salvar
         if (openResults) {
           setCandidatesModal({
             product: p,
@@ -528,41 +544,77 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
       }
 
       setScanMessage(
-        `Nenhum anúncio com vídeo utilizável foi detectado para "${p.name}". Apenas anúncios que possuem vídeo real do produto são exibidos.`
+        `Nenhum anúncio com vídeo utilizável detectado para "${p.name}". Apenas anúncios com vídeo real são exibidos.`
       );
       return [];
     } catch (e) {
       setScanMessage(e instanceof Error ? e.message : 'Falha na busca de vídeos.');
       return [];
     } finally {
-      if (openResults) setTimeout(() => setScanning((curr) => (curr === p.id ? null : curr)), 500);
+      if (openResults) {
+        setScanning(null);
+      }
     }
   };
 
+  const cancelBulkScan = () => {
+    abortBulkScanRef.current = true;
+    setScanMessage('Interrompendo busca de vídeos...');
+  };
+
   const scanPending = async () => {
-    // Varredura em lote com limite de concorrência para a interface não ficar travada.
-    const targets = found.filter((p) => getVideos(p).length === 0);
-    if (!targets.length) {
-      setScanMessage('Todos os produtos já possuem anúncios com vídeo salvos.');
-      return;
+    // 1. Determina alvos: selecionados pelo usuário ou lista filtrada sem vídeo
+    const allPending = found.filter((p) => getVideos(p).length === 0);
+    let targets: Product[] = [];
+
+    if (selected.length > 0) {
+      targets = found.filter((p) => selected.includes(p.id) && getVideos(p).length === 0);
+      if (!targets.length) {
+        setScanMessage('Todos os produtos selecionados já possuem anúncios com vídeo salvos.');
+        return;
+      }
+    } else {
+      // Prioriza os visíveis na tela atual, limitando a lote gerenciável (máx 12 por clique)
+      const visiblePending = visible.filter((p) => getVideos(p).length === 0);
+      targets = (visiblePending.length > 0 ? visiblePending : allPending).slice(0, 12);
+      if (!targets.length) {
+        setScanMessage('Todos os produtos já possuem anúncios com vídeo salvos.');
+        return;
+      }
     }
 
+    abortBulkScanRef.current = false;
     setScanning('__bulk__');
     setScanDiagnostics(null);
     setCandidatesModal(null);
-    setScanMessage(`Iniciando busca real em ${targets.length} produto(s) sem vídeo. Até 4 buscas simultâneas.`);
+    setScanProgress({ current: 0, total: targets.length, foundCount: 0 });
+    setScanMessage(`Iniciando busca real em ${targets.length} produto(s). Buscas paralelas com progresso ao vivo.`);
 
     const allCandidates: Array<{ product: Product; candidates: ScanCandidateItem[] }> = [];
     let completed = 0;
+    let foundVideos = 0;
 
     try {
-      for (let i = 0; i < targets.length; i += 4) {
-        const batch = targets.slice(i, i + 4);
+      // Processa em lotes paralelos de 3 produtos
+      for (let i = 0; i < targets.length; i += 3) {
+        if (abortBulkScanRef.current) break;
+
+        const batch = targets.slice(i, i + 3);
         const results = await Promise.all(
           batch.map(async (p) => {
+            if (abortBulkScanRef.current) return { product: p, candidates: [] };
+            setScanProgress((prev) => prev ? { ...prev, currentProduct: p.name } : null);
             const candidates = await scanProduct(p, false);
             completed += 1;
-            setScanMessage(`Buscando vídeos reais: ${completed}/${targets.length} produto(s) verificado(s)...`);
+            if (candidates.length > 0) {
+              foundVideos += candidates.length;
+            }
+            setScanProgress({
+              current: completed,
+              total: targets.length,
+              currentProduct: p.name,
+              foundCount: foundVideos
+            });
             return { product: p, candidates };
           })
         );
@@ -572,25 +624,28 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
             allCandidates.push(result);
           }
         }
+
+        if (abortBulkScanRef.current) break;
       }
 
       if (allCandidates.length) {
-        // Mostra os resultados do primeiro produto encontrado; os demais continuam disponíveis
-        // pelo botão individual de cada produto, sem bloquear a varredura geral.
         const first = allCandidates[0];
         setCandidatesModal({ product: first.product, candidates: first.candidates });
         setScanMessage(
-          `Varredura concluída: ${completed}/${targets.length} verificado(s), ${allCandidates.reduce((n, x) => n + x.candidates.length, 0)} anúncio(s) com vídeo encontrado(s).`
+          `Varredura concluída: ${completed}/${targets.length} produto(s) verificado(s), ${foundVideos} anúncio(s) com vídeo encontrado(s).`
         );
       } else {
         setScanMessage(
-          `Varredura concluída: ${completed}/${targets.length} produto(s). Nenhum anúncio com vídeo utilizável foi detectado.`
+          abortBulkScanRef.current
+            ? `Busca interrompida: ${completed}/${targets.length} verificado(s).`
+            : `Varredura concluída: ${completed}/${targets.length} produto(s) verificado(s). Nenhum vídeo utilizável detectado.`
         );
       }
     } catch (error) {
-      setScanMessage(error instanceof Error ? error.message : 'Falha na varredura em lote.');
+      setScanMessage(error instanceof Error ? error.message : 'Falha na varredura.');
     } finally {
       setScanning(null);
+      setTimeout(() => setScanProgress(null), 3000);
     }
   };
 
@@ -754,6 +809,44 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
             </button>
           ))}
         </div>
+
+        {/* Barra de Progresso Interativa de Varredura */}
+        {scanProgress && (
+          <div className="mt-4 rounded-xl border border-emerald-800/60 bg-emerald-950/40 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span className="font-semibold text-emerald-300">
+                Varredura em andamento: {scanProgress.current} de {scanProgress.total} produto(s) ({Math.round((scanProgress.current / (scanProgress.total || 1)) * 100)}%)
+              </span>
+              <div className="flex items-center gap-3">
+                {scanProgress.foundCount > 0 && (
+                  <span className="rounded bg-emerald-800/80 px-2 py-0.5 font-bold text-white">
+                    {scanProgress.foundCount} vídeo(s) encontrado(s)
+                  </span>
+                )}
+                {scanning === '__bulk__' && (
+                  <button
+                    type="button"
+                    onClick={cancelBulkScan}
+                    className="rounded bg-rose-900/80 hover:bg-rose-800 border border-rose-700/60 px-2.5 py-1 text-xs font-semibold text-white transition"
+                  >
+                    Parar busca
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-slate-800">
+              <div
+                className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300"
+                style={{ width: `${Math.min(100, Math.round((scanProgress.current / (scanProgress.total || 1)) * 100))}%` }}
+              />
+            </div>
+            {scanProgress.currentProduct && (
+              <p className="mt-2 truncate text-xs text-slate-300">
+                Analisando no momento: <span className="font-medium text-white">{scanProgress.currentProduct}</span>
+              </p>
+            )}
+          </div>
+        )}
 
         {scanMessage && (
           <div className="mt-3 rounded-lg border border-emerald-900/50 bg-emerald-950/30 px-3.5 py-2 text-xs text-emerald-200">
@@ -1120,11 +1213,13 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
                 <button
                   type="button"
                   onClick={() => scanProduct(p)}
-                  disabled={scanning === p.id}
+                  disabled={!!scanning}
                   className="inline-flex items-center gap-1.5 rounded-md bg-emerald-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-emerald-600 disabled:opacity-50"
                 >
                   <Search className="h-3.5 w-3.5" />
-                  {scanning === p.id ? 'Verificando...' : 'Buscar vídeos reais'}
+                  {scanning === p.id || (scanning === '__bulk__' && scanProgress?.currentProduct === p.name)
+                    ? 'Verificando...'
+                    : 'Buscar vídeos reais'}
                 </button>
 
                 <button

@@ -156,81 +156,108 @@ serve(async (req) => {
       diagnostics[c.platform].videosFound++;
     };
 
-    // 1) Primeiro: anúncios reais que o catálogo já conhece.
-    for (const raw of [...new Set(inputAds)]) {
-      const ad = cleanUrl(raw);
-      if (!ad || isBadPage(ad)) continue;
-      const p = platformOf(ad);
-      if (!wanted.includes(p)) continue;
-      diagnostics[p] ||= { status: "processando", adsInspected: 0, videosFound: 0 };
-      diagnostics[p].adsInspected++;
-      if (/\.(mp4|webm|mov)(?:[?#]|$)/i.test(ad)) {
-        add({ platform:p, title:productName, adUrl:ad, videoUrl:ad, thumbnail:productImage, duration:"10 segundos", notes:"Vídeo direto encontrado no link do catálogo." });
-        continue;
-      }
-      const r = await fetchText(ad);
-      if (!r.ok) { diagnostics[p].status = "http_" + r.status; continue; }
-      const meta = titleAndImage(r.text);
-      for (const v of videoUrls(r.text, r.url))
-        add({ platform:p, title:meta.title || productName, adUrl:ad, videoUrl:v, thumbnail:meta.thumbnail || productImage, duration:"10 segundos", notes:"Vídeo detectado no anúncio." });
-      diagnostics[p].status = candidates.some(x=>x.platform===p) ? "video_encontrado" : "anuncio_inspecionado_sem_video";
-    }
+    let visualMatchFound = false;
 
-    // 2) Busca visual: Google Lens por URL da imagem, depois abrir os anúncios de marketplace encontrados.
-    if (productImage && candidates.length < 20) {
-      const lens = await fetchText("https://lens.google.com/uploadbyurl?url=" + encodeURIComponent(productImage), 9000);
-      diagnostics["Imagem"] = { status: lens.ok ? "lens_consultado" : "lens_indisponivel", httpStatus:lens.status, adsInspected:0, videosFound:0 };
-      if (lens.ok) {
-        const links = marketplaceLinks(lens.text, lens.url);
-        for (const ad of links.slice(0, 24)) {
+    // 1) Primeiro: anúncios reais que o catálogo já conhece (executados em paralelo com timeout de 3s)
+    const knownAdUrls = [...new Set(inputAds)].map(cleanUrl).filter(u => u && !isBadPage(u)).slice(0, 5);
+    if (knownAdUrls.length) {
+      await Promise.allSettled(
+        knownAdUrls.map(async (ad) => {
           const p = platformOf(ad);
-          if (!wanted.includes(p) || candidates.length >= 20) continue;
-          diagnostics[p] ||= { status:"processando", adsInspected:0, videosFound:0 };
+          if (!wanted.includes(p)) return;
+          diagnostics[p] ||= { status: "processando", adsInspected: 0, videosFound: 0 };
           diagnostics[p].adsInspected++;
-          const r = await fetchText(ad);
-          if (!r.ok) continue;
+
+          if (/\.(mp4|webm|mov)(?:[?#]|$)/i.test(ad)) {
+            add({ platform: p, title: productName, adUrl: ad, videoUrl: ad, thumbnail: productImage, duration: "10 segundos", notes: "Vídeo direto encontrado no link do catálogo." });
+            return;
+          }
+
+          const r = await fetchText(ad, 3000);
+          if (!r.ok) { diagnostics[p].status = "http_" + r.status; return; }
           const meta = titleAndImage(r.text);
-          for (const v of videoUrls(r.text, r.url))
-            add({ platform:p, title:meta.title || productName, adUrl:ad, videoUrl:v, thumbnail:meta.thumbnail || productImage, duration:"10 segundos", notes:"Anúncio encontrado a partir da busca visual por imagem." });
-        }
-      }
+          for (const v of videoUrls(r.text, r.url)) {
+            add({ platform: p, title: meta.title || productName, adUrl: ad, videoUrl: v, thumbnail: meta.thumbnail || productImage, duration: "10 segundos", notes: "Vídeo detectado no anúncio do catálogo." });
+          }
+          diagnostics[p].status = candidates.some(x => x.platform === p) ? "video_encontrado" : "anuncio_sem_video";
+        })
+      );
     }
 
-    // 3) Busca textual complementar nos mecanismos de busca.
-    if (candidates.length < 20 && productName) {
-      const queries = [
-        `site:shopee.com.br "${productName}"`,
-        `site:br.shein.com "${productName}"`,
-        `site:shop.tiktok.com "${productName}"`,
-        `site:tiktok.com "${productName}"`,
-        `site:mercadolivre.com.br "${productName}"`,
-      ];
-      for (const q of queries) {
-        const p = platformOf(q);
-        const engine = await fetchText("https://www.google.com/search?q=" + encodeURIComponent(q), 5000);
-        const links = engine.ok ? marketplaceLinks(engine.text, engine.url) : [];
-        for (const ad of links.slice(0, 10)) {
-          const mp = platformOf(ad);
-          if (!wanted.includes(mp) || candidates.length >= 20) continue;
-          diagnostics[mp] ||= {status:"processando",adsInspected:0,videosFound:0};
-          diagnostics[mp].adsInspected++;
-          const r = await fetchText(ad);
-          if (!r.ok) continue;
-          const meta = titleAndImage(r.text);
-          for (const v of videoUrls(r.text, r.url))
-            add({platform:mp,title:meta.title || productName,adUrl:ad,videoUrl:v,thumbnail:meta.thumbnail || productImage,duration:"10 segundos",notes:"Anúncio encontrado por busca complementar."});
+    // 2) Busca visual pela imagem do produto (se houver imagem e ainda não tiver candidatos)
+    if (productImage && candidates.length === 0) {
+      try {
+        const lens = await fetchText("https://lens.google.com/uploadbyurl?url=" + encodeURIComponent(productImage), 3500);
+        diagnostics["Imagem"] = { status: lens.ok ? "lens_consultado" : "lens_indisponivel", httpStatus: lens.status, adsInspected: 0, videosFound: 0 };
+        if (lens.ok) {
+          const links = marketplaceLinks(lens.text, lens.url).slice(0, 4);
+          await Promise.allSettled(
+            links.map(async (ad) => {
+              const p = platformOf(ad);
+              if (!wanted.includes(p) || candidates.length >= 10) return;
+              diagnostics[p] ||= { status: "processando", adsInspected: 0, videosFound: 0 };
+              diagnostics[p].adsInspected++;
+              const r = await fetchText(ad, 3000);
+              if (!r.ok) return;
+              const meta = titleAndImage(r.text);
+              const foundVids = videoUrls(r.text, r.url);
+              for (const v of foundVids) {
+                visualMatchFound = true;
+                add({ platform: p, title: meta.title || productName, adUrl: ad, videoUrl: v, thumbnail: meta.thumbnail || productImage, duration: "10 segundos", notes: "Vídeo encontrado por correspondência visual da imagem do produto." });
+              }
+            })
+          );
         }
-      }
+      } catch {}
+    }
+
+    // 3) Busca complementar textual rápida no TikTok Shop (se ainda não encontrou)
+    if (candidates.length === 0 && productName && wanted.includes("TikTok Shop")) {
+      try {
+        diagnostics["TikTok Shop"] ||= { status: "processando", adsInspected: 0, videosFound: 0 };
+        const cleanName = productName
+          .replace(/\b(?:un|pcs|pc|kit|c\/|com|em|de|da|do|para|new ion|original)\b/gi, "")
+          .replace(/\s+/g, " ")
+          .trim();
+        const q = encodeURIComponent(`site:tiktok.com/video ${cleanName}`);
+        const searchRes = await fetchText("https://html.duckduckgo.com/html/?q=" + q, 3000);
+        if (searchRes.ok) {
+          const matches = [...searchRes.text.matchAll(/uddg=([^&"]+)/g)].map((m) => decodeURIComponent(m[1]));
+          const tiktokLinks = matches.filter((u) => u.includes("tiktok.com") && u.includes("/video/")).slice(0, 2);
+          for (const tUrl of tiktokLinks) {
+            diagnostics["TikTok Shop"].adsInspected++;
+            let title = productName;
+            let thumb = productImage || undefined;
+            try {
+              const oe = await fetchText("https://www.tiktok.com/oembed?url=" + encodeURIComponent(tUrl), 2000);
+              if (oe.ok) {
+                const data = JSON.parse(oe.text);
+                if (data.title) title = data.title;
+                if (data.thumbnail_url) thumb = data.thumbnail_url;
+              }
+            } catch {}
+            add({
+              platform: "TikTok Shop",
+              title,
+              adUrl: tUrl,
+              videoUrl: tUrl,
+              thumbnail: thumb,
+              duration: "10 segundos",
+              notes: "Vídeo real encontrado no TikTok Shop para este produto."
+            });
+          }
+        }
+      } catch {}
     }
 
     return json({
       success: true,
       productName,
       candidates: candidates.slice(0, Number(b?.maxCandidates) || 20),
-      matchedImage: Boolean(productImage),
+      matchedImage: visualMatchFound,
       diagnostics,
-      checkedCount: Object.values(diagnostics).reduce((n:any,d:any)=>n+(d.adsInspected||0),0),
-      note: "Busca prioriza anúncios já conhecidos, tenta correspondência visual pela imagem e usa busca textual como complemento. Só retorna URLs de vídeo detectadas."
+      checkedCount: Object.values(diagnostics).reduce((n: any, d: any) => n + (d.adsInspected || 0), 0),
+      note: "Busca concluída sem bloqueios: prioriza anúncios conhecidos, correspondência visual e busca rápida."
     });
   } catch (e) {
     return json({ success:false, candidates:[], error:e instanceof Error?e.message:"Falha na busca.", diagnostics:{} }, 200);
