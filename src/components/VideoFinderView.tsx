@@ -438,11 +438,36 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
   }): Promise<{ candidates: ScanCandidateItem[]; diagnostics: Record<string, any> }> => {
     const empty = { candidates: [] as ScanCandidateItem[], diagnostics: {} as Record<string, any> };
 
-    // CAMINHO PRINCIPAL: API do próprio site/Cloudflare.
-    // Isso não depende de sessão JWT do Supabase e funciona também no preview do AI Studio.
+    // CAMINHO PRINCIPAL: Supabase Edge Function.
+    // A função agora autentica a publishable key no header "apikey" e não depende
+    // de sessão de usuário, então funciona também em janela anônima/preview.
+    try {
+      const client = getSupabaseClient();
+      if (client) {
+        const invoke = client.functions.invoke('marketplace-video-scan', { body: payload });
+        const timeout = new Promise<{ data: any; error: any }>((resolve) =>
+          window.setTimeout(() => resolve({
+            data: null,
+            error: new Error('A busca no servidor ultrapassou 10 segundos.')
+          }), 10000)
+        );
+        const { data, error } = await Promise.race([invoke, timeout]);
+        if (!error && data && Array.isArray(data.candidates)) {
+          return {
+            candidates: data.candidates.filter((c: any) => c?.videoUrl),
+            diagnostics: data.diagnostics && typeof data.diagnostics === 'object' ? data.diagnostics : {}
+          };
+        }
+        console.warn('[VideoFinder] Supabase scan:', error || 'resposta inválida');
+      }
+    } catch (e) {
+      console.warn('[VideoFinder] Supabase scan indisponível:', e);
+    }
+
+    // SEGUNDO CAMINHO: API do próprio site/Cloudflare, se estiver publicada.
     try {
       const controller = new AbortController();
-      const timer = window.setTimeout(() => controller.abort(), 2500);
+      const timer = window.setTimeout(() => controller.abort(), 3000);
       try {
         const res = await fetch('/api/marketplace-video-scan', {
           method: 'POST',
@@ -466,29 +491,6 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
       }
     } catch (e) {
       console.warn('[VideoFinder] API /api indisponível:', e);
-    }
-
-    // SEGUNDO CAMINHO: Supabase como fallback.
-    try {
-      const client = getSupabaseClient();
-      if (client) {
-        const invoke = client.functions.invoke('marketplace-video-scan', { body: payload });
-        const timeout = new Promise<{ data: any; error: any }>((resolve) =>
-          window.setTimeout(() => resolve({
-            data: null,
-            error: new Error('Supabase demorou demais para responder.')
-          }), 5000)
-        );
-        const { data, error } = await Promise.race([invoke, timeout]);
-        if (!error && data && Array.isArray(data.candidates)) {
-          return {
-            candidates: data.candidates.filter((c: any) => c?.videoUrl),
-            diagnostics: data.diagnostics && typeof data.diagnostics === 'object' ? data.diagnostics : {}
-          };
-        }
-      }
-    } catch (e) {
-      console.warn('[VideoFinder] Supabase fallback:', e);
     }
 
     return {
@@ -534,7 +536,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
           window.setTimeout(() => resolve({
             candidates: [],
             diagnostics: { sistema: { status: 'A busca demorou mais que o permitido e foi encerrada.' } }
-          }), 4000);
+          }), 12000);
         })
       ]);
 
