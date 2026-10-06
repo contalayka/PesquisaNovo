@@ -2,13 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 import JSZip from 'jszip';
 import { Video, Search, ExternalLink, Download, CheckCircle2, Clock3 } from 'lucide-react';
 import { Product, ResearchRecord } from '../types';
-import { fetchVideoRecords, saveVideoRecord, saveVideoRecords, deleteVideoRecord, CloudVideoRecord } from '../utils/videoRecords';
+import { fetchVideoRecords, saveVideoRecord, saveVideoRecords, deleteVideoRecord, markVideoDownloaded, CloudVideoRecord } from '../utils/videoRecords';
 import { getSupabaseClient } from '../utils/supabase';
 
 type SavedVideo = CloudVideoRecord;
 type SavedMap = Record<string, SavedVideo[]>;
 const KEY = 'marketpreco_video_finder_v2';
-const DOWNLOADED_KEY = 'marketpreco_video_downloaded_v1';
 const platforms = ['Shopee', 'SHEIN', 'TikTok Shop', 'Mercado Livre'];
 
 const normalize = (v: unknown) => String(v ?? '').trim().toLocaleLowerCase('pt-BR').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
@@ -59,9 +58,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
   const [selected, setSelected] = useState<string[]>([]);
   const [scanning, setScanning] = useState<string | null>(null);
   const [scanMessage, setScanMessage] = useState('');
-  const [downloaded, setDownloaded] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem(DOWNLOADED_KEY) || '[]'); } catch { return []; }
-  });
+  const [downloaded, setDownloaded] = useState<string[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,6 +73,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
         merged[key] = Array.from(byId.values());
       }
       setSaved(merged); persist(merged);
+      setDownloaded(Object.values(merged).flat().filter(v => v.id && v.downloaded).map(v => v.id as string));
       const missing: CloudVideoRecord[] = [];
       for (const [key, records] of Object.entries(local)) {
         if (cloud[key]?.length) continue;
@@ -179,9 +177,16 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
     }
     setScanMessage(`Busca concluída: ${total} vídeo(s) real(is) novo(s).`);
   };
-  const markDownloaded = (ids: string[]) => setDownloaded(prev => {
-    const next = Array.from(new Set([...prev, ...ids])); localStorage.setItem(DOWNLOADED_KEY, JSON.stringify(next)); return next;
-  });
+  const markDownloaded = (ids: string[]) => {
+    if (!ids.length) return;
+    setDownloaded(prev => Array.from(new Set([...prev, ...ids])));
+    setSaved(prev => {
+      const next: SavedMap = Object.fromEntries(Object.entries(prev).map(([key, records]) => [key, records.map(v => ids.includes(v.id || '') ? { ...v, downloaded: true } : v)]));
+      persist(next);
+      void saveVideoRecords(ids.flatMap(id => Object.values(next).flat().filter(v => v.id === id)));
+      return next;
+    });
+  };
 
   const downloadOne = async (p: Product, v: SavedVideo) => {
     if (!v.videoUrl?.trim()) { alert('Este registro ainda não possui a URL direta do arquivo de vídeo.'); return; }
