@@ -561,7 +561,8 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
       // Reunir links de anúncios reais salvos na pesquisa do catálogo
       for (const r of p.research_records || []) {
         const u = String(r.url || '').trim();
-        if (u && !isSearchPageUrl(u) && /^https?:\/\//i.test(u) && !seenVideos.has(u)) {
+        const adIdentity = 'ad:' + normalizeVideoUrl(u);
+        if (u && !isSearchPageUrl(u) && /^https?:\/\//i.test(u) && !seenVideos.has(adIdentity)) {
           candidateUrls.push(u);
         }
       }
