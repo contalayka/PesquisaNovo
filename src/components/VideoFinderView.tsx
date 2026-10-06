@@ -239,8 +239,13 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
       <p className="mt-2 text-xs text-slate-500">Busca e conferência usam somente anúncios reais de Shopee, SHEIN, TikTok Shop e Mercado Livre. Não usa YouTube nem geração de vídeo.</p>
     </section>
 
-    <div className="flex flex-wrap gap-2">
-      {['com_video','pendentes','baixados','todos'].map(f => <button key={f} onClick={() => setFilter(f)} className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300">{f === 'com_video' ? 'Somente com vídeo' : f === 'pendentes' ? 'Pendentes' : f === 'baixados' ? 'Baixados' : 'Todos'}</button>)}
+    <div className="flex flex-wrap items-center gap-2">
+      {[
+        ['pendentes','Novos',found.filter(p => getVideos(p).length > 0 && getVideos(p).some(v => !v.downloaded)).length],
+        ['com_video','Com vídeo',found.filter(p => getVideos(p).some(v => v.url?.trim() || v.videoUrl?.trim())).length],
+        ['baixados','Já baixados',found.filter(p => getVideos(p).some(v => v.downloaded)).length],
+        ['todos','Todos',found.length]
+      ].map(([f,label,count]) => <button key={String(f)} onClick={() => setFilter(String(f))} className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${filter === f ? 'border-emerald-500 bg-emerald-600 text-white' : 'border-slate-700 bg-slate-900 text-slate-300'}`}>{label} <span className="ml-1 opacity-70">{count}</span></button>)}
       <button onClick={() => setSelected([])} className="rounded-full border border-slate-700 px-3 py-1.5 text-xs text-slate-300">Limpar seleção</button>
     </div>
 
@@ -259,7 +264,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
 
         {videos.length === 0 && <div className="mt-4 rounded-lg border border-dashed border-slate-700 p-5 text-center text-sm text-slate-500">Nenhum vídeo salvo para este produto.</div>}
         <div className="mt-4 space-y-3">{videos.map((v, index) => <div key={v.id || index} className="rounded-xl border border-slate-700 bg-slate-950/60 p-3">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2 text-xs font-semibold text-emerald-300"><CheckCircle2 className="h-4 w-4"/> VÍDEO {index + 1}</div><button onClick={() => removeVideo(p, v)} className="text-xs text-red-400">Remover registro</button></div>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div className={`flex items-center gap-2 text-xs font-semibold ${v.downloaded ? 'text-sky-300' : 'text-emerald-300'}`}><CheckCircle2 className="h-4 w-4"/> VÍDEO {index + 1} {v.downloaded ? '• JÁ BAIXADO' : '• NOVO'}</div><button onClick={() => removeVideo(p, v)} className="text-xs text-red-400">Remover registro</button></div>
           <div className="grid gap-3 lg:grid-cols-[1fr_1fr_170px_170px]">
             <div><label className="mb-1 block text-xs text-slate-400">Link do anúncio com vídeo</label><input value={v.url || ''} onChange={e => updateVideo(p, v, { url: e.target.value })} placeholder="https://..." className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white"/></div>
             <div><label className="mb-1 block text-xs text-emerald-300">Link direto do vídeo</label><input value={v.videoUrl || ''} onChange={e => updateVideo(p, v, { videoUrl: e.target.value })} placeholder="URL .mp4 ou arquivo de vídeo" className="w-full rounded-lg border border-emerald-900 bg-slate-900 px-3 py-2.5 text-sm text-white"/>{v.videoUrl && <video controls playsInline preload="metadata" src={v.videoUrl} className="mt-2 max-h-64 w-full rounded-lg bg-black"/>}</div>
