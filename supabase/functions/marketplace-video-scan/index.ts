@@ -183,6 +183,8 @@ serve(async (req) => {
 
     let visualMatchFound = false;
 
+    const knownAdUrls = [...new Set(inputAds)].map(cleanUrl).filter(u => u && !isBadPage(u)).slice(0, 5);
+
     // 1a) Mercado Livre: usar o item_id da URL e consultar a API pública do item.
     // A página PDP é dinâmica e frequentemente não entrega o player no HTML inicial.
     const mlIds = [...new Set(knownAdUrls.filter(u => /mercadolivre|mercadolibre/i.test(u))
@@ -222,7 +224,6 @@ serve(async (req) => {
     }));
 
     // 1) Primeiro: anúncios reais que o catálogo já conhece (executados em paralelo com timeout de 3s)
-    const knownAdUrls = [...new Set(inputAds)].map(cleanUrl).filter(u => u && !isBadPage(u)).slice(0, 5);
     if (knownAdUrls.length) {
       await Promise.allSettled(
         knownAdUrls.map(async (ad) => {
