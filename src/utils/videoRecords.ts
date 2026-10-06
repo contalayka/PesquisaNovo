@@ -105,6 +105,18 @@ export async function saveVideoRecord(record: CloudVideoRecord): Promise<{ error
   }
 }
 
+export async function deleteVideoRecord(id: string): Promise<{ error: string | null }> {
+  const client = getSupabaseClient();
+  if (!client || !id) return { error: null };
+  try {
+    const { error } = await client.from('video_records').delete().eq('id', id);
+    if (error) return { error: error.message };
+    return { error: null };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Falha ao excluir vídeo' };
+  }
+}
+
 export async function saveVideoRecords(records: CloudVideoRecord[]): Promise<{ error: string | null }> {
   const client = getSupabaseClient();
   if (!client || records.length === 0) return { error: null };
