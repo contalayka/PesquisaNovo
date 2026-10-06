@@ -563,89 +563,115 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
   };
 
   const scanPending = async () => {
-    // 1. Determina alvos: selecionados pelo usuário ou lista filtrada sem vídeo
-    const allPending = found.filter((p) => getVideos(p).length === 0);
+    // 1. Identificar produtos que precisam de vídeo
+    const pendingInFound = found.filter((p) => getVideos(p).length === 0);
+    const pendingInAll = products.filter((p) => getVideos(p).length === 0);
     let targets: Product[] = [];
 
     if (selected.length > 0) {
-      targets = found.filter((p) => selected.includes(p.id) && getVideos(p).length === 0);
-      if (!targets.length) {
-        setScanMessage('Todos os produtos selecionados já possuem anúncios com vídeo salvos.');
-        return;
-      }
-    } else {
-      // Prioriza os visíveis na tela atual, limitando a lote gerenciável (máx 12 por clique)
+      targets = products.filter((p) => selected.includes(p.id) && getVideos(p).length === 0);
+    }
+
+    if (!targets.length) {
       const visiblePending = visible.filter((p) => getVideos(p).length === 0);
-      targets = (visiblePending.length > 0 ? visiblePending : allPending).slice(0, 12);
-      if (!targets.length) {
-        setScanMessage('Todos os produtos já possuem anúncios com vídeo salvos.');
-        return;
+      targets = (visiblePending.length > 0 ? visiblePending : (pendingInFound.length > 0 ? pendingInFound : pendingInAll)).slice(0, 12);
+    }
+
+    if (!targets.length) {
+      setScanMessage('Todos os produtos já possuem anúncios com vídeo salvos.');
+      setScanProgress(null);
+      return;
+    }
+
+    // Configura a barra de progresso imediatamente para o primeiro item
+    setScanProgress({
+      current: 1,
+      total: targets.length,
+      currentProduct: targets[0].name,
+      foundCount: 0
+    });
+    setScanMessage(`Analisando 1 de ${targets.length} — ${targets[0].name}`);
+
+    const allCandidates: Array<{ product: Product; candidates: ScanCandidateItem[] }> = [];
+    let completedCount = 0;
+    let foundVideosTotal = 0;
+
+    // 2. Processamento SEQUENCIAL e INDIVIDUAL (isolando erros de cada produto)
+    for (let i = 0; i < targets.length; i++) {
+      if (abortBulkScanRef.current) break;
+
+      const p = targets[i];
+      const currentNumber = i + 1;
+      const pct = Math.round((i / targets.length) * 100);
+
+      setScanProgress({
+        current: currentNumber,
+        total: targets.length,
+        currentProduct: p.name,
+        foundCount: foundVideosTotal
+      });
+      setScanMessage(`Analisando ${currentNumber} de ${targets.length} (${pct}%) — ${p.name}`);
+
+      try {
+        const candidates = await scanProduct(p, false);
+        completedCount++;
+
+        if (Array.isArray(candidates) && candidates.length > 0) {
+          foundVideosTotal += candidates.length;
+          allCandidates.push({ product: p, candidates });
+          setScanProgress((prev) => (prev ? { ...prev, foundCount: foundVideosTotal } : null));
+        }
+      } catch (prodErr) {
+        console.warn(`[VideoFinder] Falha no produto "${p.name}":`, prodErr);
+        completedCount++;
       }
     }
 
-    abortBulkScanRef.current = false;
+    // 3. Resultado final da varredura
+    if (abortBulkScanRef.current) {
+      setScanMessage(`Busca interrompida pelo usuário: ${completedCount} de ${targets.length} produto(s) verificado(s).`);
+    } else if (foundVideosTotal > 0) {
+      setScanMessage(
+        `Varredura concluída: ${completedCount} de ${targets.length} produto(s) analisado(s), ${foundVideosTotal} anúncio(s) com vídeo real encontrado(s)!`
+      );
+      if (allCandidates.length > 0) {
+        setCandidatesModal({
+          product: allCandidates[0].product,
+          candidates: allCandidates[0].candidates
+        });
+      }
+    } else {
+      setScanMessage('Busca concluída. Nenhum anúncio com vídeo real foi encontrado.');
+    }
+
+    setTimeout(() => {
+      setScanProgress(null);
+    }, 4000);
+  };
+
+  // Handler explícito do botão principal: feedback imediato e liberação garantida
+  const handleStartVideoScan = async () => {
+    if (scanning) {
+      console.warn('[VideoFinder] Varredura já em andamento.');
+      return;
+    }
+
+    // Feedback imediato ANTES de qualquer chamada assíncrona
     setScanning('__bulk__');
+    setScanMessage('Iniciando busca de vídeos...');
+    abortBulkScanRef.current = false;
     setScanDiagnostics(null);
     setCandidatesModal(null);
-    setScanProgress({ current: 0, total: targets.length, foundCount: 0 });
-    setScanMessage(`Iniciando busca real em ${targets.length} produto(s). Buscas paralelas com progresso ao vivo.`);
-
-    const allCandidates: Array<{ product: Product; candidates: ScanCandidateItem[] }> = [];
-    let completed = 0;
-    let foundVideos = 0;
 
     try {
-      // Processa em lotes paralelos de 3 produtos
-      for (let i = 0; i < targets.length; i += 3) {
-        if (abortBulkScanRef.current) break;
-
-        const batch = targets.slice(i, i + 3);
-        const results = await Promise.all(
-          batch.map(async (p) => {
-            if (abortBulkScanRef.current) return { product: p, candidates: [] };
-            setScanProgress((prev) => prev ? { ...prev, currentProduct: p.name } : null);
-            const candidates = await scanProduct(p, false);
-            completed += 1;
-            if (candidates.length > 0) {
-              foundVideos += candidates.length;
-            }
-            setScanProgress({
-              current: completed,
-              total: targets.length,
-              currentProduct: p.name,
-              foundCount: foundVideos
-            });
-            return { product: p, candidates };
-          })
-        );
-
-        for (const result of results) {
-          if (result.candidates.length) {
-            allCandidates.push(result);
-          }
-        }
-
-        if (abortBulkScanRef.current) break;
-      }
-
-      if (allCandidates.length) {
-        const first = allCandidates[0];
-        setCandidatesModal({ product: first.product, candidates: first.candidates });
-        setScanMessage(
-          `Varredura concluída: ${completed}/${targets.length} produto(s) verificado(s), ${foundVideos} anúncio(s) com vídeo encontrado(s).`
-        );
-      } else {
-        setScanMessage(
-          abortBulkScanRef.current
-            ? `Busca interrompida: ${completed}/${targets.length} verificado(s).`
-            : `Varredura concluída: ${completed}/${targets.length} produto(s) verificado(s). Nenhum vídeo utilizável detectado.`
-        );
-      }
-    } catch (error) {
-      setScanMessage(error instanceof Error ? error.message : 'Falha na varredura.');
+      await scanPending();
+    } catch (err) {
+      console.error('[VideoFinder] Erro durante a varredura:', err);
+      setScanMessage(
+        err instanceof Error ? `Erro na busca de vídeos: ${err.message}` : 'Erro desconhecido ao executar busca de vídeos.'
+      );
     } finally {
       setScanning(null);
-      setTimeout(() => setScanProgress(null), 3000);
     }
   };
 
@@ -768,9 +794,9 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={scanPending}
+              onClick={handleStartVideoScan}
               disabled={!!scanning}
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
             >
               <Search className="h-4 w-4" />
               {scanning ? 'Verificando...' : 'Buscar vídeos reais'}
