@@ -184,13 +184,15 @@ export function getStoredSupabaseConfig(): SupabaseConfig {
   const envKey = metaEnv.VITE_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_KEY;
 
   try {
-    const saved = localStorage.getItem(CONFIG_STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      return {
-        url: parsed.url || envUrl,
-        anonKey: parsed.anonKey || envKey,
-      };
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem(CONFIG_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          url: parsed.url || envUrl,
+          anonKey: parsed.anonKey || envKey,
+        };
+      }
     }
   } catch (e) {
     console.error('Erro ao ler config do Supabase do localStorage', e);

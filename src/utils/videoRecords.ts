@@ -10,10 +10,13 @@ export type CloudVideoRecord = {
   productImage?: string;
   url: string;
   videoUrl?: string;
+  thumbnail?: string;
   platform: string;
   duration: string;
   notes?: string;
   downloaded?: boolean;
+  confidence?: 'ALTA' | 'MÉDIA' | 'BAIXA';
+  sourceType?: 'anuncio_direto' | 'dados_relacionados' | 'busca_externa';
 };
 
 type VideoRow = {

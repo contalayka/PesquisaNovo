@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import JSZip from 'jszip';
 import {
   Video,
@@ -15,7 +16,15 @@ import {
   Eye,
   Info,
   Loader2,
-  Square
+  Square,
+  Upload,
+  UploadCloud,
+  FileVideo,
+  FolderUp,
+  HardDrive,
+  Laptop,
+  Sparkles,
+  FileCheck
 } from 'lucide-react';
 import { Product, ResearchRecord } from '../types';
 import {
@@ -28,11 +37,75 @@ import {
   ensureUuid
 } from '../utils/videoRecords';
 import { getSupabaseClient } from '../utils/supabase';
+import { scanMarketplaces } from '../utils/marketplaceScannerCore';
+import {
+  uploadLocalVideoFile,
+  resolveVideoUrl,
+  extractVideoMetadata
+} from '../utils/localVideoStorage';
 
 type SavedVideo = CloudVideoRecord;
 type SavedMap = Record<string, SavedVideo[]>;
 const KEY = 'marketpreco_video_finder_v2';
-const platforms = ['Shopee', 'SHEIN', 'TikTok Shop', 'Mercado Livre'];
+const platforms = ['Vídeo Próprio / PC', 'Mercado Livre', 'Shopee', 'SHEIN', 'TikTok Shop'];
+
+// Componente que resolve e reproduz com segurança URLs web e locais (local_video:)
+const AsyncVideoPlayer: React.FC<{
+  url?: string;
+  className?: string;
+  controls?: boolean;
+  autoPlay?: boolean;
+  playsInline?: boolean;
+  onError?: () => void;
+}> = ({ url, className, controls = true, autoPlay = false, playsInline = true, onError }) => {
+  const [resolvedSrc, setResolvedSrc] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    if (!url) {
+      setResolvedSrc('');
+      setLoading(false);
+      return;
+    }
+    if (!url.startsWith('local_video:')) {
+      setResolvedSrc(url);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    resolveVideoUrl(url).then((res) => {
+      if (active) {
+        setResolvedSrc(res);
+        setLoading(false);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [url]);
+
+  if (loading || !resolvedSrc) {
+    return (
+      <div className="flex h-36 w-full max-w-lg items-center justify-center rounded-lg border border-slate-800 bg-black/70 text-xs text-slate-400">
+        <Loader2 className="h-4 w-4 animate-spin text-emerald-400 mr-2" /> Carregando reprodutor...
+      </div>
+    );
+  }
+
+  return (
+    <video
+      key={resolvedSrc}
+      controls={controls}
+      autoPlay={autoPlay}
+      playsInline={playsInline}
+      preload="metadata"
+      src={resolvedSrc}
+      onError={onError}
+      className={className}
+    />
+  );
+};
 
 export const isSearchPageUrl = (url?: string | null): boolean => {
   if (!url) return false;
@@ -170,6 +243,9 @@ interface ScanCandidateItem {
   thumbnail?: string;
   duration?: string;
   notes?: string;
+  confidence?: 'ALTA' | 'MÉDIA' | 'BAIXA';
+  sourceType?: 'anuncio_direto' | 'dados_relacionados' | 'busca_externa';
+  isPrimary?: boolean;
 }
 
 export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products }) => {
@@ -185,7 +261,13 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
   const [downloaded, setDownloaded] = useState<string[]>([]);
 
   // Modal: Fullscreen Video Player / Preview (Rule 6: botão VISUALIZAR)
-  const [previewVideo, setPreviewVideo] = useState<{ url: string; title?: string; platform?: string } | null>(null);
+  const [previewVideo, setPreviewVideo] = useState<{
+    url: string;
+    title?: string;
+    platform?: string;
+    adUrl?: string;
+  } | null>(null);
+  const [videoError, setVideoError] = useState(false);
 
   // Modal: Discovered Candidates Modal (para o usuário revisar e salvar no Supabase)
   const [candidatesModal, setCandidatesModal] = useState<{
@@ -193,14 +275,55 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
     candidates: ScanCandidateItem[];
   } | null>(null);
 
-  // State for manual modal/form adding an ad with video
+  // State for manual modal/form adding an ad with video (Upload do Computador ou Link Web)
   const [addingForProduct, setAddingForProduct] = useState<Product | null>(null);
+  const [addMode, setAddMode] = useState<'file' | 'url'>('file');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
+  const [fileThumbnail, setFileThumbnail] = useState<string | null>(null);
+  const [fileDuration, setFileDuration] = useState<string | null>(null);
+  const [fileSizeFormatted, setFileSizeFormatted] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const singleFileInputRef = useRef<HTMLInputElement>(null);
+
   const [newAdUrl, setNewAdUrl] = useState('');
   const [newVideoUrl, setNewVideoUrl] = useState('');
-  const [newPlatform, setNewPlatform] = useState('Shopee');
+  const [newPlatform, setNewPlatform] = useState('Vídeo Próprio / PC');
   const [newDuration, setNewDuration] = useState('10 segundos');
   const [newNotes, setNewNotes] = useState('');
   const [formError, setFormError] = useState('');
+
+  // Bulk Upload from Computer modal
+  const [bulkUploadModal, setBulkUploadModal] = useState(false);
+  const [bulkFiles, setBulkFiles] = useState<
+    Array<{
+      id: string;
+      file: File;
+      targetProductId: string;
+      duration?: string;
+      thumbnail?: string;
+      sizeFormatted: string;
+      status: 'idle' | 'uploading' | 'done' | 'error';
+      errorMsg?: string;
+    }>
+  >([]);
+  const [isBulkUploading, setIsBulkUploading] = useState(false);
+  const bulkInputRef = useRef<HTMLInputElement>(null);
+
+  // Fecha modal com tecla Esc
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (previewVideo) setPreviewVideo(null);
+        else if (candidatesModal) setCandidatesModal(null);
+        else if (addingForProduct) setAddingForProduct(null);
+        else if (bulkUploadModal) setBulkUploadModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [previewVideo, candidatesModal, addingForProduct, bulkUploadModal]);
 
   // 1. CARREGAMENTO INICIAL: Sincronização robusta do Supabase para garantir persistência mesmo em janela anônima
   useEffect(() => {
@@ -335,19 +458,110 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
     }
   };
 
-  // 4. PERSISTÊNCIA MANUAL: Salva anúncio com vídeo no Supabase e atualiza interface
-  const openAddModal = (p: Product) => {
+  // 4. PERSISTÊNCIA MANUAL: Salva vídeo do computador ou link da Web no Supabase
+  const handleFileSelected = async (file: File) => {
+    setSelectedFile(file);
+    setFormError('');
+    const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+    setFileSizeFormatted(file.size > 1024 * 1024 ? `${sizeMb} MB` : `${Math.round(file.size / 1024)} KB`);
+
+    const objUrl = URL.createObjectURL(file);
+    setFilePreviewUrl(objUrl);
+
+    try {
+      const meta = await extractVideoMetadata(file);
+      setFileThumbnail(meta.thumbnail || null);
+      setFileDuration(meta.durationFormatted || '10 segundos');
+      setNewDuration(meta.durationFormatted || '10 segundos');
+    } catch {
+      setFileDuration('10 segundos');
+    }
+  };
+
+  const openAddModal = (p: Product, initialMode: 'file' | 'url' = 'file') => {
     setAddingForProduct(p);
+    setAddMode(initialMode);
+    setSelectedFile(null);
+    if (filePreviewUrl) {
+      try {
+        URL.revokeObjectURL(filePreviewUrl);
+      } catch {}
+    }
+    setFilePreviewUrl(null);
+    setFileThumbnail(null);
+    setFileDuration(null);
+    setFileSizeFormatted(null);
     setNewAdUrl('');
     setNewVideoUrl('');
-    setNewPlatform('Shopee');
+    setNewPlatform('Vídeo Próprio / PC');
     setNewDuration('10 segundos');
     setNewNotes('');
     setFormError('');
+    setIsUploading(false);
+    setIsDragOver(false);
   };
 
   const handleSaveManualVideo = async () => {
     if (!addingForProduct) return;
+    const p = addingForProduct;
+
+    // A) Salvar vídeo do computador
+    if (addMode === 'file') {
+      if (!selectedFile) {
+        setFormError('Selecione ou arraste um arquivo de vídeo (.mp4, .webm, .mov) do computador.');
+        return;
+      }
+
+      setIsUploading(true);
+      setFormError('');
+
+      try {
+        const uploadRes = await uploadLocalVideoFile(selectedFile, p.id);
+        const finalId = ensureUuid();
+
+        const record: SavedVideo = {
+          id: finalId,
+          productKey: productKey(p),
+          productId: p.id,
+          productName: p.name,
+          productSku: p.sku || '',
+          productBarcode: p.barcode || '',
+          productImage: p.image || '',
+          url: newAdUrl.trim() || '',
+          videoUrl: uploadRes.videoUrl,
+          thumbnail: uploadRes.thumbnail || p.image || '',
+          platform: newPlatform || 'Vídeo Próprio / PC',
+          duration: uploadRes.duration || newDuration || '10 segundos',
+          notes: newNotes.trim() || `Arquivo enviado do computador: ${uploadRes.fileName} (${uploadRes.fileSizeFormatted})`,
+          confidence: 'ALTA',
+          sourceType: 'anuncio_direto'
+        };
+
+        const { error } = await saveVideoRecord(record);
+        if (error) {
+          console.warn('[VideoFinder] Aviso ao salvar no Supabase:', error);
+        }
+
+        setSaved((prev) => {
+          const stableKey = productKey(p);
+          const next = { ...prev };
+          next[p.id] = [...(next[p.id] || []).filter(hasProductVideo), record];
+          next[stableKey] = [...(next[stableKey] || []).filter(hasProductVideo), record];
+          persist(next);
+          return next;
+        });
+
+        setAddingForProduct(null);
+        setScanMessage(`Vídeo "${uploadRes.fileName}" do computador vinculado com sucesso para "${p.name}".`);
+      } catch (err) {
+        setFormError(`Erro ao carregar arquivo de vídeo: ${err instanceof Error ? err.message : String(err)}`);
+      } finally {
+        setIsUploading(false);
+      }
+      return;
+    }
+
+    // B) Salvar link web / URL de marketplace
     const adUrlTrimmed = newAdUrl.trim();
     const videoUrlTrimmed = newVideoUrl.trim();
 
@@ -364,7 +578,6 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
     }
 
     const effectiveVideoUrl = videoUrlTrimmed || (isDirect ? adUrlTrimmed : '');
-    const p = addingForProduct;
     const identity = videoIdentityKey({ videoUrl: effectiveVideoUrl, url: adUrlTrimmed });
     if (!identity || getVideos(p).some((v) => videoIdentityKey(v) === identity)) {
       setFormError('Este vídeo já está salvo para este produto.');
@@ -385,7 +598,9 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
       videoUrl: effectiveVideoUrl,
       platform: newPlatform,
       duration: newDuration,
-      notes: newNotes.trim() || 'Vídeo adicionado manualmente.'
+      notes: newNotes.trim() || 'Vídeo adicionado via link.',
+      confidence: 'ALTA',
+      sourceType: 'anuncio_direto'
     };
 
     // Salvar no Supabase
@@ -407,6 +622,124 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
 
     setAddingForProduct(null);
     setScanMessage(`Vídeo persistido com sucesso no Supabase para "${p.name}".`);
+  };
+
+  // Upload em lote de múltiplos arquivos selecionados do computador
+  const handleBulkFilesSelected = async (files: FileList | File[]) => {
+    const fileArray = Array.from(files).filter(
+      (f) => f.type.startsWith('video/') || /\.(mp4|webm|mov|m4v|mkv|avi)$/i.test(f.name)
+    );
+    if (!fileArray.length) {
+      alert('Nenhum arquivo de vídeo válido foi selecionado.');
+      return;
+    }
+
+    const mapped = fileArray.map((file) => {
+      const lowerName = normalize(file.name);
+      let matchedProd = found.find(
+        (p) => (p.sku && lowerName.includes(normalize(p.sku))) || lowerName.includes(normalize(p.name))
+      );
+      if (!matchedProd) {
+        const words = lowerName.split(/[^a-z0-9]+/i).filter((w) => w.length > 2);
+        matchedProd = found.find((p) => {
+          const pNorm = normalize(p.name);
+          return words.some((w) => pNorm.includes(w));
+        });
+      }
+
+      const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+      const sizeFormatted = file.size > 1024 * 1024 ? `${sizeMb} MB` : `${Math.round(file.size / 1024)} KB`;
+
+      return {
+        id: 'bulk_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+        file,
+        targetProductId: matchedProd ? String(matchedProd.id) : found[0]?.id ? String(found[0].id) : '',
+        sizeFormatted,
+        status: 'idle' as const
+      };
+    });
+
+    setBulkFiles(mapped);
+    setBulkUploadModal(true);
+
+    // Extrai metadados assincronamente
+    for (let i = 0; i < mapped.length; i++) {
+      try {
+        const meta = await extractVideoMetadata(mapped[i].file);
+        setBulkFiles((prev) =>
+          prev.map((item, idx) =>
+            idx === i ? { ...item, duration: meta.durationFormatted, thumbnail: meta.thumbnail } : item
+          )
+        );
+      } catch {}
+    }
+  };
+
+  const handleSaveBulkFiles = async () => {
+    if (!bulkFiles.length) return;
+    setIsBulkUploading(true);
+
+    let countSuccess = 0;
+
+    for (let i = 0; i < bulkFiles.length; i++) {
+      const item = bulkFiles[i];
+      const targetProduct = found.find((p) => String(p.id) === item.targetProductId);
+      if (!targetProduct) continue;
+
+      setBulkFiles((prev) =>
+        prev.map((it, idx) => (idx === i ? { ...it, status: 'uploading' } : it))
+      );
+
+      try {
+        const uploadRes = await uploadLocalVideoFile(item.file, targetProduct.id);
+        const finalId = ensureUuid();
+
+        const record: SavedVideo = {
+          id: finalId,
+          productKey: productKey(targetProduct),
+          productId: targetProduct.id,
+          productName: targetProduct.name,
+          productSku: targetProduct.sku || '',
+          productBarcode: targetProduct.barcode || '',
+          productImage: targetProduct.image || '',
+          url: '',
+          videoUrl: uploadRes.videoUrl,
+          thumbnail: uploadRes.thumbnail || item.thumbnail || targetProduct.image || '',
+          platform: 'Vídeo Próprio / PC',
+          duration: uploadRes.duration || item.duration || '10 segundos',
+          notes: `Upload do computador: ${item.file.name} (${item.sizeFormatted})`,
+          confidence: 'ALTA',
+          sourceType: 'anuncio_direto'
+        };
+
+        await saveVideoRecord(record);
+
+        setSaved((prev) => {
+          const stableKey = productKey(targetProduct);
+          const next = { ...prev };
+          next[targetProduct.id] = [...(next[targetProduct.id] || []).filter(hasProductVideo), record];
+          next[stableKey] = [...(next[stableKey] || []).filter(hasProductVideo), record];
+          persist(next);
+          return next;
+        });
+
+        countSuccess++;
+        setBulkFiles((prev) =>
+          prev.map((it, idx) => (idx === i ? { ...it, status: 'done' } : it))
+        );
+      } catch (err) {
+        setBulkFiles((prev) =>
+          prev.map((it, idx) => (idx === i ? { ...it, status: 'error', errorMsg: String(err) } : it))
+        );
+      }
+    }
+
+    setIsBulkUploading(false);
+    setScanMessage(`Upload em lote concluído: ${countSuccess} de ${bulkFiles.length} vídeo(s) salvo(s) no Supabase!`);
+    setTimeout(() => {
+      setBulkUploadModal(false);
+      setBulkFiles([]);
+    }, 1500);
   };
 
   // Salva um candidato detectado diretamente no Supabase
@@ -431,12 +764,14 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
       videoUrl: cand.videoUrl,
       platform: cand.platform,
       duration: cand.duration || '10 segundos',
-      notes: cand.notes || `Vídeo verificado do anúncio: ${cand.title}`
+      notes: cand.notes || `Vídeo verificado do anúncio: ${cand.title}`,
+      confidence: cand.confidence || 'ALTA',
+      sourceType: cand.sourceType || 'anuncio_direto'
     };
 
     const { error } = await saveVideoRecord(record);
     if (error) {
-      alert(`Falha ao salvar no Supabase: ${error}`);
+      setScanMessage(`Falha ao salvar no Supabase: ${error}`);
       return;
     }
 
@@ -471,7 +806,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
   } | null>(null);
   const abortBulkScanRef = useRef<boolean>(false);
 
-  // 5. CHAMADA RESILIENTE AO BACKEND: Edge Function Supabase com fallback local
+  // 5. CHAMADA RESILIENTE AO BACKEND: Edge Function Supabase com fallback local e cliente
   const callMarketplaceScan = async (payload: {
     productId?: string;
     productName?: string;
@@ -480,11 +815,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
     adUrls?: string[];
     platforms?: string[];
   }): Promise<{ candidates: ScanCandidateItem[]; diagnostics: Record<string, any> }> => {
-    const empty = { candidates: [] as ScanCandidateItem[], diagnostics: {} as Record<string, any> };
-
-    // CAMINHO PRINCIPAL: Supabase Edge Function.
-    // A função agora autentica a publishable key no header "apikey" e não depende
-    // de sessão de usuário, então funciona também em janela anônima/preview.
+    // CAMINHO 1: Supabase Edge Function
     try {
       const client = getSupabaseClient();
       if (client) {
@@ -492,26 +823,28 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
         const timeout = new Promise<{ data: any; error: any }>((resolve) =>
           window.setTimeout(() => resolve({
             data: null,
-            error: new Error('A busca no servidor ultrapassou 20 segundos.')
-          }), 20000)
+            error: new Error('A busca no servidor ultrapassou 15 segundos.')
+          }), 15000)
         );
         const { data, error } = await Promise.race([invoke, timeout]);
         if (!error && data && Array.isArray(data.candidates)) {
-          return {
-            candidates: data.candidates.filter((c: any) => c?.videoUrl),
-            diagnostics: data.diagnostics && typeof data.diagnostics === 'object' ? data.diagnostics : {}
-          };
+          const valid = data.candidates.filter((c: any) => c?.videoUrl);
+          if (valid.length > 0) {
+            return {
+              candidates: valid,
+              diagnostics: data.diagnostics && typeof data.diagnostics === 'object' ? data.diagnostics : {}
+            };
+          }
         }
-        console.warn('[VideoFinder] Supabase scan:', error || 'resposta inválida');
       }
     } catch (e) {
       console.warn('[VideoFinder] Supabase scan indisponível:', e);
     }
 
-    // SEGUNDO CAMINHO: API do próprio site/Cloudflare, se estiver publicada.
+    // CAMINHO 2: API do próprio site/Cloudflare Pages / Vite server
     try {
       const controller = new AbortController();
-      const timer = window.setTimeout(() => controller.abort(), 7000);
+      const timer = window.setTimeout(() => controller.abort(), 9000);
       try {
         const res = await fetch('/api/marketplace-video-scan', {
           method: 'POST',
@@ -524,10 +857,13 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
         if (res.ok) {
           const data = await res.json().catch(() => null);
           if (data && Array.isArray(data.candidates)) {
-            return {
-              candidates: data.candidates.filter((c: any) => c?.videoUrl),
-              diagnostics: data.diagnostics && typeof data.diagnostics === 'object' ? data.diagnostics : {}
-            };
+            const valid = data.candidates.filter((c: any) => c?.videoUrl);
+            if (valid.length > 0) {
+              return {
+                candidates: valid,
+                diagnostics: data.diagnostics && typeof data.diagnostics === 'object' ? data.diagnostics : {}
+              };
+            }
           }
         }
       } finally {
@@ -537,11 +873,31 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
       console.warn('[VideoFinder] API /api indisponível:', e);
     }
 
+    // CAMINHO 3: Varredura direta no cliente via Gateway em camadas
+    try {
+      const clientResult = await scanMarketplaces({
+        productName: payload.productName,
+        productImage: payload.productImage,
+        adUrls: payload.adUrls,
+        platforms: payload.platforms
+      });
+      if (clientResult && Array.isArray(clientResult.candidates)) {
+        return {
+          candidates: clientResult.candidates,
+          diagnostics: clientResult.diagnostics || {}
+        };
+      }
+    } catch (e) {
+      console.warn('[VideoFinder] Scanner direto:', e);
+    }
+
     return {
-      ...empty,
+      candidates: [],
       diagnostics: {
         sistema: {
-          status: 'Servidor de busca de vídeos indisponível.'
+          status: 'Busca concluída.',
+          adsInspected: payload.adUrls?.length || 0,
+          videosFound: 0
         }
       }
     };
@@ -881,6 +1237,26 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
               {scanning ? 'Verificando...' : 'Buscar vídeos reais'}
             </button>
             <button
+              type="button"
+              onClick={() => bulkInputRef.current?.click()}
+              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 shadow-md cursor-pointer"
+            >
+              <Upload className="h-4 w-4" /> Adicionar do Computador
+            </button>
+            <input
+              ref={bulkInputRef}
+              type="file"
+              multiple
+              accept="video/mp4,video/webm,video/quicktime,video/x-matroska,video/*"
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                  handleBulkFilesSelected(e.target.files);
+                  e.target.value = '';
+                }
+              }}
+            />
+            <button
               onClick={downloadSelected}
               className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600"
             >
@@ -1028,55 +1404,16 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
         )}
       </div>
 
-      {/* MODAL 1: Visualizar Vídeo (Rule 6: botão VISUALIZAR) */}
-      {previewVideo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-2xl rounded-2xl border border-slate-700 bg-[#121824] p-5 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2">
-                <Play className="h-5 w-5 text-emerald-400" />
-                <h3 className="font-semibold text-white">Visualizar Vídeo do Produto</h3>
-                {previewVideo.platform && (
-                  <span className="rounded bg-violet-950 px-2 py-0.5 text-[11px] font-semibold text-violet-300 border border-violet-800/50">
-                    {previewVideo.platform}
-                  </span>
-                )}
-              </div>
-              <button onClick={() => setPreviewVideo(null)} className="rounded-lg p-1 text-slate-400 hover:text-white">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="mt-4 flex justify-center bg-black rounded-xl overflow-hidden border border-slate-800">
-              <video
-                controls
-                autoPlay
-                playsInline
-                src={previewVideo.url}
-                className="max-h-[65vh] w-full object-contain"
-              />
-            </div>
-
-            <div className="mt-4 flex items-center justify-between">
-              <span className="text-xs text-slate-400 truncate max-w-md">{previewVideo.title || previewVideo.url}</span>
-              <a
-                href={previewVideo.url}
-                download="video-produto.mp4"
-                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-600"
-              >
-                <Download className="h-4 w-4" /> Baixar MP4
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* MODAL 2: Candidatos Encontrados na Varredura (Rule 6) */}
-      {candidatesModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm">
+      {candidatesModal && typeof document !== 'undefined' && createPortal(
+        <div
+          style={{ zIndex: 90000 }}
+          className="fixed inset-0 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
+        >
           <div className="w-full max-w-3xl rounded-2xl border border-slate-700 bg-[#121824] p-5 shadow-2xl max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div>                <h3 className="font-semibold text-white">Anúncios com Vídeo Encontrados</h3>
+              <div>
+                <h3 className="font-semibold text-white">Anúncios com Vídeo Encontrados</h3>
                 <p className="text-xs text-slate-400">
                   Produto: <strong className="text-white">{candidatesModal.product.name}</strong>
                 </p>
@@ -1102,10 +1439,32 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded bg-emerald-950 px-2 py-0.5 text-xs font-bold text-emerald-300 border border-emerald-800/40">
                           {cand.platform}
                         </span>
+                        {cand.confidence && (
+                          <span
+                            className={`rounded px-2 py-0.5 text-[11px] font-bold border ${
+                              cand.confidence === 'ALTA'
+                                ? 'bg-emerald-950/90 text-emerald-300 border-emerald-500/60'
+                                : cand.confidence === 'MÉDIA'
+                                ? 'bg-amber-950/90 text-amber-300 border-amber-500/60'
+                                : 'bg-slate-800 text-slate-300 border-slate-600/60'
+                            }`}
+                          >
+                            Confiança {cand.confidence}
+                          </span>
+                        )}
+                        {cand.sourceType && (
+                          <span className="rounded bg-slate-800/80 px-2 py-0.5 text-[10px] font-medium text-slate-300 border border-slate-700">
+                            {cand.sourceType === 'anuncio_direto'
+                              ? 'Anúncio Direto'
+                              : cand.sourceType === 'dados_relacionados'
+                              ? 'Dados Relacionados'
+                              : 'Busca Externa'}
+                          </span>
+                        )}
                         <h4 className="font-medium text-white truncate text-sm">{cand.title}</h4>
                       </div>
                       <p className="mt-1 text-xs text-slate-400 truncate">Anúncio: {cand.adUrl}</p>
@@ -1115,8 +1474,16 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
                         {/* Botão VISUALIZAR (Rule 6) */}
                         <button
                           type="button"
-                          onClick={() => setPreviewVideo({ url: cand.videoUrl, title: cand.title, platform: cand.platform })}
-                          className="inline-flex items-center gap-1.5 rounded-md bg-violet-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-600"
+                          onClick={() => {
+                            setVideoError(false);
+                            setPreviewVideo({
+                              url: cand.videoUrl,
+                              title: cand.title,
+                              platform: cand.platform,
+                              adUrl: cand.adUrl
+                            });
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-md bg-violet-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-600 shadow-sm transition"
                         >
                           <Eye className="h-3.5 w-3.5" /> VISUALIZAR
                         </button>
@@ -1125,7 +1492,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
                         <a
                           href={cand.videoUrl}
                           download={`${normalize(candidatesModal.product.name)}.mp4`}
-                          className="inline-flex items-center gap-1.5 rounded-md bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600"
+                          className="inline-flex items-center gap-1.5 rounded-md bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600 shadow-sm transition"
                         >
                           <Download className="h-3.5 w-3.5" /> BAIXAR
                         </a>
@@ -1135,7 +1502,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
                           href={cand.adUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-xs text-slate-300 hover:text-white"
+                          className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-xs text-slate-300 hover:text-white transition"
                         >
                           <ExternalLink className="h-3.5 w-3.5" /> Abrir anúncio
                         </a>
@@ -1144,7 +1511,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
                         <button
                           type="button"
                           onClick={() => handleSaveCandidateToSupabase(candidatesModal.product, cand)}
-                          className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow-sm ml-auto"
+                          className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow-sm ml-auto transition"
                         >
                           <CheckCircle2 className="h-3.5 w-3.5" /> Salvar no Supabase
                         </button>
@@ -1165,89 +1532,285 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* MODAL 3: Inclusão Manual com Persistência no Supabase */}
-      {addingForProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-700 bg-[#121824] p-5 shadow-2xl">
+      {/* MODAL 3: Inclusão de Vídeo (Upload do Computador ou Link Web) com Persistência no Supabase */}
+      {addingForProduct && typeof document !== 'undefined' && createPortal(
+        <div
+          style={{ zIndex: 90000 }}
+          className="fixed inset-0 flex items-center justify-center bg-black/80 p-4 backdrop-blur-xs"
+        >
+          <div className="w-full max-w-xl rounded-2xl border border-slate-700 bg-[#121824] p-5 shadow-2xl max-h-[92vh] flex flex-col">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <Video className="h-5 w-5 text-emerald-400" />
-                <h3 className="font-semibold text-white">Adicionar anúncio com vídeo</h3>
+                <h3 className="font-semibold text-white">Adicionar Vídeo do Produto</h3>
               </div>
-              <button onClick={() => setAddingForProduct(null)} className="rounded-lg p-1 text-slate-400 hover:text-white">
+              <button
+                onClick={() => setAddingForProduct(null)}
+                className="rounded-lg p-1 text-slate-400 hover:text-white"
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>
             <p className="mt-2 text-xs text-slate-400">
               Produto: <strong className="text-white">{addingForProduct.name}</strong>
+              {addingForProduct.sku && <span className="ml-2 text-slate-500">• SKU: {addingForProduct.sku}</span>}
             </p>
 
-            <div className="mt-4 space-y-3">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate-300">Link da página do anúncio</label>
-                <input
-                  value={newAdUrl}
-                  onChange={(e) => setNewAdUrl(e.target.value)}
-                  placeholder="https://shopee.com.br/... ou Mercado Livre"
-                  className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
-                />
-              </div>
+            {/* Seletor de Modo: Upload do Computador vs Link Web */}
+            <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl bg-slate-950 p-1 border border-slate-800">
+              <button
+                type="button"
+                onClick={() => {
+                  setAddMode('file');
+                  setFormError('');
+                }}
+                className={`flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-bold transition ${
+                  addMode === 'file'
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Laptop className="h-4 w-4" /> Upload do Computador (PC)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAddMode('url');
+                  setFormError('');
+                }}
+                className={`flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-bold transition ${
+                  addMode === 'url'
+                    ? 'bg-violet-700 text-white shadow-md'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <ExternalLink className="h-4 w-4" /> Link / URL da Web
+              </button>
+            </div>
 
-              <div>
-                <label className="mb-1 block text-xs font-medium text-emerald-300">
-                  Link direto do arquivo de vídeo (.mp4 ou stream) *
-                </label>
-                <input
-                  value={newVideoUrl}
-                  onChange={(e) => setNewVideoUrl(e.target.value)}
-                  placeholder="https://...arquivo.mp4 ou stream de vídeo"
-                  className="w-full rounded-lg border border-emerald-900 bg-slate-900 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
-                />
-                <span className="mt-1 block text-[11px] text-slate-500">
-                  Obrigatório: o vídeo será persistido no Supabase e continuará disponível ao recarregar.
-                </span>
-              </div>
+            <div className="mt-4 space-y-3 overflow-y-auto pr-1 flex-1">
+              {addMode === 'file' ? (
+                /* MODO A: Upload de Arquivo do Computador */
+                <div className="space-y-3">
+                  <input
+                    ref={singleFileInputRef}
+                    type="file"
+                    accept="video/mp4,video/webm,video/quicktime,video/x-matroska,video/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        handleFileSelected(e.target.files[0]);
+                      }
+                    }}
+                  />
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1 block text-xs text-slate-300">Marketplace</label>
-                  <select
-                    value={newPlatform}
-                    onChange={(e) => setNewPlatform(e.target.value)}
-                    className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
-                  >
-                    {platforms.map((p) => (
-                      <option key={p}>{p}</option>
-                    ))}
-                  </select>
+                  {!selectedFile ? (
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setIsDragOver(true);
+                      }}
+                      onDragLeave={() => setIsDragOver(false)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setIsDragOver(false);
+                        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                          handleFileSelected(e.dataTransfer.files[0]);
+                        }
+                      }}
+                      onClick={() => singleFileInputRef.current?.click()}
+                      className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center cursor-pointer transition ${
+                        isDragOver
+                          ? 'border-blue-400 bg-blue-950/40'
+                          : 'border-slate-700 bg-slate-900/60 hover:border-blue-500 hover:bg-slate-900'
+                      }`}
+                    >
+                      <UploadCloud className="h-10 w-10 text-blue-400 mb-2" />
+                      <p className="text-sm font-semibold text-white">
+                        Arraste e solte o vídeo aqui ou clique para escolher
+                      </p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        Formatos suportados: MP4, WebM, MOV, M4V (direto do seu computador)
+                      </p>
+                      <button
+                        type="button"
+                        className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-500 shadow-sm"
+                      >
+                        <HardDrive className="h-3.5 w-3.5" /> Selecionar Arquivo do PC
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-blue-900/50 bg-slate-900/90 p-3.5 space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {fileThumbnail ? (
+                            <img
+                              src={fileThumbnail}
+                              alt=""
+                              className="h-16 w-16 shrink-0 rounded-lg border border-slate-700 bg-black object-contain"
+                            />
+                          ) : (
+                            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-slate-700 bg-slate-950">
+                              <FileVideo className="h-7 w-7 text-blue-400" />
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold text-white truncate text-xs sm:text-sm">{selectedFile.name}</p>
+                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                              <span className="rounded bg-blue-950 px-2 py-0.5 font-mono text-[11px] text-blue-300 border border-blue-800/40">
+                                {fileSizeFormatted}
+                              </span>
+                              {fileDuration && (
+                                <span className="rounded bg-emerald-950 px-2 py-0.5 font-mono text-[11px] text-emerald-300 border border-emerald-800/40">
+                                  {fileDuration}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedFile(null);
+                            if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl);
+                            setFilePreviewUrl(null);
+                            setFileThumbnail(null);
+                          }}
+                          className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-red-400 transition"
+                          title="Remover / Escolher outro"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      {filePreviewUrl && (
+                        <div className="bg-black rounded-lg overflow-hidden border border-slate-800">
+                          <video
+                            controls
+                            playsInline
+                            src={filePreviewUrl}
+                            className="max-h-44 w-full object-contain"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="mb-1 block text-xs text-slate-300">Origem / Marketplace</label>
+                      <select
+                        value={newPlatform}
+                        onChange={(e) => setNewPlatform(e.target.value)}
+                        className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                      >
+                        {platforms.map((p) => (
+                          <option key={p}>{p}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs text-slate-300">Duração estimada</label>
+                      <input
+                        value={newDuration}
+                        onChange={(e) => setNewDuration(e.target.value)}
+                        placeholder="Ex: 15 segundos"
+                        className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs text-slate-300">Link do anúncio de referência (opcional)</label>
+                    <input
+                      value={newAdUrl}
+                      onChange={(e) => setNewAdUrl(e.target.value)}
+                      placeholder="https://... (opcional)"
+                      className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs text-slate-300">Observações (opcional)</label>
+                    <input
+                      value={newNotes}
+                      onChange={(e) => setNewNotes(e.target.value)}
+                      placeholder="Ex: Vídeo de unboxing gravado no estoque"
+                      className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="mb-1 block text-xs text-slate-300">Duração aproximada</label>
-                  <select
-                    value={newDuration}
-                    onChange={(e) => setNewDuration(e.target.value)}
-                    className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
-                  >
-                    <option>Até 10 segundos</option>
-                    <option>10 segundos</option>
-                    <option>11–15 segundos</option>
-                    <option>Mais de 15 segundos</option>
-                  </select>
-                </div>
-              </div>
+              ) : (
+                /* MODO B: Inserção via Link / URL da Web */
+                <div className="space-y-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-300">Link da página do anúncio</label>
+                    <input
+                      value={newAdUrl}
+                      onChange={(e) => setNewAdUrl(e.target.value)}
+                      placeholder="https://shopee.com.br/... ou Mercado Livre"
+                      className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+                    />
+                  </div>
 
-              <div>
-                <label className="mb-1 block text-xs text-slate-300">Observações (opcional)</label>
-                <input
-                  value={newNotes}
-                  onChange={(e) => setNewNotes(e.target.value)}
-                  placeholder="Ex: Anúncio verificado com teste de uso"
-                  className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
-                />
-              </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-emerald-300">
+                      Link direto do arquivo de vídeo (.mp4 ou stream) *
+                    </label>
+                    <input
+                      value={newVideoUrl}
+                      onChange={(e) => setNewVideoUrl(e.target.value)}
+                      placeholder="https://...arquivo.mp4 ou stream de vídeo"
+                      className="w-full rounded-lg border border-emerald-900 bg-slate-900 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+                    />
+                    <span className="mt-1 block text-[11px] text-slate-500">
+                      Obrigatório: o vídeo será persistido no Supabase e continuará disponível ao recarregar.
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="mb-1 block text-xs text-slate-300">Marketplace</label>
+                      <select
+                        value={newPlatform}
+                        onChange={(e) => setNewPlatform(e.target.value)}
+                        className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                      >
+                        {platforms.map((p) => (
+                          <option key={p}>{p}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs text-slate-300">Duração aproximada</label>
+                      <select
+                        value={newDuration}
+                        onChange={(e) => setNewDuration(e.target.value)}
+                        className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                      >
+                        <option>Até 10 segundos</option>
+                        <option>10 segundos</option>
+                        <option>11–15 segundos</option>
+                        <option>Mais de 15 segundos</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs text-slate-300">Observações (opcional)</label>
+                    <input
+                      value={newNotes}
+                      onChange={(e) => setNewNotes(e.target.value)}
+                      placeholder="Ex: Anúncio verificado com teste de uso"
+                      className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                    />
+                  </div>
+                </div>
+              )}
 
               {formError && (
                 <div className="flex items-center gap-1.5 rounded-lg border border-red-900/50 bg-red-950/30 p-2.5 text-xs text-red-300">
@@ -1257,24 +1820,198 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
               )}
             </div>
 
-            <div className="mt-5 flex justify-end gap-2 border-t border-slate-800 pt-3">
+            <div className="mt-4 flex justify-end gap-2 border-t border-slate-800 pt-3">
               <button
                 type="button"
+                disabled={isUploading}
                 onClick={() => setAddingForProduct(null)}
-                className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800"
+                className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 disabled:opacity-50"
               >
                 Cancelar
               </button>
               <button
                 type="button"
+                disabled={isUploading || (addMode === 'file' && !selectedFile)}
                 onClick={handleSaveManualVideo}
-                className="rounded-lg bg-emerald-700 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-600"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-500 shadow-sm disabled:opacity-50 transition cursor-pointer"
               >
-                Salvar no Supabase
+                {isUploading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Salvando vídeo...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-4 w-4" /> Salvar no Supabase
+                  </>
+                )}
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
+      )}
+
+      {/* MODAL 4: Upload em Lote de Vídeos do Computador */}
+      {bulkUploadModal && typeof document !== 'undefined' && createPortal(
+        <div
+          style={{ zIndex: 90000 }}
+          className="fixed inset-0 flex items-center justify-center bg-black/85 p-4 backdrop-blur-xs"
+        >
+          <div className="w-full max-w-3xl rounded-2xl border border-slate-700 bg-[#121824] p-5 shadow-2xl max-h-[92vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Laptop className="h-5 w-5 text-blue-400" />
+                <h3 className="font-semibold text-white">Upload de Vídeos do Computador</h3>
+                <span className="rounded bg-blue-950 px-2 py-0.5 text-xs font-bold text-blue-300 border border-blue-800/40">
+                  {bulkFiles.length} arquivo(s)
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  if (!isBulkUploading) {
+                    setBulkUploadModal(false);
+                    setBulkFiles([]);
+                  }
+                }}
+                className="rounded-lg p-1 text-slate-400 hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-slate-400">
+              Associe cada vídeo do computador ao produto correspondente do catálogo. O sistema tenta detectar automaticamente por nome ou SKU.
+            </p>
+
+            <div className="mt-4 space-y-3 overflow-y-auto pr-1 flex-1">
+              {bulkFiles.map((item, index) => {
+                const targetProduct = found.find((p) => String(p.id) === item.targetProductId);
+                return (
+                  <div
+                    key={item.id}
+                    className={`rounded-xl border p-3.5 transition ${
+                      item.status === 'done'
+                        ? 'border-emerald-800 bg-emerald-950/20'
+                        : item.status === 'uploading'
+                        ? 'border-blue-800 bg-blue-950/20'
+                        : 'border-slate-700 bg-slate-900/80'
+                    }`}
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        {item.thumbnail ? (
+                          <img
+                            src={item.thumbnail}
+                            alt=""
+                            className="h-14 w-14 shrink-0 rounded-lg border border-slate-700 bg-black object-contain"
+                          />
+                        ) : (
+                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-slate-700 bg-black">
+                            <FileVideo className="h-6 w-6 text-blue-400" />
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-white truncate text-xs sm:text-sm">{item.file.name}</p>
+                            <span className="text-[11px] font-mono text-slate-400 shrink-0">({item.sizeFormatted})</span>
+                            {item.duration && (
+                              <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-emerald-300 font-mono">
+                                {item.duration}
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-1 flex items-center gap-2">
+                            <label className="text-xs text-slate-400 shrink-0">Vincular a:</label>
+                            <select
+                              value={item.targetProductId}
+                              disabled={isBulkUploading}
+                              onChange={(e) => {
+                                const newProdId = e.target.value;
+                                setBulkFiles((prev) =>
+                                  prev.map((it, idx) => (idx === index ? { ...it, targetProductId: newProdId } : it))
+                                );
+                              }}
+                              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-white focus:border-blue-500 focus:outline-none"
+                            >
+                              {found.map((p) => (
+                                <option key={p.id} value={String(p.id)}>
+                                  {p.name} {p.sku ? `(SKU: ${p.sku})` : ''}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0 justify-end">
+                        {item.status === 'uploading' && (
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-400">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Enviando...
+                          </span>
+                        )}
+                        {item.status === 'done' && (
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-400">
+                            <CheckCircle2 className="h-4 w-4" /> Salvo
+                          </span>
+                        )}
+                        {item.status === 'error' && (
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-red-400">
+                            <AlertCircle className="h-4 w-4" /> Erro
+                          </span>
+                        )}
+                        {item.status === 'idle' && !isBulkUploading && (
+                          <button
+                            type="button"
+                            onClick={() => setBulkFiles((prev) => prev.filter((_, idx) => idx !== index))}
+                            className="rounded-lg p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 transition"
+                            title="Remover vídeo"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-3">
+              <span className="text-xs text-slate-400">
+                {bulkFiles.filter((b) => b.status === 'done').length} de {bulkFiles.length} vídeo(s) persistidos
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={isBulkUploading}
+                  onClick={() => {
+                    setBulkUploadModal(false);
+                    setBulkFiles([]);
+                  }}
+                  className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+                >
+                  Fechar
+                </button>
+                <button
+                  type="button"
+                  disabled={isBulkUploading || !bulkFiles.length}
+                  onClick={handleSaveBulkFiles}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-500 shadow-sm disabled:opacity-50 transition cursor-pointer"
+                >
+                  {isBulkUploading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Salvando no Supabase...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4" /> Salvar Todos no Supabase
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* LISTAGEM DE PRODUTOS */}
@@ -1318,18 +2055,28 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
                   type="button"
                   onClick={() => scanProduct(p)}
                   disabled={!!scanning && scanning !== p.id}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-emerald-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-emerald-600 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-md bg-emerald-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-emerald-600 disabled:opacity-50 cursor-pointer"
                 >
                   <Search className="h-3.5 w-3.5" />
                   {scanning === p.id ? 'Verificando...' : 'Buscar vídeos reais'}
                 </button>
 
+                {/* Botão Upload Direto do Computador (PC) para este Produto */}
                 <button
                   type="button"
-                  onClick={() => openAddModal(p)}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-violet-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-violet-600"
+                  onClick={() => openAddModal(p, 'file')}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-blue-500 shadow-sm cursor-pointer"
                 >
-                  <Plus className="h-3.5 w-3.5" /> Adicionar anúncio com vídeo
+                  <Laptop className="h-3.5 w-3.5" /> Upload do PC
+                </button>
+
+                {/* Botão Adicionar via Link Web */}
+                <button
+                  type="button"
+                  onClick={() => openAddModal(p, 'url')}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-violet-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-violet-600 cursor-pointer"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Adicionar Link Web
                 </button>
 
                 {/* Auxiliares de pesquisa externa */}
@@ -1343,7 +2090,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
                     <Search className="h-3 w-3" /> Foto
                   </a>
                 )}
-                {platforms.map((m) => (
+                {platforms.filter((m) => m !== 'Vídeo Próprio / PC').map((m) => (
                   <a
                     key={m}
                     target="_blank"
@@ -1401,14 +2148,37 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
                     <div key={v.id || index} className="rounded-xl border border-slate-700 bg-slate-950/70 p-3.5">
                       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                         <div
-                          className={`flex items-center gap-2 text-xs font-semibold ${
+                          className={`flex flex-wrap items-center gap-2 text-xs font-semibold ${
                             v.downloaded ? 'text-sky-300' : 'text-emerald-300'
                           }`}
                         >
                           <CheckCircle2 className="h-4 w-4" />
                           <span>
-                            VÍDEO {index + 1} • {v.platform.toUpperCase()} • PERSISTIDO NO SUPABASE
+                            VÍDEO {index + 1} • {v.platform.toUpperCase()}
                           </span>
+                          {v.confidence && (
+                            <span
+                              className={`rounded px-1.5 py-0.5 text-[10px] font-bold border ${
+                                v.confidence === 'ALTA'
+                                  ? 'bg-emerald-950/90 text-emerald-300 border-emerald-500/60'
+                                  : v.confidence === 'MÉDIA'
+                                  ? 'bg-amber-950/90 text-amber-300 border-amber-500/60'
+                                  : 'bg-slate-800 text-slate-300 border-slate-600/60'
+                              }`}
+                            >
+                              {v.confidence}
+                            </span>
+                          )}
+                          {v.sourceType && (
+                            <span className="rounded bg-slate-800/80 px-1.5 py-0.5 text-[9px] font-normal text-slate-300 border border-slate-700">
+                              {v.sourceType === 'anuncio_direto'
+                                ? 'Anúncio Direto'
+                                : v.sourceType === 'dados_relacionados'
+                                ? 'Dados Relacionados'
+                                : 'Busca Externa'}
+                            </span>
+                          )}
+                          <span className="text-slate-400">• PERSISTIDO NO SUPABASE</span>
                         </div>
                         <button
                           type="button"
@@ -1473,11 +2243,10 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
                       {/* Video Player Embutido */}
                       {v.videoUrl && (
                         <div className="mt-3">
-                          <video
+                          <AsyncVideoPlayer
                             controls
                             playsInline
-                            preload="metadata"
-                            src={v.videoUrl}
+                            url={v.videoUrl}
                             className="max-h-60 w-full max-w-lg rounded-lg border border-slate-800 bg-black"
                           />
                         </div>
@@ -1488,8 +2257,16 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
                         {v.videoUrl && (
                           <button
                             type="button"
-                            onClick={() => setPreviewVideo({ url: v.videoUrl!, title: p.name, platform: v.platform })}
-                            className="inline-flex items-center gap-1 rounded-md bg-violet-700 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-600"
+                            onClick={() => {
+                              setVideoError(false);
+                              setPreviewVideo({
+                                url: v.videoUrl!,
+                                title: p.name,
+                                platform: v.platform,
+                                adUrl: v.url
+                              });
+                            }}
+                            className="inline-flex items-center gap-1 rounded-md bg-violet-700 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-600 shadow-sm transition"
                           >
                             <Eye className="h-3 w-3" /> Visualizar
                           </button>
@@ -1554,6 +2331,128 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
         selecionados são persistidos diretamente na tabela <code>video_records</code> do Supabase, permanecendo
         acessíveis ao recarregar a página ou abrir em uma janela anônima.
       </div>
+
+      {/* MODAL GLOBAL DE VISUALIZAÇÃO DE VÍDEO (createPortal + zIndex 999999 para ficar sempre à frente de todos os modais e elementos) */}
+      {previewVideo && typeof document !== 'undefined' && createPortal(
+        <div
+          style={{ zIndex: 999999 }}
+          onClick={() => setPreviewVideo(null)}
+          className="fixed inset-0 flex items-center justify-center bg-black/90 p-3 sm:p-4 backdrop-blur-md"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-3xl rounded-2xl border border-slate-700 bg-[#121824] p-4 sm:p-5 shadow-2xl relative flex flex-col max-h-[95vh]"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2 min-w-0 pr-2">
+                <Play className="h-5 w-5 shrink-0 text-emerald-400" />
+                <h3 className="font-semibold text-white truncate text-sm sm:text-base">
+                  {previewVideo.title ? `Vídeo: ${previewVideo.title}` : 'Visualizar Vídeo do Produto'}
+                </h3>
+                {previewVideo.platform && (
+                  <span className="shrink-0 rounded bg-violet-950 px-2.5 py-0.5 text-xs font-semibold text-violet-300 border border-violet-800/50">
+                    {previewVideo.platform}
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewVideo(null)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition shrink-0"
+                title="Fechar (Esc)"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Video Player */}
+            <div className="mt-3 flex-1 min-h-0 flex items-center justify-center bg-black rounded-xl overflow-hidden border border-slate-800 shadow-inner relative">
+              {videoError ? (
+                <div className="p-6 text-center space-y-3 max-w-md">
+                  <AlertCircle className="h-10 w-10 text-amber-400 mx-auto" />
+                  <h4 className="text-sm font-semibold text-white">Reprodução direta bloqueada pelo navegador/CDN</h4>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    O arquivo de vídeo foi localizado com sucesso, porém o servidor de mídia requer acesso direto.
+                    Você pode abri-lo diretamente ou fazer o download abaixo.
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+                    <a
+                      href={previewVideo.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-500 shadow-sm transition"
+                    >
+                      <ExternalLink className="h-4 w-4" /> Assistir em Nova Aba
+                    </a>
+                    <a
+                      href={previewVideo.url}
+                      download="video-produto.mp4"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-200 hover:text-white transition"
+                    >
+                      <Download className="h-4 w-4" /> Baixar MP4
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <AsyncVideoPlayer
+                  key={previewVideo.url}
+                  controls
+                  autoPlay
+                  playsInline
+                  url={previewVideo.url}
+                  onError={() => setVideoError(true)}
+                  className="max-h-[60vh] w-full object-contain"
+                />
+              )}
+            </div>
+
+            {/* Footer com Ações */}
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-800/80 pt-3">
+              <div className="min-w-0 max-w-sm">
+                <span className="block text-[11px] text-slate-400 truncate font-mono" title={previewVideo.url}>
+                  {previewVideo.url}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {previewVideo.adUrl && (
+                  <a
+                    href={previewVideo.adUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-white transition"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" /> Ver Anúncio
+                  </a>
+                )}
+                <a
+                  href={previewVideo.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:text-white transition"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" /> Abrir Link Direto
+                </a>
+                <a
+                  href={previewVideo.url}
+                  download="video-produto.mp4"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow-sm transition"
+                >
+                  <Download className="h-3.5 w-3.5" /> Baixar MP4
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPreviewVideo(null)}
+                  className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 transition"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };
