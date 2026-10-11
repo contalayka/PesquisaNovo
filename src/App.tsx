@@ -36,6 +36,11 @@ import {
 } from './utils/githubSync';
 import { GitHubSyncPayload } from './types';
 import bundledSyncJson from '../data/app_data_sync.json';
+import {
+  deduplicateProducts,
+  findDuplicateProduct,
+  areProductsDuplicate
+} from './utils/productDeduplication';
 import { Header } from './components/Header';
 import { Sidebar, SidebarSection } from './components/Sidebar';
 import { ProductCard } from './components/ProductCard';
@@ -103,7 +108,7 @@ export default function App() {
       }
 
       if (rawList.length > 0) {
-        return rawList.map((p: any) => {
+        const cleaned = rawList.map((p: any) => {
           // Self-heal product image if missing, corrupted or set to scraper metadata/landing page
           let finalImage = p.image;
           if (
@@ -142,6 +147,7 @@ export default function App() {
               : [],
           };
         });
+        return deduplicateProducts(cleaned);
       }
     } catch (e) {
       console.error('Erro ao ler dados iniciais', e);
@@ -1155,9 +1161,20 @@ export default function App() {
 
   // Add single product manually
   const handleAddProduct = async (newProduct: Product) => {
+    const existing = findDuplicateProduct(newProduct, products);
+    if (existing) {
+      addToast(
+        'Produto Já Cadastrado',
+        `O produto "${newProduct.name}" já existe no catálogo. Não foi adicionado novamente para evitar duplicidade.`,
+        'info'
+      );
+      setShowAddProductModal(false);
+      return;
+    }
+
     let nextList: Product[] = [];
     setProducts((prev) => {
-      nextList = [newProduct, ...prev];
+      nextList = deduplicateProducts([newProduct, ...prev]);
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(nextList));
       } catch (e) {
@@ -1181,6 +1198,19 @@ export default function App() {
 
   // Add single product directly from Internal Inventory into Products catalog as new item
   const handleAddProductFromInternal = async (item: InternalItem) => {
+    const candidate: Partial<Product> = {
+      name: item.product_name.trim(),
+    };
+    const existing = findDuplicateProduct(candidate, products);
+    if (existing) {
+      addToast(
+        'Produto Já Cadastrado',
+        `"${item.product_name}" já existe no catálogo de produtos. Nenhuma duplicata foi criada.`,
+        'info'
+      );
+      return;
+    }
+
     const prodId = `prod_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const newProduct: Product = {
       id: prodId,
@@ -1197,7 +1227,7 @@ export default function App() {
 
     let nextList: Product[] = [];
     setProducts((prev) => {
-      nextList = [newProduct, ...prev];
+      nextList = deduplicateProducts([newProduct, ...prev]);
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(nextList));
       } catch (e) {
@@ -1225,7 +1255,27 @@ export default function App() {
   const handleAddMultipleProductsFromInternal = async (items: InternalItem[]) => {
     if (!items || items.length === 0) return;
 
-    const newProducts: Product[] = items.map((item, idx) => {
+    // Filtra produtos que já existem no catálogo para evitar qualquer duplicata
+    const trulyNewItems: InternalItem[] = [];
+    for (const item of items) {
+      const candidate: Partial<Product> = { name: item.product_name.trim() };
+      const alreadyInCatalog = findDuplicateProduct(candidate, products);
+      const alreadyInBatch = trulyNewItems.some((it) => areProductsDuplicate(candidate, { name: it.product_name.trim() }));
+      if (!alreadyInCatalog && !alreadyInBatch) {
+        trulyNewItems.push(item);
+      }
+    }
+
+    if (trulyNewItems.length === 0) {
+      addToast(
+        'Nenhum Produto Novo',
+        'Todos os produtos selecionados já constam no catálogo. Nenhuma duplicata foi criada.',
+        'info'
+      );
+      return;
+    }
+
+    const newProducts: Product[] = trulyNewItems.map((item, idx) => {
       const prodId = `prod_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 6)}`;
       return {
         id: prodId,
@@ -1243,7 +1293,7 @@ export default function App() {
 
     let nextList: Product[] = [];
     setProducts((prev) => {
-      nextList = [...newProducts, ...prev];
+      nextList = deduplicateProducts([...newProducts, ...prev]);
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(nextList));
       } catch (e) {
@@ -1260,9 +1310,10 @@ export default function App() {
       }
     }
 
+    const skipped = items.length - trulyNewItems.length;
     addToast(
       'Lote Adicionado!',
-      `${newProducts.length} produtos do Estoque Interno foram inseridos em "PRODUTOS" como NOVOS!`,
+      `${newProducts.length} produto(s) do Estoque Interno inserido(s) no catálogo!${skipped > 0 ? ` (${skipped} já existentes ignorados para evitar duplicatas)` : ''}`,
       'success'
     );
   };

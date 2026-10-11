@@ -43,6 +43,7 @@ import {
   resolveVideoUrl,
   extractVideoMetadata
 } from '../utils/localVideoStorage';
+import { deduplicateProducts } from '../utils/productDeduplication';
 
 type SavedVideo = CloudVideoRecord;
 type SavedMap = Record<string, SavedVideo[]>;
@@ -249,10 +250,12 @@ interface ScanCandidateItem {
 }
 
 export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products }) => {
-  const found = useMemo(() => products.filter((p) => p.status === 'Encontrado'), [products]);
+  // Deduplicação estrita de produtos por ID, SKU, Código de Barras e Nome.
+  // Inclui TODOS os produtos cadastrados no projeto (incluindo novos produtos com status 'Pendente')
+  const found = useMemo(() => deduplicateProducts(products), [products]);
   const [saved, setSaved] = useState<SavedMap>(loadLocal);
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState('com_video');
+  const [filter, setFilter] = useState('todos');
   const [platform, setPlatform] = useState('Todos');
   const [selected, setSelected] = useState<string[]>([]);
   const [scanning, setScanning] = useState<string | null>(null);
@@ -1274,16 +1277,20 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
         {/* Metrics Grid */}
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
-            ['Produtos encontrados', found.length, 'todos'],
+            ['Total de produtos', found.length, 'todos'],
             ['Com anúncios de vídeo', productsWithVideoCount, 'com_video'],
-            ['Sem vídeo cadastrado', found.length - productsWithVideoCount, 'sem_video'],
+            ['Sem vídeo (Pendentes)', found.length - productsWithVideoCount, 'sem_video'],
             ['Já baixados', productsDownloadedCount, 'baixados']
           ].map(([label, n, targetFilter]) => (
             <button
               key={String(label)}
               type="button"
               onClick={() => setFilter(String(targetFilter))}
-              className="rounded-xl border border-white/10 bg-black/20 p-3 text-left transition hover:border-emerald-500/50 hover:bg-black/30"
+              className={`rounded-xl border p-3 text-left transition cursor-pointer ${
+                filter === targetFilter
+                  ? 'border-emerald-500 bg-emerald-950/40 ring-1 ring-emerald-500/50'
+                  : 'border-white/10 bg-black/20 hover:border-emerald-500/50 hover:bg-black/30'
+              }`}
             >
               <div className="text-xs text-slate-400">{label}</div>
               <div className="mt-1 text-2xl font-bold text-white">{n}</div>
@@ -1377,19 +1384,19 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
       {/* Filter Tabs */}
       <div className="flex flex-wrap items-center gap-2">
         {[
+          ['todos', 'Todos os produtos', found.length],
           ['com_video', 'Com vídeo', productsWithVideoCount],
-          ['sem_video', 'Sem vídeo', found.length - productsWithVideoCount],
-          ['baixados', 'Já baixados', productsDownloadedCount],
-          ['todos', 'Todos os encontrados', found.length]
+          ['sem_video', 'Sem vídeo (Pendentes)', found.length - productsWithVideoCount],
+          ['baixados', 'Já baixados', productsDownloadedCount]
         ].map(([f, label, count]) => {
           const isActive = filter === f || (f === 'sem_video' && filter === 'pendentes');
           return (
             <button
               key={String(f)}
               onClick={() => setFilter(String(f))}
-              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
                 isActive
-                  ? 'border-emerald-500 bg-emerald-600 text-white'
+                  ? 'border-emerald-500 bg-emerald-600 text-white shadow-sm'
                   : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-600'
               }`}
             >
