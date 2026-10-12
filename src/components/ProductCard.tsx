@@ -15,6 +15,8 @@ import {
   MoreVertical,
   Edit3,
   ChevronDown,
+  TrendingUp,
+  TrendingDown,
 } from 'lucide-react';
 
 interface ProductCardProps {
@@ -260,9 +262,30 @@ export const ProductCard = React.memo<ProductCardProps>(
                 <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">
                   Custo
                 </span>
-                <span className="text-xs sm:text-sm font-mono font-bold text-emerald-400 tabular-nums">
-                  {formatCurrency(product.cost)}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  {product.price_history && product.price_history.length > 0 && (
+                    product.price_history[0].type === 'subiu' ? (
+                      <span
+                        className="inline-flex items-center gap-0.5 text-[9px] font-mono font-bold text-amber-300 bg-amber-950/60 px-1.5 py-0.2 rounded border border-amber-800/50"
+                        title={`Subiu de ${formatCurrency(product.price_history[0].oldCost)} para ${formatCurrency(product.price_history[0].newCost)} (+${formatCurrency(product.price_history[0].diff)})`}
+                      >
+                        <TrendingUp className="w-2.5 h-2.5" />
+                        +{formatCurrency(product.price_history[0].diff)}
+                      </span>
+                    ) : product.price_history[0].type === 'diminuiu' ? (
+                      <span
+                        className="inline-flex items-center gap-0.5 text-[9px] font-mono font-bold text-emerald-300 bg-emerald-950/60 px-1.5 py-0.2 rounded border border-emerald-800/50"
+                        title={`Diminuiu de ${formatCurrency(product.price_history[0].oldCost)} para ${formatCurrency(product.price_history[0].newCost)} (-${formatCurrency(Math.abs(product.price_history[0].diff))})`}
+                      >
+                        <TrendingDown className="w-2.5 h-2.5" />
+                        -{formatCurrency(Math.abs(product.price_history[0].diff))}
+                      </span>
+                    ) : null
+                  )}
+                  <span className="text-xs sm:text-sm font-mono font-bold text-emerald-400 tabular-nums">
+                    {formatCurrency(product.cost)}
+                  </span>
+                </div>
               </div>
 
               {/* Best Record / Estimated */}

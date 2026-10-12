@@ -23,6 +23,8 @@ import {
   ArrowDown,
   Edit3,
   ChevronDown,
+  TrendingUp,
+  TrendingDown,
 } from 'lucide-react';
 
 interface ProductTableRowProps {
@@ -163,9 +165,30 @@ const ProductTableRow = React.memo<ProductTableRowProps>(
 
         {/* 5. Custo */}
         <td className="py-2.5 px-3 whitespace-nowrap">
-          <span className="font-mono tabular-nums font-bold text-xs text-emerald-400 bg-emerald-950/30 px-2 py-0.5 rounded border border-emerald-800/40 inline-block">
-            {formatCurrency(product.cost)}
-          </span>
+          <div className="inline-flex items-center gap-1.5">
+            <span className="font-mono tabular-nums font-bold text-xs text-emerald-400 bg-emerald-950/30 px-2 py-0.5 rounded border border-emerald-800/40 inline-block">
+              {formatCurrency(product.cost)}
+            </span>
+            {product.price_history && product.price_history.length > 0 && (
+              product.price_history[0].type === 'subiu' ? (
+                <span
+                  className="inline-flex items-center gap-0.5 text-[9px] font-mono font-bold text-amber-300 bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-800/50"
+                  title={`Subiu de ${formatCurrency(product.price_history[0].oldCost)} para ${formatCurrency(product.price_history[0].newCost)} (+${formatCurrency(product.price_history[0].diff)})`}
+                >
+                  <TrendingUp className="w-2.5 h-2.5" />
+                  +{formatCurrency(product.price_history[0].diff)}
+                </span>
+              ) : product.price_history[0].type === 'diminuiu' ? (
+                <span
+                  className="inline-flex items-center gap-0.5 text-[9px] font-mono font-bold text-emerald-300 bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800/50"
+                  title={`Diminuiu de ${formatCurrency(product.price_history[0].oldCost)} para ${formatCurrency(product.price_history[0].newCost)} (-${formatCurrency(Math.abs(product.price_history[0].diff))})`}
+                >
+                  <TrendingDown className="w-2.5 h-2.5" />
+                  -{formatCurrency(Math.abs(product.price_history[0].diff))}
+                </span>
+              ) : null
+            )}
+          </div>
         </td>
 
         {/* 6. Preço */}
@@ -529,9 +552,22 @@ export const ProductTableView = React.memo<ProductTableViewProps>(
                     <div className="p-1.5 rounded bg-[#0b0f17] border border-slate-800 text-[10px] space-y-0.5">
                       <div className="flex items-center justify-between gap-1">
                         <span className="text-[8px] uppercase font-medium text-slate-400">Custo</span>
-                        <span className="font-mono tabular-nums font-bold text-emerald-400 truncate">
-                          {formatCurrency(product.cost)}
-                        </span>
+                        <div className="flex items-center gap-1">
+                          {product.price_history && product.price_history.length > 0 && (
+                            product.price_history[0].type === 'subiu' ? (
+                              <span className="text-[8px] font-mono font-bold text-amber-300">
+                                ▲+{formatCurrency(product.price_history[0].diff)}
+                              </span>
+                            ) : product.price_history[0].type === 'diminuiu' ? (
+                              <span className="text-[8px] font-mono font-bold text-emerald-300">
+                                ▼-{formatCurrency(Math.abs(product.price_history[0].diff))}
+                              </span>
+                            ) : null
+                          )}
+                          <span className="font-mono tabular-nums font-bold text-emerald-400 truncate">
+                            {formatCurrency(product.cost)}
+                          </span>
+                        </div>
                       </div>
                       <div className="flex items-center justify-between gap-1 pt-0.5 border-t border-slate-800/80">
                         <span className="text-[8px] uppercase font-medium text-slate-400">Venda</span>

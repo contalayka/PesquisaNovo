@@ -28,6 +28,18 @@ export interface ResearchRecord {
   updated_at?: string;
 }
 
+export interface PriceHistoryRecord {
+  id: string;
+  date: string; // Data ISO
+  oldCost: number | string;
+  newCost: number | string;
+  diff: number; // Positivo se subiu, negativo se diminuiu
+  percentDiff?: number; // Variação percentual aproximada
+  type: 'subiu' | 'diminuiu' | 'inalterado';
+  source?: 'planilha' | 'manual';
+  note?: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -45,6 +57,7 @@ export interface Product {
   category?: string;
   notes?: string;
   research_records: ResearchRecord[];
+  price_history?: PriceHistoryRecord[];
   created_at?: string;
   updated_at?: string;
   rawColumns?: Record<string, unknown>;

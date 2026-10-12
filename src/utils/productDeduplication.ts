@@ -105,3 +105,43 @@ export function deduplicateProducts(products: Product[]): Product[] {
 
   return unique;
 }
+
+/**
+ * Converte qualquer representação de valor/custo (string formatada com R$, ponto, vírgula ou número)
+ * em um número de ponto flutuante válido ou null se for vazio/inválido.
+ */
+export function parseNumericCost(val: number | string | undefined | null): number | null {
+  if (val === undefined || val === null || val === '') return null;
+  if (typeof val === 'number') return isNaN(val) ? null : val;
+  const str = String(val).trim();
+  if (!str) return null;
+  let cleaned = str.replace(/[^\d.,-]/g, '');
+  if (!cleaned) return null;
+  if (cleaned.includes(',') && cleaned.includes('.')) {
+    cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+  } else if (cleaned.includes(',')) {
+    cleaned = cleaned.replace(',', '.');
+  }
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? null : num;
+}
+
+/**
+ * Detecta se houve alteração significativa de valor/preço entre dois custos.
+ * Retorna true apenas se o novo custo for válido e numericamente diferente (diferença >= R$ 0,01).
+ */
+export function isCostDifferent(
+  oldCost: number | string | undefined | null,
+  newCost: number | string | undefined | null
+): boolean {
+  const parsedNew = parseNumericCost(newCost);
+  // Se o novo valor não for um número válido (ex: vazio ou coluna em branco), não consideramos alteração
+  if (parsedNew === null) return false;
+
+  const parsedOld = parseNumericCost(oldCost);
+  // Se o valor antigo não existia ou não era numérico, mas o novo existe e é numérico
+  if (parsedOld === null) return true;
+
+  // Comparação com tolerância para evitar ruído de arredondamento
+  return Math.abs(parsedOld - parsedNew) >= 0.009;
+}

@@ -1097,10 +1097,14 @@ export default function App() {
       }
     }
 
-    const { merged: mergedProducts, newCount: importedNewCount, preservedCount, newProducts } = mergeCatalogs(
-      products,
-      importedRows
-    );
+    const {
+      merged: mergedProducts,
+      newCount: importedNewCount,
+      updatedCount,
+      preservedCount,
+      newProducts,
+      updatedProducts,
+    } = mergeCatalogs(products, importedRows);
 
     setProducts(mergedProducts);
     try {
@@ -1117,19 +1121,57 @@ export default function App() {
     setCurrentSidebarSection('produtos');
 
     if (products.length > 0) {
-      setSuccessMessage(
-        `Importação concluída: ${importedNewCount} novos produtos adicionados. ${preservedCount} já existentes foram ignorados e permaneceram intactos.`
-      );
+      if (importedNewCount > 0 && updatedCount > 0) {
+        setSuccessMessage(
+          `Importação concluída: ${importedNewCount} novos produtos adicionados e ${updatedCount} valores atualizados com sucesso.`
+        );
+        addToast(
+          'Catálogo Atualizado',
+          `${importedNewCount} novos produtos adicionados e ${updatedCount} valores atualizados. Pesquisas e mídias foram mantidas intactas.`,
+          'success'
+        );
+      } else if (updatedCount > 0) {
+        setSuccessMessage(
+          `${updatedCount} produto(s) tiveram seus valores atualizados conforme a nova planilha. Pesquisas e vídeos foram 100% preservados.`
+        );
+        addToast(
+          'Valores Atualizados',
+          `${updatedCount} produto(s) tiveram seus valores atualizados com sucesso (nenhum produto duplicado).`,
+          'success'
+        );
+      } else if (importedNewCount > 0) {
+        setSuccessMessage(
+          `Importação concluída: ${importedNewCount} novos produtos adicionados ao catálogo.`
+        );
+        addToast(
+          'Novos Produtos Adicionados',
+          `${importedNewCount} novos produtos cadastrados com sucesso.`,
+          'success'
+        );
+      } else {
+        setSuccessMessage(
+          `Todos os ${preservedCount} produtos já estavam com os valores atualizados no catálogo.`
+        );
+        addToast(
+          'Planilha Verificada',
+          `Nenhuma alteração de valor detectada. Todos os ${preservedCount} produtos permanecem atualizados.`,
+          'info'
+        );
+      }
     } else {
       setSuccessMessage(`${mergedProducts.length} produtos carregados com sucesso!`);
+      addToast(
+        'Catálogo Carregado',
+        `${mergedProducts.length} produtos carregados com sucesso.`,
+        'success'
+      );
     }
 
     if (isSupabaseConfigured()) {
       setIsLoading(true);
-      // IMPORTAÇÃO É SOMENTE ADITIVA: envie ao Supabase apenas os produtos realmente novos.
-      // Produtos existentes não são enviados novamente, portanto nunca são sobrescritos.
-      if (newProducts.length > 0) {
-        await upsertProductsToSupabase(newProducts);
+      const toSync = [...newProducts, ...updatedProducts];
+      if (toSync.length > 0) {
+        await upsertProductsToSupabase(toSync);
       }
       setIsLoading(false);
     }

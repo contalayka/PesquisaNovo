@@ -150,8 +150,9 @@ export const ColumnMapperModal: React.FC<ColumnMapperModalProps> = ({
             </p>
             <p className="text-[11px] leading-relaxed">
               • O sistema extrai automaticamente imagens de URLs, links do Google Drive e hiperlinks do Excel.<br />
-              • Produtos que você já pesquisou mantêm todas as opções e anotações salvas.<br />
-              • Itens duplicados com custos ou fotos distintas são preservados individualmente.
+              • <strong>Reconhecimento de alteração de valores:</strong> se um produto já existe e o valor mudou na planilha, apenas o preço/custo é atualizado.<br />
+              • Produtos que você já pesquisou mantêm todas as opções, fotos, vídeos e anotações 100% salvas.<br />
+              • Novos produtos são adicionados sem gerar duplicatas.
             </p>
           </div>
 

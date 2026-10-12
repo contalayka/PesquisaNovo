@@ -1,6 +1,14 @@
 import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
-import { Product, ResearchRecord, ProductStatus, ConfidenceLevel } from '../types';
+import { Product, ResearchRecord, ProductStatus, ConfidenceLevel, PriceHistoryRecord } from '../types';
+import {
+  normalizeProductName,
+  normalizeCode,
+  isCostDifferent,
+  parseNumericCost,
+} from './productDeduplication';
+
+export { isCostDifferent, parseNumericCost };
 
 export interface ColumnDetectionResult {
   headers: string[];
@@ -1067,6 +1075,10 @@ export function convertRowsToProducts(
 /**
  * Merge newly imported products into existing catalog without deleting existing items
  * and strictly preserving all previous research records and status.
+ *
+ * Reconhece alteração de valores: quando o produto já existe no catálogo e o valor/custo
+ * na nova planilha foi alterado, atualiza APENAS o valor e atualiza a data de alteração,
+ * mantendo integralmente todas as opções de pesquisa, imagens, vídeos, anotações e status.
  */
 export function mergeCatalogs(
   existingProducts: Product[],
@@ -1074,50 +1086,121 @@ export function mergeCatalogs(
 ): {
   merged: Product[];
   newCount: number;
+  updatedCount: number;
   preservedCount: number;
   newProducts: Product[];
+  updatedProducts: Product[];
 } {
   const existingById = new Map<string, Product>();
+  const existingBySku = new Map<string, Product>();
+  const existingByBarcode = new Map<string, Product>();
   const existingByName = new Map<string, Product>();
 
   for (const p of existingProducts) {
     if (p.id) {
       existingById.set(String(p.id).trim(), p);
     }
-    const normName = normalizeStr(p.name);
+    const sku = normalizeCode(p.sku);
+    if (sku) {
+      existingBySku.set(sku, p);
+    }
+    const barcode = normalizeCode(p.barcode);
+    if (barcode) {
+      existingByBarcode.set(barcode, p);
+    }
+    const normName = normalizeProductName(p.name);
     if (normName) {
       existingByName.set(normName, p);
     }
   }
 
   let newCount = 0;
+  let updatedCount = 0;
   let preservedCount = 0;
   const newProducts: Product[] = [];
+  const updatedProducts: Product[] = [];
   const mergedList: Product[] = [...existingProducts];
+  const updatedIdsInRun = new Set<string>();
 
   for (const imported of importedProducts) {
     const importedIdStr = imported.id ? String(imported.id).trim() : '';
-    const importedNormName = normalizeStr(imported.name);
+    const importedSku = normalizeCode(imported.sku);
+    const importedBarcode = normalizeCode(imported.barcode);
+    const importedNormName = normalizeProductName(imported.name);
 
-    // 1. Try matching by ID first (if not an auto-generated id)
+    // 1. Tentar encontrar por ID primeiro (se não for id auto-gerado prod_)
     let existing: Product | undefined;
     if (importedIdStr && !importedIdStr.startsWith('prod_')) {
       existing = existingById.get(importedIdStr);
     }
 
-    // 2. If not matched by ID, try matching by normalized name
+    // 2. Tentar encontrar por SKU
+    if (!existing && importedSku) {
+      existing = existingBySku.get(importedSku);
+    }
+
+    // 3. Tentar encontrar por Código de Barras
+    if (!existing && importedBarcode) {
+      existing = existingByBarcode.get(importedBarcode);
+    }
+
+    // 4. Tentar encontrar por Nome Normalizado
     if (!existing && importedNormName) {
       existing = existingByName.get(importedNormName);
     }
 
-    // 3. If matched, NEVER alter the existing record.
-    // Importação de catálogo é somente aditiva: pesquisa, status, imagem, custo,
-    // disponibilidade e demais dados já salvos permanecem exatamente como estão.
+    // 5. Se o produto já existe no projeto:
     if (existing) {
-      preservedCount++;
-      continue;
+      const priceHasChanged = isCostDifferent(existing.cost, imported.cost);
+
+      if (priceHasChanged && !updatedIdsInRun.has(existing.id)) {
+        // "oque tem que acontecer é apenas a alteração dos valor quando ja tem o produto."
+        // Atualiza APENAS o custo/valor do produto e data de atualização.
+        // Registra o histórico mostrando com precisão se o valor subiu ou diminuiu.
+        const oldNum = parseNumericCost(existing.cost);
+        const newNum = parseNumericCost(imported.cost);
+        const diff = (oldNum !== null && newNum !== null) ? Number((newNum - oldNum).toFixed(2)) : 0;
+        const percentDiff = (oldNum && oldNum > 0 && diff !== 0) ? Math.round((diff / oldNum) * 100) : 0;
+        const changeType: 'subiu' | 'diminuiu' | 'inalterado' = diff > 0 ? 'subiu' : diff < 0 ? 'diminuiu' : 'inalterado';
+
+        const historyRecord: PriceHistoryRecord = {
+          id: `ph_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          date: new Date().toISOString(),
+          oldCost: existing.cost,
+          newCost: imported.cost,
+          diff,
+          percentDiff,
+          type: changeType,
+          source: 'planilha',
+          note: diff > 0 ? `Subiu +${formatCurrency(diff)}` : `Diminuiu -${formatCurrency(Math.abs(diff))}`,
+        };
+
+        const updatedProd: Product = {
+          ...existing,
+          cost: imported.cost,
+          updated_at: new Date().toISOString(),
+          price_history: [historyRecord, ...(existing.price_history || [])],
+        };
+
+        const targetIdx = mergedList.findIndex((p) => p.id === existing!.id);
+        if (targetIdx !== -1) {
+          mergedList[targetIdx] = updatedProd;
+        }
+
+        // Atualiza os mapas de índice para consultas seguintes no mesmo lote
+        if (updatedProd.id) existingById.set(String(updatedProd.id).trim(), updatedProd);
+        if (importedSku) existingBySku.set(importedSku, updatedProd);
+        if (importedBarcode) existingByBarcode.set(importedBarcode, updatedProd);
+        if (importedNormName) existingByName.set(importedNormName, updatedProd);
+
+        updatedIdsInRun.add(existing.id);
+        updatedCount++;
+        updatedProducts.push(updatedProd);
+      } else {
+        preservedCount++;
+      }
     } else {
-      // 4. If truly new product, append with is_new flag
+      // 6. Produto realmente novo: adiciona ao catálogo sem duplicar
       newCount++;
       const newProd: Product = {
         ...imported,
@@ -1127,8 +1210,15 @@ export function mergeCatalogs(
       };
       mergedList.push(newProd);
       newProducts.push(newProd);
+
       if (newProd.id) {
         existingById.set(String(newProd.id).trim(), newProd);
+      }
+      if (importedSku) {
+        existingBySku.set(importedSku, newProd);
+      }
+      if (importedBarcode) {
+        existingByBarcode.set(importedBarcode, newProd);
       }
       if (importedNormName) {
         existingByName.set(importedNormName, newProd);
@@ -1139,8 +1229,10 @@ export function mergeCatalogs(
   return {
     merged: mergedList,
     newCount,
+    updatedCount,
     preservedCount,
     newProducts,
+    updatedProducts,
   };
 }
 
