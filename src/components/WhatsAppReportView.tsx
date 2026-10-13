@@ -65,7 +65,18 @@ async function parseFile(file:File,worker:any,progress:(s:string)=>void):Promise
   const raw=ps[i];let txt='';
   if(raw.startsWith('TEXT:')&&raw.includes('\nIMAGE:')){
    const cut=raw.indexOf('\nIMAGE:');const native=raw.slice(5,cut);const img=raw.slice(cut+7);
-   const ocr=img?(await worker.recognize(img)).data.text||'':'';
+   let ocr='';
+   if(img){
+    ocr=(await worker.recognize(img)).data.text||'';
+    // Marketplace branding is commonly a graphic and may be missed in full-page OCR.
+    // Run a second OCR pass on the top banner where the platform logo is printed.
+    const banner=document.createElement('canvas');const source=document.createElement('img');source.src=img;
+    await new Promise<void>(resolve=>{source.onload=()=>resolve();source.onerror=()=>resolve();});
+    if(source.naturalWidth&&source.naturalHeight){
+     banner.width=source.naturalWidth;banner.height=Math.max(1,Math.floor(source.naturalHeight*.19));
+     const bctx=banner.getContext('2d');if(bctx){bctx.drawImage(source,0,0,source.naturalWidth,banner.height,0,0,banner.width,banner.height);const bannerText=(await worker.recognize(banner)).data.text||'';ocr+='\n'+bannerText;}
+    }
+   }
    txt=native+'\n'+ocr;
   }else txt=(await worker.recognize(raw)).data.text||'';
   const p=platformOf(txt,file.name);
