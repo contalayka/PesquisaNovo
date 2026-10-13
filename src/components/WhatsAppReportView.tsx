@@ -18,10 +18,65 @@ function today(){const p=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_
 function brDate(s:string){const [y,m,d]=(s||'').split('-');return y&&m&&d?d+'/'+m+'/'+y:s;}
 function norm(s:string){return s.toUpperCase().replace(/[^A-Z0-9]/g,'');}
 async function hash(p:string,n:string){const a=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(p+':'+norm(n)));return [...new Uint8Array(a)].map(x=>x.toString(16).padStart(2,'0')).join('');}
-function platformOf(t:string):Platform|''{const s=t.toLowerCase();const m:Record<Platform,number>={'Shopee':(s.match(/shopee|spx express|spxbr/g)||[]).length,'Mercado Livre':(s.match(/mercado livre|mercadolivre|mercado envios|meli/g)||[]).length,'TikTok Shop':(s.match(/tiktok shop|tiktokshop|tik tok shop/g)||[]).length,'SHEIN':(s.match(/shein/g)||[]).length};const r=PLATFORMS.map(p=>[p,m[p]] as [Platform,number]).sort((a,b)=>b[1]-a[1]);return r[0][1]>0&&r[0][1]!==r[1][1]?r[0][0]:'';}
-function orderOf(t:string){const lines=t.split(/\r?\n/);const patterns=[/(?:n[uú]mero\s*(?:do\s*)?pedido|pedido|order\s*(?:id|number|no\.?|#)?)\s*[:#\-]?\s*([A-Z0-9][A-Z0-9\-]{6,30})/i,/\b(\d{6,}-\d{6,})\b/,/\b(\d{10,22})\b/,/\b([A-Z0-9]{10,20})\b/];for(const line of lines){for(const re of patterns){const m=line.match(re);if(m?.[1]&&!/^20\d{6,}$/.test(m[1]))return m[1].trim();}}return '';}
-async function pages(file:File):Promise<string[]>{if(file.type.startsWith('image/'))return [URL.createObjectURL(file)];const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer(),useSystemFonts:true}).promise;const out:string[]=[];for(let i=1;i<=pdf.numPages;i++){const page=await pdf.getPage(i);const tc=await page.getTextContent();const txt=tc.items.map((x:any)=>x.str||'').join(' ');if(txt.trim().length>40){out.push('TEXT:'+txt);}else{const vp=page.getViewport({scale:1.8});const c=document.createElement('canvas');c.width=Math.ceil(vp.width);c.height=Math.ceil(vp.height);const ctx=c.getContext('2d');if(ctx){await page.render({canvasContext:ctx,viewport:vp}).promise;out.push(c.toDataURL('image/png'));}}}return out;}
-async function parseFile(file:File,worker:any,progress:(s:string)=>void):Promise<Order[]>{const ps=await pages(file);const out:Order[]=[];for(let i=0;i<ps.length;i++){progress('Lendo '+file.name+' · '+(i+1)+'/'+ps.length);const txt=ps[i].startsWith('TEXT:')?ps[i].slice(5):(await worker.recognize(ps[i])).data.text||'';const p=platformOf(txt),n=orderOf(txt);out.push({id:crypto.randomUUID(),file:file.name,platform:p,number:n,confidence:p&&n?'Detectado':'Revisar',duplicate:false,include:true});}return out;}
+function platformOf(t:string,fileName=''):Platform|''{
+ const s=(t+' '+fileName).toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,' ');
+ // Strong, distinctive label identifiers first; generic carrier wording is not enough.
+ if(/\\b(gsh[0-9a-z]{8,}|shein|sh[e3]in)\\b/i.test(s))return 'SHEIN';
+ const scores:Record<Platform,number>={
+  'Shopee':(s.match(/\\bshopee\\b|\\bspx\\b|spx express|shopee express/g)||[]).length,
+  'Mercado Livre':(s.match(/mercado livre|mercadolivre|mercado env[ií]os|mercado envios|\\bmercado pago\\b|\\bmeli\\b/g)||[]).length,
+  'TikTok Shop':(s.match(/tiktok\\s*shop|tik\\s*tok\\s*shop|\\btiktok\\b/g)||[]).length,
+  'SHEIN':(s.match(/\\bshein\\b/g)||[]).length
+ };
+ const ranked=PLATFORMS.map(p=>[p,scores[p]] as [Platform,number]).sort((a,b)=>b[1]-a[1]);
+ return ranked[0][1]>0&&ranked[0][1]!==ranked[1][1]?ranked[0][0]:'';
+}
+function orderOf(t:string){
+ const clean=t.toUpperCase().replace(/\\b(SIMPLIFICADO|NORMAL|EXPRESS|STANDARD|ECONOMICO|ECONÔMICO|ETIQUETA|REMETENTE|DESTINATARIO|DESTINATÁRIO|TRANSPORTADORA|RASTREIO|CODIGO|CÓDIGO|PEDIDO|PACOTE|VOLUME|ENVIO|POSTAGEM)\\b/g,' ');
+ const lines=clean.split(/\\r?\\n/).map(x=>x.trim()).filter(Boolean);
+ // SHEIN shipment/order identifiers such as GSH... are more reliable than generic alphanumeric OCR.
+ const shein=clean.match(/\\bGSH[0-9A-Z]{8,20}\\b/);
+ if(shein)return shein[0];
+ // Prefer values close to explicit order labels, but reject shipping methods and common OCR noise.
+ const labelPatterns=[
+  /(?:N[uú]MERO\\s*(?:DO\\s*)?PEDIDO|ORDER\\s*(?:ID|NUMBER|NO\\.?|#)|ID\\s*DO\\s*PEDIDO|PEDIDO)\\s*[:#\\-]?\\s*([A-Z0-9][A-Z0-9\\-]{7,29})/i,
+  /\\b(\\d{6,}-\\d{6,})\\b/,
+  /\\b(\\d{10,22})\\b/
+ ];
+ for(const re of labelPatterns){const m=clean.match(re);if(m?.[1]&&!/^(?:20\\d{6,}|0+)$/.test(m[1]))return m[1].trim();}
+ // Fallback only accepts long mixed alpha-numeric IDs; never words like SIMPLIFICADO.
+ const candidates=clean.match(/\\b(?=[A-Z0-9]{10,22}\\b)(?=[A-Z0-9]*[A-Z])(?=[A-Z0-9]*\\d)[A-Z0-9]+\\b/g)||[];
+ const rejected=new Set(['SIMPLIFICADO','DESTINATARIO','TRANSPORTADORA','ETIQUETA','EXPRESS','STANDARD','ECONOMICO','REMETENTE','RASTREAMENTO']);
+ return candidates.find(v=>!rejected.has(v)&&!/^20\\d{6,}$/.test(v))||'';
+}
+async function pages(file:File):Promise<string[]>{ 
+ if(file.type.startsWith('image/'))return [URL.createObjectURL(file)];
+ const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer(),useSystemFonts:true}).promise;
+ const out:string[]=[];
+ for(let i=1;i<=pdf.numPages;i++){
+  const page=await pdf.getPage(i);const tc=await page.getTextContent();const txt=tc.items.map((x:any)=>x.str||'').join(' ');
+  // Keep native PDF text and OCR a rendered page too: marketplace logos/labels are often images.
+  const vp=page.getViewport({scale:2.2});const canvas=document.createElement('canvas');canvas.width=Math.ceil(vp.width);canvas.height=Math.ceil(vp.height);const ctx=canvas.getContext('2d');
+  let img='';if(ctx){await page.render({canvasContext:ctx,viewport:vp}).promise;img=canvas.toDataURL('image/png');}
+  out.push('TEXT:'+txt+'\\nIMAGE:'+img);
+ }
+ return out;
+}
+async function parseFile(file:File,worker:any,progress:(s:string)=>void):Promise<Order[]>{
+ const ps=await pages(file);const out:Order[]=[];
+ for(let i=0;i<ps.length;i++){
+  progress('Lendo '+file.name+' · '+(i+1)+'/'+ps.length);
+  const raw=ps[i];let txt='';
+  if(raw.startsWith('TEXT:')&&raw.includes('\\nIMAGE:')){
+   const cut=raw.indexOf('\\nIMAGE:');const native=raw.slice(5,cut);const img=raw.slice(cut+7);
+   const ocr=img?(await worker.recognize(img)).data.text||'':'';
+   txt=native+'\\n'+ocr;
+  }else txt=(await worker.recognize(raw)).data.text||'';
+  const p=platformOf(txt,file.name),n=orderOf(txt);
+  out.push({id:crypto.randomUUID(),file:file.name,platform:p,number:n,confidence:p&&n?'Detectado':'Revisar',duplicate:false,include:true});
+ }
+ return out;
+}
 function message(date:string,c:Record<string,number>,pending:number,total:number){return ['*📦 RELATÓRIO DE PEDIDOS*','📅 Data: '+brDate(date),'','🟠 Shopee: '+c['Shopee']+' pedido(s)','🟡 Mercado Livre: '+c['Mercado Livre']+' pedido(s)','⚫ TikTok Shop: '+c['TikTok Shop']+' pedido(s)','⚪ SHEIN: '+c['SHEIN']+' pedido(s)','','━━━━━━━━━━━━━━','📊 *TOTAL GERAL: '+total+' pedido(s)*','⚠️ Pendentes de conferência: '+pending,'','_MARKETPREÇO | Relatório de expedição_'].join('\n');}
 export const WhatsAppReportView:React.FC=()=>{
  const [date,setDate]=useState(today);const [files,setFiles]=useState<File[]>([]);const [orders,setOrders]=useState<Order[]>([]);const [history,setHistory]=useState<Batch[]>([]);const [dailyTotals,setDailyTotals]=useState<Record<string,Record<string,number>>>({});const [busy,setBusy]=useState(false);const [progress,setProgress]=useState('');const [error,setError]=useState('');const [notice,setNotice]=useState('');const [copied,setCopied]=useState(false);const [tab,setTab]=useState<'processar'|'historico'>('processar');
