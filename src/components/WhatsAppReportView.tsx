@@ -19,13 +19,12 @@ function brDate(s:string){const [y,m,d]=(s||'').split('-');return y&&m&&d?d+'/'+
 function norm(s:string){return s.toUpperCase().replace(/[^A-Z0-9]/g,'');}
 async function hash(p:string,n:string){const a=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(p+':'+norm(n)));return [...new Uint8Array(a)].map(x=>x.toString(16).padStart(2,'0')).join('');}
 function platformOf(t:string,fileName=''):Platform|''{
- const normalize=(v:string)=>v.toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,' ').replace(/[^a-z0-9]+/g,' ').trim();
- const s=normalize(t+' '+fileName);
- // A plataforma escrita na etiqueta é a fonte principal; não exigir múltiplas ocorrências.
- if(/\\bshein\\b|\\bsh ein\\b|\\bshein express\\b/.test(s)||/\\bgsh[0-9a-z]{8,}\\b/i.test(t))return 'SHEIN';
- if(/\\bshopee\\b|\\bspx express\\b|\\bspxbr\\b/.test(s))return 'Shopee';
- if(/\\bmercado livre\\b|\\bmercado envios?\\b|\\bmercadolivre\\b|\\bmercado pago\\b/.test(s))return 'Mercado Livre';
- if(/\\btiktok shop\\b|\\btik tok shop\\b|\\btiktok\\b/.test(s))return 'TikTok Shop';
+ const s=(t+' '+fileName).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,' ').replace(/[^a-z0-9]+/g,' ').trim();
+ // Use the marketplace name printed on the label. Plain substring matching avoids OCR spacing/punctuation variations.
+ if(s.includes('shein')||s.includes('sh ein')||/gsh[a-z0-9]{8,}/i.test(t))return 'SHEIN';
+ if(s.includes('shopee')||s.includes('spx express')||s.includes('spxbr'))return 'Shopee';
+ if(s.includes('mercado livre')||s.includes('mercado envios')||s.includes('mercadolivre')||s.includes('mercado pago'))return 'Mercado Livre';
+ if(s.includes('tiktok shop')||s.includes('tik tok shop')||s.includes('tiktok'))return 'TikTok Shop';
  return '';
 }
 function orderOf(t:string){
