@@ -68,8 +68,12 @@ async function parseFile(file:File,worker:any,progress:(s:string)=>void):Promise
    const ocr=img?(await worker.recognize(img)).data.text||'':'';
    txt=native+'\n'+ocr;
   }else txt=(await worker.recognize(raw)).data.text||'';
-  const n=orderOf(txt);const p=platformOf(txt,file.name)||(/^GSH/i.test(n)?'SHEIN':'');
-  out.push({id:crypto.randomUUID(),file:file.name,platform:p,number:n,confidence:p&&n?'Detectado':'Revisar',duplicate:false,include:true});
+  const p=platformOf(txt,file.name);
+  // Some SHEIN PDFs place multiple labels on a single page. Extract every distinct GSH order/shipment ID instead of counting the whole page as one order.
+  const gsh=[...txt.toUpperCase().matchAll(/\\bGSH[0-9A-Z]{8,20}\\b/g)].map(m=>m[0]);
+  const ids=[...new Set(gsh.length?gsh:[orderOf(txt)].filter(Boolean))];
+  if(ids.length===0){out.push({id:crypto.randomUUID(),file:file.name,platform:p,number:'',confidence:'Revisar',duplicate:false,include:true});}
+  else for(const n of ids){const detectedPlatform=(p||(/^GSH/i.test(n)?'SHEIN':'')) as Platform|'';out.push({id:crypto.randomUUID(),file:file.name,platform:detectedPlatform,number:n,confidence:detectedPlatform&&n?'Detectado':'Revisar',duplicate:false,include:true});}
  }
  return out;
 }
