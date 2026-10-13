@@ -14,15 +14,48 @@ export function normalizeProductName(name?: string | null): string {
 }
 
 /**
- * Normaliza SKU ou código de barras
+ * Normaliza SKU ou código de barras, descartando marcadores vazios ou placeholders genéricos.
  */
 export function normalizeCode(code?: string | null): string {
   if (!code) return '';
-  return String(code).trim().toLowerCase();
+  const s = String(code).trim().toLowerCase();
+  // Ignora marcadores comuns que não representam um código único real
+  const placeholders = new Set([
+    '-',
+    '--',
+    '---',
+    '.',
+    '..',
+    '0',
+    '00',
+    '000',
+    'n/a',
+    'na',
+    'none',
+    'null',
+    'undefined',
+    'sem sku',
+    'sem codigo',
+    'sem código',
+    'sem cod',
+    's/n',
+    'sn',
+    'padrao',
+    'padrão',
+    'vazio'
+  ]);
+  if (placeholders.has(s)) return '';
+  return s;
 }
 
 /**
- * Identifica se dois produtos são o mesmo item (duplicados)
+ * Identifica se dois produtos são o mesmo item (duplicados).
+ * - Se os dois tiverem o mesmo ID não-vazio, é duplicado.
+ * - Se os dois tiverem o mesmo SKU real, é duplicado.
+ * - Se os dois tiverem SKUs reais diferentes, NÃO é duplicado (variações distintas).
+ * - Se os dois tiverem o mesmo código de barras real, é duplicado.
+ * - Se os dois tiverem códigos de barras reais diferentes, NÃO é duplicado.
+ * - Se o nome normalizado for exatamente o mesmo (e não houver SKUs/barcodes conflitantes), é duplicado.
  */
 export function areProductsDuplicate(
   a: Partial<Product> | null | undefined,
@@ -37,10 +70,12 @@ export function areProductsDuplicate(
   const skuA = normalizeCode(a.sku);
   const skuB = normalizeCode(b.sku);
   if (skuA && skuB && skuA === skuB) return true;
+  if (skuA && skuB && skuA !== skuB) return false;
 
   const barA = normalizeCode(a.barcode);
   const barB = normalizeCode(b.barcode);
   if (barA && barB && barA === barB) return true;
+  if (barA && barB && barA !== barB) return false;
 
   const nameA = normalizeProductName(a.name);
   const nameB = normalizeProductName(b.name);
@@ -60,46 +95,21 @@ export function findDuplicateProduct(
 }
 
 /**
- * Remove produtos duplicados de uma lista, preservando o primeiro item encontrado
- * e garantindo unicidade absoluta por ID, SKU, Código de Barras e Nome.
+ * Remove produtos duplicados de uma lista de forma estrita e segura,
+ * preservando o primeiro item encontrado e garantindo que produtos com
+ * SKUs ou IDs distintos não sejam descartados acidentalmente.
  */
 export function deduplicateProducts(products: Product[]): Product[] {
   if (!Array.isArray(products) || products.length === 0) return [];
-
-  const seenIds = new Set<string>();
-  const seenSkus = new Set<string>();
-  const seenBarcodes = new Set<string>();
-  const seenNames = new Set<string>();
 
   const unique: Product[] = [];
 
   for (const p of products) {
     if (!p) continue;
-
-    const id = p.id ? String(p.id).trim() : '';
-    const sku = normalizeCode(p.sku);
-    const barcode = normalizeCode(p.barcode);
-    const normName = normalizeProductName(p.name);
-
-    // Se não tiver nenhum identificador válido nem nome, pula
-    if (!id && !sku && !barcode && !normName) continue;
-
-    // Se já vimos qualquer um dos identificadores únicos, é duplicata
-    const isDup =
-      (id && seenIds.has(id)) ||
-      (sku && seenSkus.has(sku)) ||
-      (barcode && seenBarcodes.has(barcode)) ||
-      (normName && seenNames.has(normName));
-
-    if (isDup) {
+    // Se o produto já possui um duplicado na lista filtrada, não o inclui novamente
+    if (findDuplicateProduct(p, unique)) {
       continue;
     }
-
-    if (id) seenIds.add(id);
-    if (sku) seenSkus.add(sku);
-    if (barcode) seenBarcodes.add(barcode);
-    if (normName) seenNames.add(normName);
-
     unique.push(p);
   }
 

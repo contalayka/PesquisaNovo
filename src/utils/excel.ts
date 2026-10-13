@@ -1053,6 +1053,20 @@ export function convertRowsToProducts(
 
       const id = rawId && String(rawId).trim() ? String(rawId).trim() : `prod_${index + 1}_${Date.now().toString(36)}`;
 
+      // Identifica colunas de SKU e Código de Barras automaticamente se presentes
+      let extractedSku = '';
+      let extractedBarcode = '';
+      for (const [colName, val] of Object.entries(row)) {
+        const normCol = normalizeStr(colName);
+        const valStr = String(val ?? '').trim();
+        if (!extractedSku && (normCol === 'sku' || normCol === 'codigo' || normCol === 'cod' || normCol === 'referencia' || normCol === 'ref')) {
+          extractedSku = valStr;
+        }
+        if (!extractedBarcode && (normCol === 'barcode' || normCol === 'ean' || normCol === 'codigodebarras' || normCol === 'gtin')) {
+          extractedBarcode = valStr;
+        }
+      }
+
       const product: Product = {
         id,
         name: strName,
@@ -1061,6 +1075,8 @@ export function convertRowsToProducts(
         image: cleanImage,
         status,
         is_new: false,
+        sku: extractedSku || undefined,
+        barcode: extractedBarcode || undefined,
         research_records: [],
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),

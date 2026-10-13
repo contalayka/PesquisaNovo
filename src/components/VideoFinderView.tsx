@@ -417,24 +417,37 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
       const hasVideo = videos.length > 0;
       const hasDownloaded = videos.some(isVideoDownloaded);
 
-      const matchesText = !q || normalize(p.name).includes(q) || normalize(p.sku).includes(q);
+      const matchesText =
+        !q ||
+        normalize(p.name).includes(q) ||
+        normalize(p.sku).includes(q) ||
+        normalize(p.id).includes(q) ||
+        normalize(p.barcode).includes(q);
 
       let matchesFilter = true;
       if (filter === 'com_video') {
         matchesFilter = hasVideo;
       } else if (filter === 'sem_video' || filter === 'pendentes') {
         matchesFilter = !hasVideo;
+      } else if (filter === 'novos') {
+        matchesFilter = Boolean(p.is_new || !hasVideo);
       } else if (filter === 'baixados') {
         matchesFilter = hasDownloaded;
       } else if (filter === 'todos') {
         matchesFilter = true;
       }
 
+      // Se a plataforma for 'Todos', aceita todos.
+      // Se selecionou uma plataforma específica (ex: 'Mercado Livre' ou 'Shopee'):
+      // - Mostra se tiver vídeo dessa plataforma;
+      // - OU se tiver pesquisa com essa plataforma;
+      // - OU se for um produto pendente sem vídeo quando estiver filtrando todos/pendentes (permite varrer/adicionar para aquela plataforma).
       const matchesPlatform =
         platform === 'Todos' ||
         (hasVideo
           ? videos.some((v) => v.platform === platform)
-          : (p.research_records || []).some((r) => platformFor(r) === platform));
+          : (p.research_records || []).some((r) => platformFor(r) === platform) ||
+            (!hasVideo && (filter === 'todos' || filter === 'sem_video' || filter === 'pendentes' || filter === 'novos')));
 
       return matchesText && matchesFilter && matchesPlatform;
     });
@@ -2043,7 +2056,14 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <h3 className="font-semibold text-white">{p.name}</h3>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-semibold text-white">{p.name}</h3>
+                    {p.is_new && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                        Novo Produto
+                      </span>
+                    )}
+                  </div>
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-400">
                     <span>SKU: {p.sku || 'Não informado'}</span>
                     <span>•</span>
