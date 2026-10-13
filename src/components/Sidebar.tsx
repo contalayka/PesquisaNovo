@@ -13,6 +13,7 @@ import {
   Menu,
   RefreshCw,
   Video,
+  MessageCircle,
 } from 'lucide-react';
 import { AppView } from '../types';
 import { MarketPrepLogo } from './MarketPrepLogo';
@@ -104,6 +105,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: Video,
       badge: foundCount > 0 ? foundCount : null,
       badgeClass: 'bg-violet-950/50 text-violet-300 border-violet-800/40',
+    },
+    {
+      id: 'relatorios',
+      label: 'Relatórios de Pedidos',
+      icon: MessageCircle,
     },
     {
       id: 'configuracoes',
