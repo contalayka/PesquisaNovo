@@ -19,12 +19,18 @@ function brDate(s:string){const [y,m,d]=(s||'').split('-');return y&&m&&d?d+'/'+
 function norm(s:string){return s.toUpperCase().replace(/[^A-Z0-9]/g,'');}
 async function hash(p:string,n:string){const a=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(p+':'+norm(n)));return [...new Uint8Array(a)].map(x=>x.toString(16).padStart(2,'0')).join('');}
 function platformOf(t:string,fileName=''):Platform|''{
- const s=(t+' '+fileName).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,' ').replace(/[^a-z0-9]+/g,' ').trim();
- // Use the marketplace name printed on the label. Plain substring matching avoids OCR spacing/punctuation variations.
- if(s.includes('shein')||s.includes('sh ein')||/gsh[a-z0-9]{8,}/i.test(t))return 'SHEIN';
+ const raw=t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,' ');
+ const s=(raw+' '+fileName.toLowerCase()).replace(/[^a-z0-9]+/g,' ').trim();
+ // First detect the marketplace branding printed on the label.
+ if(s.includes('shein')||s.includes('sh ein')||/\bgsh[a-z0-9]{8,}/i.test(t))return 'SHEIN';
  if(s.includes('shopee')||s.includes('spx express')||s.includes('spxbr'))return 'Shopee';
  if(s.includes('mercado livre')||s.includes('mercado envios')||s.includes('mercadolivre')||s.includes('mercado pago'))return 'Mercado Livre';
- if(s.includes('tiktok shop')||s.includes('tik tok shop')||s.includes('tiktok'))return 'TikTok Shop';
+ // Mercado Livre labels may show the seller name instead of the marketplace logo.
+ // Their shipping format includes Pack ID, NF and routing codes such as XPR2 > XSP14 > SPR8.
+ if(/pack\s*id\s*[:#]?\s*\d+/i.test(t)&&(/\bnf\s*[:#]?\s*\d+/i.test(t)||/\b(xpr\d|spr\d|xsp\d)\w*/i.test(t)))return 'Mercado Livre';
+ if(s.includes('mega feirao das loucas')&&(/\bpack\s*id\b/i.test(t)||/\b(xpr\d|spr\d|xsp\d)\w*/i.test(t)))return 'Mercado Livre';
+ // TikTok labels can be carried by J&T Express; the TikTok logo/name is at the top.
+ if(s.includes('tiktok shop')||s.includes('tik tok shop')||s.includes('tiktok')||s.includes('tik tok')||s.includes('t1kt0k'))return 'TikTok Shop';
  return '';
 }
 function orderOf(t:string){
