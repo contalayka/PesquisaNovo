@@ -82,23 +82,42 @@ export async function computeOrderHash(platform: string, orderNumber: string): P
 /**
  * Identifica a plataforma da etiqueta com base em cabeçalhos, roteamento e padrões
  */
+/**
+ * Identifica a plataforma da etiqueta com base em cabeçalhos, roteamento e padrões
+ */
 export function detectPlatform(text: string, fileName = ''): Platform | '' {
   if (!text && !fileName) return '';
 
   const raw = text || '';
-  const norm = normalizeText(raw + ' ' + fileName);
+  // Se houver texto na etiqueta, use exclusivamente o texto da etiqueta para não herdar
+  // palavras do nome do arquivo (ex: "etiquetas_mercado_livre.pdf" contendo também TikTok)
+  const norm = normalizeText(raw ? raw : fileName);
 
   // 1. SHEIN: Nome explícito ou identificador inequívoco GSH...
   if (
     norm.includes('shein') ||
     norm.includes('sh ein') ||
     norm.includes('shein express') ||
-    /\bgsh[0-9a-z]{8,20}\b/i.test(raw)
+    /\bgsh[0-9a-z]{8,22}\b/i.test(raw)
   ) {
     return 'SHEIN';
   }
 
-  // 2. TIKTOK SHOP: Logo/Nome TikTok, TTS ou J&T Express com pedido padrão TikTok
+  // 2. SHOPEE: Nome Shopee, SPX Express ou SPXBR
+  if (
+    norm.includes('shopee') ||
+    norm.includes('spx express') ||
+    norm.includes('spxbr') ||
+    norm.includes('spx') ||
+    norm.includes('shopee.com') ||
+    /\b(?:order\s*sn)\s*[:#\-]?\s*([2-3][0-9][A-Z0-9]{10,16})/i.test(raw)
+  ) {
+    return 'Shopee';
+  }
+
+  // 3. TIKTOK SHOP:
+  // Reconhecimento flexível e resiliente de cabeçalho, transportadora e padrão de pedido TikTok:
+  // a) Menções da plataforma TikTok (inclusive variações de OCR)
   const hasTikTokMention =
     norm.includes('tiktok') ||
     norm.includes('tik tok') ||
@@ -106,34 +125,65 @@ export function detectPlatform(text: string, fileName = ''): Platform | '' {
     norm.includes('tik tok shop') ||
     norm.includes('tts') ||
     norm.includes('tt shop') ||
-    norm.includes('t1kt0k');
+    norm.includes('bytedance') ||
+    norm.includes('t1kt0k') ||
+    norm.includes('tikt0k') ||
+    norm.includes('tlktok') ||
+    norm.includes('titok') ||
+    norm.includes('tktk') ||
+    /\btik\s*[-_./]?\s*tok\b/i.test(raw) ||
+    /\bt[1il!][k|c]\s*t[0o][k|c]\b/i.test(raw);
 
+  // b) Transportadora J&T Express (parceira logística primária do TikTok Shop no Brasil)
   const hasJTExpress =
-    /\bj\s*&\s*t\s*(?:express)?\b/i.test(raw) ||
+    /\bj\s*(?:&|\+|and|\/|\.)?\s*t\s*(?:express|cargo|brasil)?\b/i.test(raw) ||
+    /\bjnt\s*(?:express|brasil)?\b/i.test(raw) ||
+    /\bjt\s*express\b/i.test(raw) ||
     norm.includes('j&t') ||
+    norm.includes('jnt') ||
     norm.includes('jt express') ||
     norm.includes('j and t');
 
-  const hasTikTokOrderPattern =
-    /\b(?:pedido|order|id)\s*[:#]?\s*(999\d{11,13}|57\d{12,14}|58\d{12,14})\b/i.test(raw) ||
-    /\b999\d{12}\b/.test(raw);
+  // c) Código de rastreio J&T
+  const hasJTTracking = /\b(?:jt|jte)\d{9,16}\b/i.test(raw);
+
+  // d) Padrão de pedido TikTok Shop:
+  // Prefixo 999 (14 a 17 dígitos, ex: 999882459194835) ou 57/58/99 (14 a 17 dígitos)
+  const hasTikTokOrderExplicit =
+    /(?:pedido|order\s*(?:id|number|no\.?|#)?|id\s*do\s*pedido|ordem|n[ºo°.]?\s*(?:do\s*)?pedido|n[ºo°.]?\s*pedido|ped[ilc1o][ldo0])\s*[:#\-]?\s*(999\d{10,14}|57\d{11,15}|58\d{11,15}|99\d{11,15})\b/i.test(
+      raw
+    );
+  const hasTikTokOrderStandalone = /\b(999\d{11,14}|57\d{12,15}|58\d{12,15})\b/.test(raw);
+
+  // e) Campo "Pedido:" com 13 a 18 dígitos quando não é Mercado Livre (sem Pack ID nem rotas Meli)
+  const hasGenericOrder14to17 =
+    /(?:pedido|order\s*(?:id|number|no\.?|#)?|id\s*do\s*pedido|ped[ilc1o][ldo0])\s*[:#\-]?\s*([0-9]{13,18})\b/i.test(
+      raw
+    );
+
+  // Layout característico Mercado Envios para desambiguação
+  const hasPackId =
+    /pack\s*id\s*[:#]?\s*\d+/i.test(raw) ||
+    /pacote\s*id\s*[:#]?\s*\d+/i.test(raw) ||
+    /\b20000\d{10,12}\b/.test(raw);
+  const hasMeliRoute = /\b(xpr\d?|xsp\d?|spr\d?|xsc\d?|xmg\d?|xba\d?|xrs\d?|cpt\d?|rpr\d?|vpr\d?|bsb\d?|xgo\d?)\b/i.test(
+    raw
+  );
 
   if (hasTikTokMention) {
     return 'TikTok Shop';
   }
-  if (hasJTExpress && hasTikTokOrderPattern) {
+  if (hasJTExpress) {
     return 'TikTok Shop';
   }
-
-  // 3. SHOPEE: Nome Shopee, SPX Express ou SPXBR
-  if (
-    norm.includes('shopee') ||
-    norm.includes('spx express') ||
-    norm.includes('spxbr') ||
-    norm.includes('spx') ||
-    norm.includes('shopee.com')
-  ) {
-    return 'Shopee';
+  if (hasJTTracking) {
+    return 'TikTok Shop';
+  }
+  if (hasTikTokOrderExplicit || hasTikTokOrderStandalone) {
+    return 'TikTok Shop';
+  }
+  if (hasGenericOrder14to17 && !hasPackId && !hasMeliRoute) {
+    return 'TikTok Shop';
   }
 
   // 4. MERCADO LIVRE (Mercado Envios):
@@ -142,7 +192,9 @@ export function detectPlatform(text: string, fileName = ''): Platform | '' {
     norm.includes('mercado livre') ||
     norm.includes('mercadolivre') ||
     norm.includes('mercado envios') ||
+    norm.includes('mercadoenvios') ||
     norm.includes('mercado pago') ||
+    norm.includes('envios flex') ||
     /\bmeli\b/.test(norm)
   ) {
     return 'Mercado Livre';
@@ -150,22 +202,13 @@ export function detectPlatform(text: string, fileName = ''): Platform | '' {
 
   // Layout característico Mercado Envios:
   // - Presença de "Pack ID" (ou Pacote ID)
-  // - Roteamentos Mercado Envios: XPR, XSP, SPR, XSC, XMG, CPT, RPR, etc.
-  // - Identificador de loja (#1476198771) ou vendedor conhecido
-  // - NF com Pack ID
-  const hasPackId = /pack\s*id\s*[:#]?\s*\d+/i.test(raw) || /pacote\s*id\s*[:#]?\s*\d+/i.test(raw);
-  const hasMeliRoute = /\b(xpr\d|xsp\d|spr\d|xsc\d|xmg\d|xba\d|xrs\d|cpt\d|rpr\d|vpr\d|bsb\d)\b/i.test(raw);
+  // - E obrigatoriamente roteamento Mercado Envios (XPR, XSP, SPR, etc.) ou seller hash #1476198771 com Pack ID
   const hasSellerHashId = /#\d{7,12}\b/.test(raw);
-  const hasNf = /\bnf\s*[:#]?\s*\d+/i.test(raw);
-  const hasKnownSeller = norm.includes('mega feirao das loucas');
 
-  if (hasPackId && (hasMeliRoute || hasSellerHashId || hasNf || hasKnownSeller)) {
+  if (hasPackId && (hasMeliRoute || hasSellerHashId)) {
     return 'Mercado Livre';
   }
-  if (hasKnownSeller && (hasMeliRoute || hasPackId || hasNf)) {
-    return 'Mercado Livre';
-  }
-  if (hasMeliRoute && (hasPackId || hasSellerHashId || hasNf)) {
+  if (hasMeliRoute && (hasPackId || hasSellerHashId)) {
     return 'Mercado Livre';
   }
 
@@ -182,8 +225,8 @@ export function extractOrderNumber(text: string, platform?: Platform | ''): stri
   const raw = text.trim();
 
   // A) SHEIN: Identificador GSH...
-  if (platform === 'SHEIN' || /\bgsh[0-9a-z]{8,20}\b/i.test(raw)) {
-    const sheinMatch = raw.match(/\b(GSH[0-9A-Z]{8,20})\b/i);
+  if (platform === 'SHEIN' || /\bgsh[0-9a-z]{8,22}\b/i.test(raw)) {
+    const sheinMatch = raw.match(/\b(GSH[0-9A-Z]{8,22})\b/i);
     if (sheinMatch) return sheinMatch[1].toUpperCase();
   }
 
@@ -191,16 +234,28 @@ export function extractOrderNumber(text: string, platform?: Platform | ''): stri
   if (platform === 'TikTok Shop') {
     // 1. Campo explícito "Pedido: 999882459194835" ou "Order ID: 999..."
     const mExplicit =
-      raw.match(/(?:pedido|order\s*(?:id|number|no\.?|#)?|id\s*do\s*pedido)\s*[:#\-]?\s*([0-9]{12,20})/i) ||
-      raw.match(/(?:pedido|order)\s*[:#\-]?\s*([0-9A-Z]{12,20})/i);
+      raw.match(
+        /(?:pedido|order\s*(?:id|number|no\.?|#)?|id\s*do\s*pedido|n[ºo°.]?\s*(?:do\s*)?pedido|n[ºo°.]?\s*pedido|ordem|ped[ilc1o][ldo0])\s*[:#\-]?\s*([0-9]{12,20})/i
+      ) ||
+      raw.match(/(?:pedido|order|ped[ilc1o][ldo0])\s*[:#\-]?\s*([0-9A-Z]{12,20})/i);
     if (mExplicit) {
       return mExplicit[1].trim();
     }
-    // 2. Padrão TikTok 999... ou 57... ou 58...
-    const mPattern = raw.match(/\b(999\d{11,13}|57\d{12,14}|58\d{12,14})\b/);
+    // 2. Padrão TikTok 999... ou 57... ou 58... ou 99...
+    const mPattern = raw.match(/\b(999\d{10,15}|57\d{11,16}|58\d{11,16}|99\d{11,16})\b/);
     if (mPattern) {
       return mPattern[1];
     }
+    // 3. Qualquer número longo de 14 a 18 dígitos na etiqueta (evitando CEP ou datas)
+    const longNums = raw.match(/\b(\d{14,18})\b/g) || [];
+    for (const num of longNums) {
+      if (!/^0+$/.test(num) && !/^\d{4}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])$/.test(num)) {
+        return num;
+      }
+    }
+    // 4. Rastreio J&T se disponível
+    const mJT = raw.match(/\b(JT\d{9,16})\b/i);
+    if (mJT) return mJT[1].toUpperCase();
   }
 
   // C) MERCADO LIVRE:
@@ -222,6 +277,12 @@ export function extractOrderNumber(text: string, platform?: Platform | ''): stri
     if (mPack) {
       return mPack[1].trim();
     }
+
+    // 3. Padrão numérico 20000... típico de Pack ID
+    const mPackDirect = raw.match(/\b(20000\d{10,12})\b/);
+    if (mPackDirect) {
+      return mPackDirect[1];
+    }
   }
 
   // D) SHOPEE:
@@ -241,21 +302,27 @@ export function extractOrderNumber(text: string, platform?: Platform | ''): stri
   }
 
   // E) BUSCA GENÉRICA RESILIENTE:
-  // 1. Rótulo explícito "Pedido", "Order ID", "Nº do Pedido"
+  // 1. Padrão específico TikTok (999..., 57..., 58...)
+  const mTikTokFallback = raw.match(/\b(999\d{10,15}|57\d{11,16}|58\d{11,16})\b/);
+  if (mTikTokFallback) {
+    return mTikTokFallback[1];
+  }
+
+  // 2. Rótulo explícito "Pedido", "Order ID", "Nº do Pedido"
   const mGenericExplicit = raw.match(
-    /(?:n[uú]mero\s*(?:do\s*)?pedido|order\s*(?:id|number|no\.?|#)|id\s*do\s*pedido|pedido)\s*[:#\-]?\s*([A-Z0-9][A-Z0-9\-]{7,25})/i
+    /(?:n[uú]mero\s*(?:do\s*)?pedido|order\s*(?:id|number|no\.?|#)|id\s*do\s*pedido|pedido|ped[ilc1o][ldo0])\s*[:#\-]?\s*([A-Z0-9][A-Z0-9\-]{7,25})/i
   );
   if (mGenericExplicit && !/^(?:00+|141)$/.test(mGenericExplicit[1].trim())) {
     return mGenericExplicit[1].trim();
   }
 
-  // 2. Pack ID genérico
+  // 3. Pack ID genérico
   const mGenericPack = raw.match(/pack\s*id\s*[:#\-]?\s*(\d{10,20})/i);
   if (mGenericPack) {
     return mGenericPack[1].trim();
   }
 
-  // 3. Padrão numérico longo (12 a 18 dígitos, típico de pedidos de marketplace)
+  // 4. Padrão numérico longo (12 a 18 dígitos, típico de pedidos de marketplace)
   // Rejeita CEPs, CNPJs, códigos curtos de NF ou números de vendedor iniciados com #
   const longNumbers = raw.match(/\b(\d{12,18})\b/g) || [];
   for (const num of longNumbers) {
@@ -281,14 +348,14 @@ export function segmentPageIntoLabels(pageText: string): string[] {
   if (text.length < 100) return [text];
 
   // 1. Divisão por linhas separadoras explícitas (ex: tracejados de corte entre etiquetas A4)
-  const lineSplits = text.split(/\n\s*[-_=]{5,}\s*\n/);
+  const lineSplits = text.split(/\n\s*[-_=]{4,}\s*\n/);
   if (lineSplits.length > 1 && lineSplits.every((s) => s.trim().length > 25)) {
     return lineSplits.map((s) => s.trim());
   }
 
   // 2. Verifica marcadores múltiplos de início de etiqueta em uma mesma página
   const headerRegex =
-    /(?:(?:remetente\s*:|destinat[aá]rio\s*:|pack\s*id\s*:|spx\s*express|j&t\s*express|shein\s*express)\b)/gi;
+    /(?:(?:remetente\s*:|destinat[aá]rio\s*:|pack\s*id\s*:|mercado\s*(?:envios|livre)|spx\s*express|shopee|shein\s*(?:express)?|gsh[0-9a-z]{8,}|tiktok(?:\s*shop)?|tik\s*tok|j\s*&?\s*t\s*(?:express)?|jnt\s*(?:express)?|pedido\s*:\s*(?:999|57|58|2[3-9]|gsh))\b)/gi;
 
   let match: RegExpExecArray | null;
   const indices: number[] = [];
@@ -349,8 +416,21 @@ export function processLabelBlock(
     };
   }
 
-  const platform = detectPlatform(textClean, fileName);
-  const orderNumber = extractOrderNumber(textClean, platform);
+  let platform = detectPlatform(textClean, fileName);
+  let orderNumber = extractOrderNumber(textClean, platform);
+
+  // Auto-resolução resiliente: se o número do pedido tiver padrão exclusivo de marketplace
+  if (!platform && orderNumber) {
+    if (/^(?:999\d{10,15}|57\d{11,16}|58\d{11,16})$/.test(orderNumber)) {
+      platform = 'TikTok Shop';
+    } else if (/^GSH[0-9A-Z]{8,22}$/i.test(orderNumber)) {
+      platform = 'SHEIN';
+    } else if (/^20000\d{10,12}$/.test(orderNumber)) {
+      platform = 'Mercado Livre';
+    } else if (/^2[3-9][0-9]{2}[A-Z0-9]{10,14}$/.test(orderNumber)) {
+      platform = 'Shopee';
+    }
+  }
 
   const hasPlatform = Boolean(platform);
   const hasOrder = Boolean(orderNumber);

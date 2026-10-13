@@ -77,6 +77,7 @@ export const WhatsAppReportView: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [tab, setTab] = useState<'processar' | 'historico'>('processar');
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [showConfirmClear, setShowConfirmClear] = useState(false);
 
   const client = getSupabaseClient();
 
@@ -209,17 +210,36 @@ export const WhatsAppReportView: React.FC = () => {
             setProgress(`Lendo página ${pageNum} de ${pdf.numPages} (${file.name})...`);
             const page = await pdf.getPage(pageNum);
 
-            // 1. Extrai texto nativo do PDF
+            // 1. Extrai texto nativo do PDF preservando quebras de linha reais
             const tc = await page.getTextContent();
-            const nativeText = tc.items
-              .map((x: any) => x.str || '')
-              .join(' ')
-              .trim();
+            let nativeText = '';
+            let lastY: number | null = null;
+            for (const item of (tc.items || []) as any[]) {
+              if (!item.str) continue;
+              const curY = item.transform ? item.transform[5] : null;
+              if (lastY !== null && curY !== null && Math.abs(curY - lastY) > 5) {
+                nativeText += '\n';
+              } else if (
+                nativeText.length > 0 &&
+                !nativeText.endsWith('\n') &&
+                !nativeText.endsWith(' ')
+              ) {
+                nativeText += ' ';
+              }
+              nativeText += item.str;
+              if (item.hasEOL) {
+                nativeText += '\n';
+              }
+              if (curY !== null) {
+                lastY = curY;
+              }
+            }
+            nativeText = nativeText.trim();
 
             let pageText = nativeText;
 
-            // 2. Verifica se o texto nativo contém plataforma e pedido
-            const testPlatform = detectPlatform(nativeText, file.name);
+            // 2. Verifica se o texto nativo contém plataforma e pedido (sem viés do nome do arquivo)
+            const testPlatform = detectPlatform(nativeText, '');
             const testOrder = extractOrderNumber(nativeText, testPlatform);
 
             // 3. Se faltar texto nativo (< 30 caracteres) ou não identificar plataforma/pedido,
@@ -489,19 +509,19 @@ export const WhatsAppReportView: React.FC = () => {
   }
 
   // Limpa lista atual com confirmação segura sem apagar o histórico salvo
-  function clearCurrentSession() {
-    if (
-      window.confirm(
-        'Tem certeza que deseja limpar a lista atual da tela? Os pedidos da sessão atual serão limpos. O histórico de lotes salvos NÃO será apagado.'
-      )
-    ) {
-      setLabels([]);
-      setFiles([]);
-      localStorage.removeItem(ORDER_KEY);
-      setNotice('Lista atual limpa com sucesso. O histórico salvo permanece seguro.');
-      setError('');
-    }
+  function handleClearClick() {
+    setShowConfirmClear(true);
   }
+
+  function executeClearSession() {
+    setLabels([]);
+    setFiles([]);
+    localStorage.removeItem(ORDER_KEY);
+    setNotice('Lista atual limpa com sucesso. O histórico salvo permanece seguro.');
+    setError('');
+    setShowConfirmClear(false);
+  }
+
 
   const platformCardStyles: Record<Platform, { border: string; bg: string; text: string; iconColor: string }> = {
     'Shopee': {
@@ -551,7 +571,7 @@ export const WhatsAppReportView: React.FC = () => {
 
         <button
           type="button"
-          onClick={clearCurrentSession}
+          onClick={handleClearClick}
           className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/60 px-3.5 py-2 text-sm text-slate-300 hover:border-slate-600 hover:text-white transition cursor-pointer"
         >
           <Trash2 className="h-4 w-4 text-slate-400" />
@@ -949,6 +969,39 @@ export const WhatsAppReportView: React.FC = () => {
             </div>
           )}
         </section>
+      )}
+
+      {/* Modal de Confirmação para Limpar Sessão */}
+      {showConfirmClear && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
+            <div className="flex items-center gap-3 text-amber-400">
+              <AlertTriangle className="h-6 w-6 shrink-0" />
+              <h3 className="text-lg font-bold text-white">Limpar lista da sessão?</h3>
+            </div>
+            <p className="mt-3 text-sm text-slate-300 leading-relaxed">
+              Tem certeza que deseja limpar a lista atual da tela? Os pedidos da sessão atual serão
+              descartados da visualização. O histórico de lotes salvos no sistema{' '}
+              <strong className="text-emerald-400">NÃO</strong> será apagado.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowConfirmClear(false)}
+                className="rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={executeClearSession}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500 transition shadow-lg shadow-red-600/30 cursor-pointer"
+              >
+                Sim, limpar lista
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

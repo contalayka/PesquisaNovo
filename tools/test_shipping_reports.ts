@@ -320,6 +320,74 @@ assert(
   `15. Arquivo de 23 etiquetas processa exatamente 23 pedidos únicos (8 ML + 7 Shopee + 5 TikTok + 3 SHEIN), com ZERO pendências e ZERO falsas duplicatas`
 );
 
+// =========================================================================
+// TESTE 16: Arquivo contendo Mercado Livre e TikTok Shop do mesmo vendedor
+// =========================================================================
+const mixedMeliPage = `
+ETIQUETA DE ENVIO
+REMETENTE: MEGA FEIRAO DAS LOUCAS LT #1476198771
+ROTA: XPR2 > XSP14_3 > SPR8
+NF: 141
+Pack ID: 2000015425355765
+DESTINATARIO: JOAO DA SILVA
+`;
+const mixedTikTokPage = `
+ETIQUETA DE ENVIO
+REMETENTE: MEGA FEIRAO DAS LOUCAS LT #1476198771
+TRANSPORTADORA: J&T EXPRESS
+NF: 142
+Pedido: 999882459194835
+DESTINATARIO: MARIA SOUZA
+`;
+const labelItem16a = processLabelBlock(mixedMeliPage, 'etiquetas_mistas.pdf', 1, 0);
+const labelItem16b = processLabelBlock(mixedTikTokPage, 'etiquetas_mistas.pdf', 2, 0);
+const summary16 = deduplicateAndSummarize([labelItem16a, labelItem16b]);
+assert(
+  summary16.totalUniqueOrders === 2 &&
+    summary16.counts['Mercado Livre'] === 1 &&
+    summary16.counts['TikTok Shop'] === 1 &&
+    labelItem16a.platform === 'Mercado Livre' &&
+    labelItem16a.orderNumber === '2000015425355765' &&
+    labelItem16b.platform === 'TikTok Shop' &&
+    labelItem16b.orderNumber === '999882459194835' &&
+    summary16.realPendingCount === 0,
+  `16. Arquivo contendo Mercado Livre e TikTok Shop do mesmo vendedor com NF reconhece ambos com exatidão (1 ML + 1 TikTok Shop)`
+);
+
+// =========================================================================
+// TESTE 17: TikTok Shop com variação JNT EXPRESS e sem palavra TikTok explícita
+// =========================================================================
+const tiktokJntText = `
+REMETENTE: MEGA FEIRAO DAS LOUCAS LT #1476198771
+JNT EXPRESS
+NF: 143
+Pedido: 999882459194835
+`;
+const labelItem17 = processLabelBlock(tiktokJntText, 'etiquetas_mercado_livre.pdf', 1, 0);
+assert(
+  labelItem17.platform === 'TikTok Shop' &&
+    labelItem17.orderNumber === '999882459194835' &&
+    labelItem17.confidence === 'Detectado',
+  `17. TikTok Shop reconhecido via JNT Express mesmo com nome de arquivo tendencioso e sem palavra TikTok`
+);
+
+// =========================================================================
+// TESTE 18: TikTok Shop com logotipos em imagem no PDF (apenas Pedido: 999... e NF)
+// =========================================================================
+const tiktokPureImageLogo = `
+REMETENTE: MEGA FEIRAO DAS LOUCAS LT #1476198771
+NF: 144
+Pedido: 999882459194835
+DESTINATARIO: CARLOS PEREIRA
+`;
+const labelItem18 = processLabelBlock(tiktokPureImageLogo, 'arquivo_geral.pdf', 1, 0);
+assert(
+  labelItem18.platform === 'TikTok Shop' &&
+    labelItem18.orderNumber === '999882459194835' &&
+    labelItem18.confidence === 'Detectado',
+  `18. TikTok Shop reconhecido pelo padrão exclusivo de pedido 999... mesmo com logotipo em imagem sem texto de cabeçalho`
+);
+
 console.log(`\n======================================================`);
 console.log(`RESULTADO FINAL: ${passedTests} de ${totalTests} TESTES APROVADOS!`);
 console.log(`======================================================\n`);
