@@ -32,7 +32,7 @@ function platformOf(t:string,fileName=''):Platform|''{
  return ranked[0][1]>0&&ranked[0][1]!==ranked[1][1]?ranked[0][0]:'';
 }
 function orderOf(t:string){
- const clean=t.toUpperCase().replace(/\b(SIMPLIFICADO|NORMAL|EXPRESS|STANDARD|ECONOMICO|ECONÔMICO|ETIQUETA|REMETENTE|DESTINATARIO|DESTINATÁRIO|TRANSPORTADORA|RASTREIO|CODIGO|CÓDIGO|PEDIDO|PACOTE|VOLUME|ENVIO|POSTAGEM)\b/g,' ');
+ const clean=t.toUpperCase().replace(/\b(SIMPLIFICADO|NORMAL|EXPRESS|STANDARD|ECONOMICO|ECONÔMICO|ETIQUETA|REMETENTE|DESTINATARIO|DESTINATÁRIO|TRANSPORTADORA|RASTREIO|CODIGO|CÓDIGO|PACOTE|VOLUME|ENVIO|POSTAGEM)\b/g,' ');
  const lines=clean.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
  // SHEIN shipment/order identifiers such as GSH... are more reliable than generic alphanumeric OCR.
  const shein=clean.match(/\bGSH[0-9A-Z]{8,20}\b/);
