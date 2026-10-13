@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createWorker } from 'tesseract.js';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+import pdfWorker from 'pdfjs-dist/legacy/build/pdf.worker.mjs?url';
+(pdfjsLib as any).GlobalWorkerOptions.workerSrc = pdfWorker;
 import { jsPDF } from 'jspdf';
 import { getSupabaseClient } from '../utils/supabase';
 import { CalendarDays, Check, Copy, FileDown, History, LoaderCircle, ScanLine, Trash2, Upload, AlertTriangle } from 'lucide-react';
