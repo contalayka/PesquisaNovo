@@ -72,7 +72,7 @@ async function parseFile(file:File,worker:any,progress:(s:string)=>void):Promise
    const ocr=img?(await worker.recognize(img)).data.text||'':'';
    txt=native+'\n'+ocr;
   }else txt=(await worker.recognize(raw)).data.text||'';
-  const p=platformOf(txt,file.name),n=orderOf(txt);
+  const n=orderOf(txt);const p=platformOf(txt,file.name)||(/^GSH/i.test(n)?'SHEIN':'');
   out.push({id:crypto.randomUUID(),file:file.name,platform:p,number:n,confidence:p&&n?'Detectado':'Revisar',duplicate:false,include:true});
  }
  return out;
