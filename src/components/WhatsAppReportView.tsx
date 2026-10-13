@@ -73,8 +73,16 @@ async function parseFile(file:File,worker:any,progress:(s:string)=>void):Promise
     const banner=document.createElement('canvas');const source=document.createElement('img');source.src=img;
     await new Promise<void>(resolve=>{source.onload=()=>resolve();source.onerror=()=>resolve();});
     if(source.naturalWidth&&source.naturalHeight){
-     banner.width=source.naturalWidth;banner.height=Math.max(1,Math.floor(source.naturalHeight*.19));
-     const bctx=banner.getContext('2d');if(bctx){bctx.drawImage(source,0,0,source.naturalWidth,banner.height,0,0,banner.width,banner.height);const bannerText=(await worker.recognize(banner)).data.text||'';ocr+='\n'+bannerText;}
+     banner.width=source.naturalWidth;banner.height=Math.max(1,Math.floor(source.naturalHeight*.36));
+     const bctx=banner.getContext('2d');if(bctx){
+      bctx.drawImage(source,0,0,source.naturalWidth,banner.height,0,0,banner.width,banner.height);
+      // Increase contrast and upscale the label header before OCR; logos/platform names are often small.
+      const enlarged=document.createElement('canvas');enlarged.width=banner.width*2;enlarged.height=banner.height*2;
+      const ectx=enlarged.getContext('2d');
+      if(ectx){ectx.filter='contrast(1.6) grayscale(1)';ectx.drawImage(banner,0,0,enlarged.width,enlarged.height);ectx.filter='none';}
+      const bannerText=(await worker.recognize(enlarged.width?enlarged:banner)).data.text||'';
+      ocr+='\n'+bannerText;
+     }
     }
    }
    txt=native+'\n'+ocr;
