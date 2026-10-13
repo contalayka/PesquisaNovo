@@ -19,17 +19,14 @@ function brDate(s:string){const [y,m,d]=(s||'').split('-');return y&&m&&d?d+'/'+
 function norm(s:string){return s.toUpperCase().replace(/[^A-Z0-9]/g,'');}
 async function hash(p:string,n:string){const a=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(p+':'+norm(n)));return [...new Uint8Array(a)].map(x=>x.toString(16).padStart(2,'0')).join('');}
 function platformOf(t:string,fileName=''):Platform|''{
- const s=(t+' '+fileName).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,' ');
- // Strong, distinctive label identifiers first; generic carrier wording is not enough.
- if(/\b(gsh[0-9a-z]{8,}|shein|sh[e3]in)\b/i.test(s))return 'SHEIN';
- const scores:Record<Platform,number>={
-  'Shopee':(s.match(/\bshopee\b|\bspx\b|spx express|shopee express/g)||[]).length,
-  'Mercado Livre':(s.match(/mercado livre|mercadolivre|mercado env[ií]os|mercado envios|\bmercado pago\b|\bmeli\b/g)||[]).length,
-  'TikTok Shop':(s.match(/tiktok\s*shop|tik\s*tok\s*shop|\btiktok\b/g)||[]).length,
-  'SHEIN':(s.match(/\bshein\b/g)||[]).length
- };
- const ranked=PLATFORMS.map(p=>[p,scores[p]] as [Platform,number]).sort((a,b)=>b[1]-a[1]);
- return ranked[0][1]>0&&ranked[0][1]!==ranked[1][1]?ranked[0][0]:'';
+ const normalize=(v:string)=>v.toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,' ').replace(/[^a-z0-9]+/g,' ').trim();
+ const s=normalize(t+' '+fileName);
+ // A plataforma escrita na etiqueta é a fonte principal; não exigir múltiplas ocorrências.
+ if(/\\bshein\\b|\\bsh ein\\b|\\bshein express\\b/.test(s)||/\\bgsh[0-9a-z]{8,}\\b/i.test(t))return 'SHEIN';
+ if(/\\bshopee\\b|\\bspx express\\b|\\bspxbr\\b/.test(s))return 'Shopee';
+ if(/\\bmercado livre\\b|\\bmercado envios?\\b|\\bmercadolivre\\b|\\bmercado pago\\b/.test(s))return 'Mercado Livre';
+ if(/\\btiktok shop\\b|\\btik tok shop\\b|\\btiktok\\b/.test(s))return 'TikTok Shop';
+ return '';
 }
 function orderOf(t:string){
  const clean=t.toUpperCase().replace(/\b(SIMPLIFICADO|NORMAL|EXPRESS|STANDARD|ECONOMICO|ECONÔMICO|ETIQUETA|REMETENTE|DESTINATARIO|DESTINATÁRIO|TRANSPORTADORA|RASTREIO|CODIGO|CÓDIGO|PACOTE|VOLUME|ENVIO|POSTAGEM)\b/g,' ');
