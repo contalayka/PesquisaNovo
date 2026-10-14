@@ -19,8 +19,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
       - name: Regenerate package lock
         run: npm install --package-lock-only --ignore-scripts
+      - name: Verify clean dependency installation
+        run: npm ci --ignore-scripts
+      - name: Verify production build
+        run: npm run build
       - name: Commit updated lockfile
         run: |
           if git diff --quiet -- package-lock.json; then
