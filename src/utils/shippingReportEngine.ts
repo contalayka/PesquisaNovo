@@ -341,7 +341,19 @@ export function extractOrderNumber(text: string, platform?: Platform | ''): stri
     );
     if (sheinMatch) return `GSH${sheinMatch[1].replace(/[^0-9A-Z]/gi, '').toUpperCase()}`;
 
-    // 2. Referência Shein GC (ex: Ref.No:GC2610134951478277 ou GC2610...)
+    // 2. O campo explícito Pedido é mais confiável que Ref.No (GC...) ou rastreios.
+    // Algumas etiquetas SHEIN/UpSeller mostram pedido alfanumérico sem prefixo GSH.
+    const explicitPedidoFirst = raw.match(
+      /(?:pedido(?:\\s*(?:shein|id|n[uú]mero|n[ºo°.]?))?|order\\s*(?:id|no\\.?|number|#)?)\\s*[:#\\-_*]*\\s*([A-Z0-9][A-Z0-9\\-]{7,29})/i
+    );
+    if (explicitPedidoFirst) {
+      const candidate = explicitPedidoFirst[1].replace(/[^A-Z0-9]/gi, '').toUpperCase();
+      if (candidate.length >= 8 && !/^(?:SHEIN|BRASIL|ANJUN|EXPRESS|LOGISTICS)$/i.test(candidate)) {
+        return candidate;
+      }
+    }
+
+    // 3. Referência Shein GC (ex: Ref.No:GC2610134951478277 ou GC2610...)
     const mGC = raw.match(/(?:\b|\*)(GC\d{8,22})(?:\b|\*)/i);
     if (mGC) return mGC[1].toUpperCase();
 
