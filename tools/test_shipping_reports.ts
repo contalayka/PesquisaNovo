@@ -656,6 +656,24 @@ assert(
   `30. Etiqueta real Mercado Livre (UpSeller ERP) identificada com Pack ID 2000015519771611`
 );
 
+// =========================================================================
+// TESTE 31: SHEINA (variação OCR) com pedido alfanumérico sem prefixo GSH
+// =========================================================================
+const sheinaOcrOrder = `
+UP8YXK010090 14/10/2026 11:03:33
+SHEINA PUDO D2D Anjun Express
+DESTINATÁRIO Pedido: 261014KVY30WGX
+Ref.No: GC2610134951478299
+AJ261013121661309
+`;
+const labelItem31 = processLabelBlock(sheinaOcrOrder, '14-10,1.pdf', 3, 0);
+assert(
+  labelItem31.platform === 'SHEIN' &&
+    labelItem31.orderNumber === '261014KVY30WGX' &&
+    labelItem31.confidence === 'Detectado',
+  `31. SHEINA reconhecida como SHEIN e Pedido 261014KVY30WGX priorizado sobre códigos de referência/rastreio`
+);
+
 console.log(`\n======================================================`);
 console.log(`RESULTADO FINAL: ${passedTests} de ${totalTests} TESTES APROVADOS!`);
 console.log(`======================================================\n`);
