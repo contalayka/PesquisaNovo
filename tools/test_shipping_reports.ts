@@ -674,6 +674,24 @@ assert(
   `31. SHEINA reconhecida como SHEIN e Pedido 261014KVY30WGX priorizado sobre códigos de referência/rastreio`
 );
 
+// =========================================================================
+// TESTE 32: múltiplos pedidos SHEIN dos PDFs enviados (inclui GSH em Ref.No e deduplica repetição)
+// =========================================================================
+const sheinOrdersFromUploadedDocs = [
+  processLabelBlock(`PUDO D2D\nPedido:GSH19213F001AHX\nRef.No: GC2610134951246850\nAJ261013121660301`, '13-10.pdf', 1, 0),
+  processLabelBlock(`PUDO-ANJ-FM\nPedido:GSH19U12A00NLJC\nRef.No: GC2610134951312389\n888002699073795`, '13-10.pdf', 4, 0),
+  processLabelBlock(`PUDO-ANJ-FM\nRef.No:GSH19C511001YN6\nGC2610134951412736\nPedido criado em: 10/10/2026`, '13-10.pdf', 7, 0),
+  processLabelBlock(`SHEIN PUDO D2D\nPedido:GSH19C572000RL9\nRef.No: GC2610134951478277\nAJ261013121661301`, '14-10,1.pdf', 1, 0),
+  processLabelBlock(`SHEIN PUDO D2D\nPedido:GSH19C572000RL9\nRef.No: GC2610134951478277\nAJ261013121661301`, '13-10.pdf', 8, 0),
+];
+const sheinMultiSummary = deduplicateAndSummarize(sheinOrdersFromUploadedDocs);
+assert(
+  sheinMultiSummary.counts['SHEIN'] === 4 &&
+    sheinMultiSummary.totalUniqueOrders === 4 &&
+    sheinMultiSummary.realPendingCount === 0,
+  `32. Quatro pedidos SHEIN únicos dos PDFs são contabilizados; GSH repetido entre arquivos é deduplicado sem virar pendência`
+);
+
 console.log(`\n======================================================`);
 console.log(`RESULTADO FINAL: ${passedTests} de ${totalTests} TESTES APROVADOS!`);
 console.log(`======================================================\n`);
