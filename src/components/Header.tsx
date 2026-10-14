@@ -149,8 +149,8 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="border-b border-slate-800 bg-[#0c101a] sticky top-0 z-20 transition-colors">
-      <div className="w-full px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-4">
+    <header className="mp-topbar border-b border-cyan-900/40 bg-[#03131e]/95 sticky top-0 z-20 transition-colors backdrop-blur-xl">
+      <div className="w-full px-4 sm:px-6 lg:px-8 h-[68px] flex items-center justify-between gap-4">
         {/* =======================================================
             1. BRAND & SECTION (Left Zone)
            ======================================================= */}
@@ -239,7 +239,7 @@ export const Header: React.FC<HeaderProps> = ({
               value={searchQuery}
               onChange={(e) => handleSearchInput(e.target.value)}
               placeholder="Buscar por produto, SKU ou EAN..."
-              className="w-full h-8.5 rounded-lg border border-slate-800 bg-[#121724] pl-8.5 pr-14 text-xs text-white placeholder:text-slate-500 focus:border-blue-500 focus:bg-[#151c2e] focus:ring-1 focus:ring-blue-500 focus:outline-none transition"
+              className="w-full h-8.5 rounded-lg border border-slate-800 bg-[#041c2a] pl-8.5 pr-14 text-xs text-white placeholder:text-slate-400 focus:border-emerald-400 focus:bg-[#062331] focus:ring-1 focus:ring-emerald-400 focus:outline-none transition"
             />
             {searchQuery ? (
               <button
