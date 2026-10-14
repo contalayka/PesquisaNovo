@@ -785,8 +785,9 @@ export function deduplicateAndSummarize(
         duplicate: true,
         duplicateScope: 'mesmo_arquivo',
         include: false,
-        confidence: 'Revisar',
-        pendingReason: 'Possível duplicata',
+        // Duplicata exata fica fora da contagem, mas não exige conferência manual.
+        confidence: 'Detectado',
+        pendingReason: '',
       });
       continue;
     }
@@ -803,8 +804,9 @@ export function deduplicateAndSummarize(
         duplicate: true,
         duplicateScope: 'historico_anterior',
         include: false,
-        confidence: 'Revisar',
-        pendingReason: 'Possível duplicata',
+        // Duplicata exata fica fora da contagem, mas não exige conferência manual.
+        confidence: 'Detectado',
+        pendingReason: '',
       });
       continue;
     }
