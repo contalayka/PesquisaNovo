@@ -189,3 +189,39 @@ html, body {
   .mp-app-content { padding-bottom: .5rem; }
   .mp-app-content .rounded-2xl { border-radius: 1rem; }
 }
+
+
+/* Strong shared page skin: the dashboard has bespoke classes; legacy menus do not.
+   Apply the same visible panel treatment to their existing markup without changing behavior. */
+.mp-app-content > * {
+  color: #e7f5ff;
+}
+.mp-app-content div[class*="rounded-"][class*="border"] {
+  border-color: rgba(0, 207, 255, .30) !important;
+}
+.mp-app-content div[class*="rounded-"][class*="border"][class*="bg-"] {
+  background-image: linear-gradient(145deg, rgba(5, 30, 44, .97), rgba(3, 15, 27, .98)) !important;
+}
+.mp-app-content div[class*="rounded-"][class*="border"][class*="bg-white"],
+.mp-app-content div[class*="rounded-"][class*="border"][class*="bg-gray-50"],
+.mp-app-content div[class*="rounded-"][class*="border"][class*="bg-gray-100"],
+.mp-app-content div[class*="rounded-"][class*="border"][class*="bg-slate-50"],
+.mp-app-content div[class*="rounded-"][class*="border"][class*="bg-slate-100"] {
+  background: linear-gradient(145deg, #062231, #041522) !important;
+  color: #e7f5ff !important;
+}
+.mp-app-content h1,
+.mp-app-content h2,
+.mp-app-content h3 {
+  color: #f0fbff;
+  letter-spacing: -.015em;
+}
+.mp-app-content label {
+  color: #b9d5e3;
+}
+.mp-app-content button:not([class*="bg-emerald"]):not([class*="bg-green"]):not([class*="bg-blue"]):not([class*="bg-red"]):not([class*="bg-rose"]):not([class*="bg-amber"]):not([class*="bg-orange"]):not([class*="bg-purple"]):not([class*="bg-pink"]) {
+  border-color: rgba(0, 207, 255, .28);
+}
+.mp-app-content hr {
+  border-color: rgba(0, 207, 255, .18);
+}
