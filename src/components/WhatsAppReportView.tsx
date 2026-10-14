@@ -238,42 +238,41 @@ export const WhatsAppReportView: React.FC = () => {
 
             let pageText = nativeText;
 
-            // 2. Verifica se o texto nativo contém plataforma e pedido (usando file.name como fallback)
-            const testPlatform = detectPlatform(nativeText, file.name);
-            const testOrder = extractOrderNumber(nativeText, testPlatform);
-
-            // 3. Se faltar texto nativo (< 30 caracteres) ou não identificar plataforma/pedido,
-            // renderiza canvas da página e aplica OCR focado
-            if (!testPlatform || !testOrder || nativeText.length < 30) {
-              try {
-                if (!worker) {
-                  setProgress('Carregando mecanismo de OCR...');
-                  worker = await createWorker('por+eng', 1, {
-                    logger: (m: any) => {
-                      if (m.status === 'recognizing text') {
-                        setProgress(
-                          `OCR página ${pageNum}/${pdf.numPages}: ${Math.round(m.progress * 100)}%`
-                        );
-                      }
-                    },
-                  });
-                }
-
-                const vp = page.getViewport({ scale: 2.0 });
-                const canvas = document.createElement('canvas');
-                canvas.width = Math.ceil(vp.width);
-                canvas.height = Math.ceil(vp.height);
-                const ctx = canvas.getContext('2d');
-
-                if (ctx) {
-                  await page.render({ canvasContext: ctx, viewport: vp }).promise;
-                  const ocrRes = await worker.recognize(canvas);
-                  const ocrText = ocrRes.data.text || '';
-                  pageText = nativeText ? `${nativeText}\n${ocrText}` : ocrText;
-                }
-              } catch (ocrErr) {
-                console.warn(`Erro no OCR da página ${pageNum}:`, ocrErr);
+            // 2. OCR obrigatório em PDFs: o texto nativo pode reconhecer o código de pedido
+            // como um Order SN da Shopee e ignorar o logotipo SHEIN, que costuma ser uma imagem.
+            // Isso é especialmente importante em etiquetas UpSeller com pedido numérico/alfanumérico.
+            try {
+              if (!worker) {
+                setProgress('Carregando mecanismo de OCR...');
+                worker = await createWorker('por+eng', 1, {
+                  logger: (m: any) => {
+                    if (m.status === 'recognizing text') {
+                      setProgress(
+                        `OCR página ${pageNum}/${pdf.numPages}: ${Math.round(m.progress * 100)}%`
+                      );
+                    }
+                  },
+                });
               }
+
+              const vp = page.getViewport({ scale: 2.5 });
+              const canvas = document.createElement('canvas');
+              canvas.width = Math.ceil(vp.width);
+              canvas.height = Math.ceil(vp.height);
+              const ctx = canvas.getContext('2d');
+
+              if (ctx) {
+                await page.render({ canvasContext: ctx, viewport: vp }).promise;
+                const ocrRes = await worker.recognize(canvas);
+                const ocrText = ocrRes.data.text || '';
+                // Texto nativo primeiro, OCR depois: detectPlatform prioriza marca explícita SHEIN
+                // sobre padrões de pedido que também podem aparecer em etiquetas SHEIN.
+                pageText = [nativeText, ocrText].filter(Boolean).join('\\n');
+              }
+            } catch (ocrErr) {
+              // OCR é adicional; se falhar, ainda tentamos processar o texto nativo do PDF.
+              console.warn(`Erro no OCR da página ${pageNum}:`, ocrErr);
+              pageText = nativeText;
             }
 
             // 4. Segmenta em etiquetas (suporta 1 etiqueta térmica por página ou várias em A4)
