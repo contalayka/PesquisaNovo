@@ -110,6 +110,8 @@ export function detectPlatform(text: string, fileName = ''): Platform | '' {
   // - Código de referência SHEIN: GC2610134951478277 (GC...) ou Ref. No
   const hasSheinMention =
     norm.includes('shein') ||
+    /\bsheina\b/i.test(raw) ||
+    /\bshein\s*a\b/i.test(raw) ||
     /\b[s5]\s*h\s*e\s*i\s*n\b/i.test(raw) ||
     norm.includes('sh ein') ||
     norm.includes('she in') ||
@@ -598,7 +600,7 @@ export function segmentPageIntoLabels(pageText: string): string[] {
   // 3. Se houver comprovadamente 2 ou mais pedidos distintos na mesma página (grade A4):
   // Divide nos cabeçalhos principais de início de etiqueta
   const headerRegex =
-    /(?:(?:etiqueta\s*de\s*envio|mercado\s*(?:envios|livre)|spx\s*express|shopee(?:\s*brasil)?|shein\s*(?:express|logistics|brasil)?|tiktok(?:\s*shop)?)\b)/gi;
+    /(?:(?:etiqueta\s*de\s*envio|mercado\s*(?:envios|livre)|spx\s*express|shopee(?:\s*brasil)?|shein(?:a)?\s*(?:express|logistics|brasil)?|tiktok(?:\s*shop)?)\b)/gi;
 
   let match: RegExpExecArray | null;
   const indices: number[] = [];
