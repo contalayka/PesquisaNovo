@@ -21,5 +21,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Type check
+        run: npm run lint
+
+      - name: Shipping label regression tests
+        run: npx tsx tools/test_shipping_reports.ts
+
       - name: Build
         run: npm run build
