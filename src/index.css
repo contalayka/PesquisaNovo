@@ -116,3 +116,76 @@ html, body {
   .mp-dashboard-hero { padding: 1rem; }
   .mp-metric { border-radius: 1rem; }
 }
+
+
+/* Shared MARKETPREÇO neon shell: keep the same visual language across every menu */
+.mp-app-content {
+  color: #e7f5ff;
+  min-width: 0;
+}
+.mp-app-content [class*="bg-[#121824"],
+.mp-app-content [class*="bg-[#111827"],
+.mp-app-content [class*="bg-[#0f172a"],
+.mp-app-content [class*="bg-[#071426"],
+.mp-app-content [class*="bg-[#050B16"] {
+  background-color: rgba(4, 24, 37, .94) !important;
+}
+.mp-app-content .rounded-xl.border,
+.mp-app-content .rounded-2xl.border,
+.mp-app-content .rounded-lg.border,
+.mp-app-content .rounded-xl[class*="border-"],
+.mp-app-content .rounded-2xl[class*="border-"],
+.mp-app-content .rounded-lg[class*="border-"] {
+  border-color: rgba(0, 174, 197, .28);
+}
+.mp-app-content [class*="bg-slate-900"],
+.mp-app-content [class*="bg-slate-800"],
+.mp-app-content [class*="bg-gray-900"],
+.mp-app-content [class*="bg-gray-800"] {
+  background-color: rgba(4, 24, 37, .92);
+}
+.mp-app-content input:not([type="checkbox"]):not([type="radio"]),
+.mp-app-content select,
+.mp-app-content textarea {
+  background-color: #061521;
+  border-color: rgba(0, 174, 197, .32);
+  color: #e7f5ff;
+  border-radius: .7rem;
+}
+.mp-app-content input:focus,
+.mp-app-content select:focus,
+.mp-app-content textarea:focus {
+  outline: 2px solid rgba(0, 245, 160, .45);
+  outline-offset: 1px;
+  border-color: #00bfa5;
+}
+.mp-app-content table thead {
+  background: rgba(0, 21, 32, .9);
+  color: #b8d8e8;
+}
+.mp-app-content table tbody tr {
+  border-color: rgba(0, 180, 205, .16);
+}
+.mp-app-content table tbody tr:hover {
+  background: rgba(0, 207, 255, .045);
+}
+.mp-app-content button {
+  transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+.mp-app-content button:focus-visible,
+.mp-app-content a:focus-visible {
+  outline: 2px solid #00f5a0;
+  outline-offset: 2px;
+}
+.mp-app-content [class*="text-slate-900"],
+.mp-app-content [class*="text-gray-900"] {
+  color: #e7f5ff;
+}
+.mp-app-content [class*="shadow-sm"],
+.mp-app-content [class*="shadow-md"] {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .16);
+}
+@media (max-width: 640px) {
+  .mp-app-content { padding-bottom: .5rem; }
+  .mp-app-content .rounded-2xl { border-radius: 1rem; }
+}
