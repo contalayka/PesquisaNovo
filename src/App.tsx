@@ -2138,6 +2138,7 @@ export default function App() {
             />
           )}
 
+          <div className="mp-app-content space-y-4">
           {/* VIEW: IMPORTAR CATÁLOGO */}
           {currentSidebarSection === 'importar' && (
             <CatalogImportView
@@ -2787,6 +2788,8 @@ export default function App() {
               )}
             </>
           )}
+          </div>
+
         </main>
       </div>
 
