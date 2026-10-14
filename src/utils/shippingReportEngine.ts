@@ -228,8 +228,8 @@ export function extractOrderNumber(text: string, platform?: Platform | ''): stri
   // Algumas etiquetas exibem o pedido em campo próprio e não imprimem o GSH;
   // nesses casos, usa o valor explicitamente associado a Pedido/Order ID.
   if (platform === 'SHEIN' || /\bgsh[0-9a-z]{8,22}\b/i.test(raw)) {
-    const sheinMatch = raw.match(/\b(GSH[0-9A-Z]{8,22})\b/i);
-    if (sheinMatch) return sheinMatch[1].toUpperCase();
+    const sheinMatch = raw.match(/\b(G\s*S\s*H)[\s\-]*([0-9A-Z]{8,22})\b/i);
+    if (sheinMatch) return `GSH${sheinMatch[2].replace(/[^0-9A-Z]/gi, '').toUpperCase()}`;
 
     const explicitSheinOrder = raw.match(
       /(?:order\s*(?:id|no\.?|number|#)|order\s*number|pedido(?:\s*(?:id|n[uú]mero|n[ºo°.]?))?|n[uú]mero\s*do\s*pedido|id\s*do\s*pedido)\s*[:#\-]?\s*([A-Z0-9][A-Z0-9\-]{7,29})/i
