@@ -344,7 +344,7 @@ export function extractOrderNumber(text: string, platform?: Platform | ''): stri
     // 2. O campo explícito Pedido é mais confiável que Ref.No (GC...) ou rastreios.
     // Algumas etiquetas SHEIN/UpSeller mostram pedido alfanumérico sem prefixo GSH.
     const explicitPedidoFirst = raw.match(
-      /(?:pedido(?:\\s*(?:shein|id|n[uú]mero|n[ºo°.]?))?|order\\s*(?:id|no\\.?|number|#)?)\\s*[:#\\-_*]*\\s*([A-Z0-9][A-Z0-9\\-]{7,29})/i
+      /(?:pedido(?:\s*(?:shein|id|n[uú]mero|n[ºo°.]?))?|order\s*(?:id|no\.?|number|#)?)\s*[:#\-_*]*\s*([A-Z0-9][A-Z0-9\-]{7,29})/i
     );
     if (explicitPedidoFirst) {
       const candidate = explicitPedidoFirst[1].replace(/[^A-Z0-9]/gi, '').toUpperCase();
