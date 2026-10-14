@@ -224,10 +224,24 @@ export function extractOrderNumber(text: string, platform?: Platform | ''): stri
 
   const raw = text.trim();
 
-  // A) SHEIN: Identificador GSH...
+  // A) SHEIN: prioriza o código GSH quando existe na etiqueta.
+  // Algumas etiquetas exibem o pedido em campo próprio e não imprimem o GSH;
+  // nesses casos, usa o valor explicitamente associado a Pedido/Order ID.
   if (platform === 'SHEIN' || /\bgsh[0-9a-z]{8,22}\b/i.test(raw)) {
     const sheinMatch = raw.match(/\b(GSH[0-9A-Z]{8,22})\b/i);
     if (sheinMatch) return sheinMatch[1].toUpperCase();
+
+    const explicitSheinOrder = raw.match(
+      /(?:order\s*(?:id|no\.?|number|#)|order\s*number|pedido(?:\s*(?:id|n[uú]mero|n[ºo°.]?))?|n[uú]mero\s*do\s*pedido|id\s*do\s*pedido)\s*[:#\-]?\s*([A-Z0-9][A-Z0-9\-]{7,29})/i
+    );
+    if (explicitSheinOrder) {
+      const candidate = explicitSheinOrder[1].replace(/[^A-Z0-9]/gi, '').toUpperCase();
+      // Não confundir código GSH já tratado acima nem CEP/telefone curtos.
+      if (candidate.length >= 8 && !/^0+$/.test(candidate)) return candidate;
+    }
+
+    // Sem código GSH ou campo explícito de pedido, não adivinha a partir de
+    // números aleatórios: evita contabilizar rastreio, telefone ou CEP como pedido.
   }
 
   // B) TIKTOK SHOP: Pedido explícito ou padrão 14-16 dígitos (ex: 999882459194835)
