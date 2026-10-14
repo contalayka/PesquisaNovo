@@ -60,9 +60,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const recent = products.slice(0, 6);
 
   return (
-    <div className="w-full space-y-4 pb-6">
+    <div className="mp-dashboard w-full space-y-4 pb-6">
       {/* 1. Header / Action Bar */}
-      <section className="bg-[#121824] border border-slate-800 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <section className="mp-panel mp-dashboard-hero rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
             Painel Geral do Catálogo
@@ -94,18 +94,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </section>
 
       {/* 2. Key Metrics Grid */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
         {/* Total */}
         <button
           type="button"
           onClick={() => onNavigateToProducts('all')}
-          className="text-left rounded-xl border border-slate-800 bg-[#121824] p-4 hover:border-slate-700 transition"
+          className="mp-metric mp-metric-total text-left rounded-2xl p-4 transition"
         >
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-medium">Total de Produtos</span>
             <Package className="h-4 w-4 text-slate-500" />
           </div>
-          <div className="mt-2 text-2xl font-bold text-white font-mono tabular-nums">
+          <div className="mt-2 text-3xl font-extrabold text-white font-mono tabular-nums tracking-tight">
             {total}
           </div>
           <span className="mt-1 block text-[11px] text-slate-500">
@@ -117,13 +117,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <button
           type="button"
           onClick={() => onNavigateToProducts('Encontrado')}
-          className="text-left rounded-xl border border-slate-800 bg-[#121824] p-4 hover:border-emerald-800/60 transition"
+          className="mp-metric mp-metric-ready text-left rounded-2xl p-4 transition"
         >
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-medium">Prontos / Encontrados</span>
             <CheckCircle2 className="h-4 w-4 text-emerald-400" />
           </div>
-          <div className="mt-2 text-2xl font-bold text-emerald-400 font-mono tabular-nums">
+          <div className="mt-2 text-3xl font-extrabold text-emerald-300 font-mono tabular-nums tracking-tight">
             {ready}
           </div>
           <span className="mt-1 block text-[11px] text-emerald-500/90 font-mono tabular-nums">
@@ -135,13 +135,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <button
           type="button"
           onClick={() => onNavigateToProducts('Pendente')}
-          className="text-left rounded-xl border border-slate-800 bg-[#121824] p-4 hover:border-amber-800/60 transition"
+          className="mp-metric mp-metric-pending text-left rounded-2xl p-4 transition"
         >
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-medium">Pesquisas Pendentes</span>
             <Clock className="h-4 w-4 text-amber-400" />
           </div>
-          <div className="mt-2 text-2xl font-bold text-amber-400 font-mono tabular-nums">
+          <div className="mt-2 text-3xl font-extrabold text-amber-300 font-mono tabular-nums tracking-tight">
             {pending}
           </div>
           <span className="mt-1 block text-[11px] text-slate-500">
@@ -153,13 +153,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <button
           type="button"
           onClick={() => onNavigateToProducts('Revisar')}
-          className="text-left rounded-xl border border-slate-800 bg-[#121824] p-4 hover:border-rose-800/60 transition"
+          className="mp-metric mp-metric-review text-left rounded-2xl p-4 transition"
         >
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-medium">Para Revisar</span>
             <AlertCircle className="h-4 w-4 text-rose-400" />
           </div>
-          <div className="mt-2 text-2xl font-bold text-rose-400 font-mono tabular-nums">
+          <div className="mt-2 text-3xl font-extrabold text-pink-400 font-mono tabular-nums tracking-tight">
             {review}
           </div>
           <span className="mt-1 block text-[11px] text-slate-500">
@@ -169,11 +169,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </section>
 
       {/* 3. Main Workspace Grid: Progress + Recent Products + Quick Conversion */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 2xl:grid-cols-3 gap-4">
         {/* Left 2 Cols: Progress & Table */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="2xl:col-span-2 space-y-4">
           {/* Progress Strip (Compact & Clean) */}
-          <div className="rounded-xl border border-slate-800 bg-[#121824] p-4">
+          <div className="mp-panel rounded-2xl p-4">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-xs font-semibold text-slate-200 uppercase tracking-wider">
@@ -189,9 +189,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
 
             {/* Compact Linear Progress */}
-            <div className="mt-2.5 h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+            <div className="mt-2.5 h-3 w-full rounded-full bg-slate-900 overflow-hidden border border-cyan-900/40">
               <div
-                className="h-full bg-emerald-500 transition-all duration-300"
+                className="h-full bg-gradient-to-r from-emerald-400 via-emerald-300 to-cyan-400 transition-all duration-300 shadow-[0_0_14px_rgba(0,255,170,.4)]"
                 style={{ width: `${percent}%` }}
               />
             </div>
@@ -217,7 +217,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           {/* Recent Products Data Table */}
-          <div className="rounded-xl border border-slate-800 bg-[#121824] overflow-hidden">
+          <div className="mp-panel rounded-2xl overflow-hidden">
             <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
               <div>
                 <h2 className="text-xs font-semibold text-slate-200 uppercase tracking-wider">
@@ -230,7 +230,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <button
                 type="button"
                 onClick={() => onNavigateToProducts('all')}
-                className="text-xs font-medium text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                className="text-xs font-medium text-cyan-300 hover:text-emerald-300 flex items-center gap-1"
               >
                 <span>Ver todos</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -244,7 +244,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-[#0e1320] text-[10px] uppercase font-semibold text-slate-400 border-b border-slate-800">
+                  <thead className="bg-[#06202b] text-[10px] uppercase font-semibold text-cyan-100/70 border-b border-cyan-900/50">
                     <tr>
                       <th className="py-2.5 px-3">Produto</th>
                       <th className="py-2.5 px-3">SKU</th>
@@ -253,11 +253,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       <th className="py-2.5 px-3 text-right">Ação</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/60">
+                  <tbody className="divide-y divide-cyan-900/30">
                     {recent.map((p) => (
                       <tr
                         key={p.id}
-                        className="hover:bg-slate-800/40 transition-colors"
+                        className="hover:bg-emerald-400/[0.045] transition-colors"
                       >
                         <td className="py-2.5 px-3">
                           <div className="flex items-center gap-2.5 min-w-0 max-w-xs">
@@ -307,7 +307,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           <button
                             type="button"
                             onClick={() => onOpenResearch(p)}
-                            className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-400 hover:text-blue-300"
+                            className="inline-flex items-center gap-1 text-[11px] font-medium text-cyan-300 hover:text-emerald-300"
                           >
                             <span>Pesquisar</span>
                             <ChevronRight className="w-3.5 h-3.5" />
@@ -325,7 +325,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Right 1 Col: Quick Actions & Channels */}
         <div className="space-y-4">
           {/* Quick Conversion Card */}
-          <div className="rounded-xl border border-slate-800 bg-[#121824] p-4 flex flex-col justify-between">
+          <div className="mp-panel rounded-2xl p-4 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between pb-2 border-b border-slate-800">
                 <span className="text-xs font-semibold text-slate-200 uppercase tracking-wider">
@@ -363,7 +363,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           {/* Catalog Summary Card */}
-          <div className="rounded-xl border border-slate-800 bg-[#121824] p-4 text-xs space-y-3">
+          <div className="mp-panel rounded-2xl p-4 text-xs space-y-3">
             <h3 className="font-semibold text-slate-200 uppercase tracking-wider text-[11px]">
               Resumo Operacional
             </h3>

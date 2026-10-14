@@ -125,13 +125,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const sidebarContent = (
     <div
-      className={`flex flex-col h-full bg-[#0e1320] border-r border-slate-800 text-slate-300 select-none overflow-hidden transition-[width] duration-200 ease-out ${
+      className={`flex flex-col h-full bg-[#03131e] border-r border-cyan-900/40 text-slate-300 select-none overflow-hidden transition-[width] duration-200 ease-out ${
         isCollapsed ? 'w-[68px]' : 'w-[236px]'
       }`}
     >
       {/* Brand area */}
       <div
-        className={`h-14 px-3.5 flex items-center border-b border-slate-800 shrink-0 bg-[#0b0f1a] ${
+        className={`h-14 px-3.5 flex items-center border-b border-slate-800 shrink-0 bg-[#02101a] ${
           isCollapsed ? 'justify-center' : 'justify-between'
         }`}
       >
@@ -168,7 +168,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onOpenAddProduct();
             onCloseMobile();
           }}
-          className={`w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs py-2 transition shadow-xs ${
+          className={`w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-400 to-emerald-300 hover:brightness-110 text-[#032019] text-white font-semibold text-xs py-2 transition shadow-xs ${
             isCollapsed ? 'px-0' : 'px-3'
           }`}
           title={isCollapsed ? 'Adicionar Novo Produto' : undefined}
@@ -192,14 +192,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 title={isCollapsed ? `${item.label}${item.badge ? ` (${item.badge})` : ''}` : undefined}
                 className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${
                   isActive
-                    ? 'bg-blue-600/15 text-blue-400 font-semibold'
+                    ? 'bg-emerald-400/15 text-emerald-300 font-semibold shadow-[inset_3px_0_0_#00f5a0]'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
                 } ${isCollapsed ? 'justify-center' : 'justify-between'}`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <Icon
                     className={`w-4 h-4 shrink-0 transition-colors ${
-                      isActive ? 'text-blue-400' : 'text-slate-400 group-hover:text-slate-300'
+                      isActive ? 'text-emerald-300' : 'text-slate-400 group-hover:text-slate-300'
                     }`}
                   />
                   {!isCollapsed && <span className="truncate">{item.label}</span>}
@@ -298,7 +298,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <aside
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        className={`hidden md:block fixed inset-y-0 left-0 z-50 overflow-visible shadow-lg transition-[width] duration-200 ease-out ${
+        className={`hidden md:block relative shrink-0 self-stretch overflow-visible shadow-lg transition-[width] duration-200 ease-out min-h-screen ${
           isCollapsed ? 'w-[68px]' : 'w-[236px]'
         }`}
         aria-label="Barra lateral"

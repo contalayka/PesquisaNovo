@@ -2011,7 +2011,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050B16] text-slate-100 flex transition-colors duration-200">
+    <div className="min-h-screen bg-[#020d16] text-slate-100 flex transition-colors duration-200">
       {/* 1. SIDEBAR — stays in compact 72px rail and auto-expands gracefully on mouse hover */}
       <Sidebar
         isMobileOpen={isMobileSidebarOpen}
@@ -2032,7 +2032,7 @@ export default function App() {
       />
 
       {/* Main App Container — premium dark workspace, with stable 72px compact sidebar rail space on desktop */}
-      <div className="flex-1 min-w-0 flex flex-col md:pl-[72px] transition-all duration-200 ease-in-out">
+      <div className="flex-1 min-w-0 flex flex-col transition-all duration-200 ease-in-out">
         {/* 2. HEADER */}
         <Header
           currentSection={currentSidebarSection}
