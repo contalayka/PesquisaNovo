@@ -420,6 +420,242 @@ assert(
   `18. TikTok Shop reconhecido pelo padrão exclusivo de pedido 999... mesmo com logotipo em imagem sem texto de cabeçalho`
 );
 
+// =========================================================================
+// TESTE 19: SHEIN com parceiro Pegaki e código de referência GC...
+// =========================================================================
+const sheinPegakiText = `
+PONTO DE COLETA: REDE PEGAKI
+CARRIER: PEGAKI BRASIL
+REF. NO: GC2610134951478277
+DESTINATARIO: JULIANA SILVA
+DF-W-H01
+`;
+const labelItem19 = processLabelBlock(sheinPegakiText, 'lote_shein.pdf', 1, 0);
+assert(
+  labelItem19.platform === 'SHEIN' &&
+    labelItem19.orderNumber === 'GC2610134951478277' &&
+    labelItem19.confidence === 'Detectado',
+  `19. SHEIN reconhecida com parceiro logístico Pegaki e código GC extraído com sucesso`
+);
+
+// =========================================================================
+// TESTE 20: SHEIN com OCR espaçado (S H E I N) e código GSH
+// =========================================================================
+const sheinSpacedText = `
+ETIQUETA DE ENVIO
+S H E I N   B R A S I L
+Pedido: GSHNA4190008821
+DESTINATARIO: MARIANA COSTA
+`;
+const labelItem20 = processLabelBlock(sheinSpacedText, 'shein_espacado.pdf', 1, 0);
+assert(
+  labelItem20.platform === 'SHEIN' &&
+    labelItem20.orderNumber === 'GSHNA4190008821' &&
+    labelItem20.confidence === 'Detectado',
+  `20. SHEIN com OCR espaçado "S H E I N" e código GSHNA... detectada com sucesso`
+);
+
+// =========================================================================
+// TESTE 21: SHEIN com erro de OCR no 'G' (6SH ou CSH)
+// =========================================================================
+const sheinOcrGlitch = `
+SHEIN MARKETPLACE
+6SH19C572000RL9
+DESTINATARIO: PAULA SANTOS
+`;
+const labelItem21 = processLabelBlock(sheinOcrGlitch, 'shein_glitch.pdf', 1, 0);
+assert(
+  labelItem21.platform === 'SHEIN' &&
+    labelItem21.orderNumber === 'GSH19C572000RL9' &&
+    labelItem21.confidence === 'Detectado',
+  `21. SHEIN recupera e normaliza código GSH mesmo com OCR lendo 6SH em vez de GSH`
+);
+
+// =========================================================================
+// TESTE 22: SHEIN Nacional com razão social e transportadora Anjun
+// =========================================================================
+const sheinRazaoSocial = `
+REMETENTE: SHEIN BRASIL TECNOLOGIA DA INFORMACAO LTDA
+CNPJ: 44.498.492/0001-53
+ANJUN EXPRESS
+Rastreio: AJ9876543210
+Pedido: SHN202410149912
+`;
+const labelItem22 = processLabelBlock(sheinRazaoSocial, 'shein_nacional.pdf', 1, 0);
+assert(
+  labelItem22.platform === 'SHEIN' &&
+    labelItem22.orderNumber === 'SHN202410149912' &&
+    labelItem22.confidence === 'Detectado',
+  `22. SHEIN Nacional identificada via Razão Social / CNPJ Shein e código SHN extraído`
+);
+
+// =========================================================================
+// TESTE 23: Lote com 4 etiquetas distintas (1 de cada plataforma), incluindo SHEIN
+// =========================================================================
+const summaryFourMarkets = deduplicateAndSummarize([
+  processLabelBlock(meliLabelText, 'ml.pdf', 1, 0), // ML
+  processLabelBlock(tiktokLabelText, 'tiktok.pdf', 1, 0), // TikTok
+  labelItem19, // SHEIN Pegaki
+  processLabelBlock(shopeeLabelText, 'shopee.pdf', 1, 0), // Shopee
+]);
+assert(
+  summaryFourMarkets.totalUniqueOrders === 4 &&
+    summaryFourMarkets.counts['Mercado Livre'] === 1 &&
+    summaryFourMarkets.counts['TikTok Shop'] === 1 &&
+    summaryFourMarkets.counts['SHEIN'] === 1 &&
+    summaryFourMarkets.counts['Shopee'] === 1 &&
+    summaryFourMarkets.realPendingCount === 0,
+  `23. Relatório consolidado com 1 pedido único em cada um dos 4 marketplaces incluindo SHEIN`
+);
+
+// =========================================================================
+// TESTE 24: Página com 1 etiqueta SHEIN térmica não é cortada ao meio pelo segmentador
+// =========================================================================
+const singleSheinPage = `
+ETIQUETA DE ENVIO SHEIN
+REMETENTE: LOJA MODA FASHION LTDA
+DESTINATARIO: JULIANA SILVA
+RUA DAS FLORES, 123 - CURITIBA PR
+
+PEDIDO: GSH19C572000RL9
+RASTREIO: AJ123456789BR
+`;
+const singleSegments = segmentPageIntoLabels(singleSheinPage);
+assert(
+  singleSegments.length === 1,
+  `24. Página com 1 única etiqueta SHEIN não é dividida em fragmentos (1 segmento preservado)`
+);
+
+// =========================================================================
+// TESTE 25: SHEIN com rastreio oficial Correios NL...BR e pedido numérico
+// =========================================================================
+const sheinCorreiosText = `
+CORREIOS - SEDEX
+PLP: 123456789
+RASTREIO: NL987654321BR
+DESTINATARIO: PAULA SOUZA
+PEDIDO: 884920194835
+`;
+const labelItem25 = processLabelBlock(sheinCorreiosText, 'etiquetas_geral.pdf', 1, 0);
+assert(
+  labelItem25.platform === 'SHEIN' &&
+    labelItem25.orderNumber === '884920194835' &&
+    labelItem25.confidence === 'Detectado',
+  `25. SHEIN identificada via rastreio oficial Correios NL...BR com pedido numérico 884920194835`
+);
+
+// =========================================================================
+// TESTE 26: SHEIN com código de pedido prefixo SH...
+// =========================================================================
+const sheinShCode = `
+ETIQUETA DE ENVIO
+DESTINATARIO: CARLA MENDES
+PEDIDO: SH2410149912345
+`;
+const labelItem26 = processLabelBlock(sheinShCode, 'remessa.pdf', 1, 0);
+assert(
+  labelItem26.platform === 'SHEIN' &&
+    labelItem26.orderNumber === 'SH2410149912345' &&
+    labelItem26.confidence === 'Detectado',
+  `26. SHEIN identificada via padrão exclusivo de pedido SH2410149912345`
+);
+
+// =========================================================================
+// TESTE 27: Fallback por nome do arquivo quando logotipo no texto é imagem
+// =========================================================================
+const sheinImageLogoText = `
+REMETENTE: MEU ECOMMERCE
+DESTINATARIO: MARCOS LIMA
+PEDIDO: 1000492817492
+`;
+const labelItem27 = processLabelBlock(sheinImageLogoText, 'lote_shein_hoje.pdf', 1, 0);
+assert(
+  labelItem27.platform === 'SHEIN' &&
+    labelItem27.orderNumber === '1000492817492' &&
+    labelItem27.confidence === 'Detectado',
+  `27. SHEIN resgatada com sucesso pelo nome do arquivo quando texto não tem marca textual explícita`
+);
+
+// =========================================================================
+// TESTE 28: Etiqueta real SHEIN UpSeller ERP (Screenshot enviado pelo usuário)
+// =========================================================================
+const realSheinScreenshotText = `
+UP8YXK010082 14/10/2026 11:03:33 1/3
+SHEIN PUDO D2D Anjun Express
+DESTINATÁRIO Pedido:GSH19C572000RL9
+Elizete Bousquet Ofugi
+SQN 116 Bloco I, 504, Asa Norte, Asa Norte
+Brasília / Distrito Federal
+CEP:70773-090 Ref.No: GC2610134951478277
+AJ261013121661301
+DF-W-H001 D2D
+DF-W-D013 707
+REMETENTE Peso bruto:0.43kg
+Juliano Souza Campos
+Avenida dez de dezembro, 5800, Iga pó
+Londrina / Paraná
+CEP:86046-140 Data de envio: 13/10/2026
+SKU: 1; Total Items: 1; #UP8YXK010082; Deadline:15/10/2026
+1. Manteigueira Em Vidro Redonda Round 10cm Manteiga Mimo *1
+`;
+const labelItem28 = processLabelBlock(realSheinScreenshotText, '14-10,1.pdf', 1, 0);
+assert(
+  labelItem28.platform === 'SHEIN' &&
+    labelItem28.orderNumber === 'GSH19C572000RL9' &&
+    labelItem28.confidence === 'Detectado',
+  `28. Etiqueta real SHEIN (UpSeller ERP / Anjun) identificada com Pedido GSH19C572000RL9 sem pendências`
+);
+
+// =========================================================================
+// TESTE 29: Etiqueta real Shopee UpSeller ERP (Screenshot enviado pelo usuário)
+// =========================================================================
+const realShopeeScreenshotText = `
+UP8YXK010089 14/10/2026 11:03:33 2/3
+DESTINATÁRIO Shopee
+Andre Costa Pinto
+Triocoisas-Ana Jarvis, 164, N/A, Vila Scarpelli, Santo André, São Paulo, 09190110, Santo André, São Paulo
+Bairro:
+CEP: 09190-110
+Pedido: 261014KVS9XT7W
+`;
+const labelItem29 = processLabelBlock(realShopeeScreenshotText, '14-10,1.pdf', 2, 0);
+assert(
+  labelItem29.platform === 'Shopee' &&
+    labelItem29.orderNumber === '261014KVS9XT7W' &&
+    labelItem29.confidence === 'Detectado',
+  `29. Etiqueta real Shopee (UpSeller ERP) identificada com Pedido 261014KVS9XT7W sem pendências`
+);
+
+// =========================================================================
+// TESTE 30: Etiqueta real Mercado Livre UpSeller ERP (Screenshot enviado pelo usuário)
+// =========================================================================
+const realMeliScreenshotText = `
+UP9PXS010783 14/10/2026 12:24:14 7/7
+MEGA FEIRAO DAS LOUCAS LT #1476198771
+Avenida Tiradentes 7100 Bairro Jardim Rosicler
+Londrina BR-PR 86072000
+Pack ID: 2000015519771611
+XPR2 Despachar: quinta 15/out
+48255150941
+4 XPR2 XSP14_4 01:00
+62 SRS1_A 05:00
+XPR2 > XSP14 > ASP1 > ARS1 > SRS1 > 18
+DOM 18/10/2026 NF: 153
+Luciana Medeiros Botta (BEJ180793)
+Endereço: Rua Ely Costa 60, Boa Vista
+CEP: 90480110
+Cidade de destino: Porto Alegre, Rio Grande do Sul
+SKU: 1; Total Items: 6; #UP9PXS010783; Deadline:15/10/2026
+1. Manteigueira Em Vidro Redonda Round 10cm Manteiga Mimo (*6)
+`;
+const labelItem30 = processLabelBlock(realMeliScreenshotText, '14-10,1.pdf', 7, 0);
+assert(
+  labelItem30.platform === 'Mercado Livre' &&
+    labelItem30.orderNumber === '2000015519771611' &&
+    labelItem30.confidence === 'Detectado',
+  `30. Etiqueta real Mercado Livre (UpSeller ERP) identificada com Pack ID 2000015519771611`
+);
+
 console.log(`\n======================================================`);
 console.log(`RESULTADO FINAL: ${passedTests} de ${totalTests} TESTES APROVADOS!`);
 console.log(`======================================================\n`);

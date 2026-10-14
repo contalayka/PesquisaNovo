@@ -238,37 +238,41 @@ export const WhatsAppReportView: React.FC = () => {
 
             let pageText = nativeText;
 
-            // 2. Verifica se o texto nativo contém plataforma e pedido (sem viés do nome do arquivo)
-            const testPlatform = detectPlatform(nativeText, '');
+            // 2. Verifica se o texto nativo contém plataforma e pedido (usando file.name como fallback)
+            const testPlatform = detectPlatform(nativeText, file.name);
             const testOrder = extractOrderNumber(nativeText, testPlatform);
 
             // 3. Se faltar texto nativo (< 30 caracteres) ou não identificar plataforma/pedido,
             // renderiza canvas da página e aplica OCR focado
             if (!testPlatform || !testOrder || nativeText.length < 30) {
-              if (!worker) {
-                setProgress('Carregando mecanismo de OCR...');
-                worker = await createWorker('por+eng', 1, {
-                  logger: (m: any) => {
-                    if (m.status === 'recognizing text') {
-                      setProgress(
-                        `OCR página ${pageNum}/${pdf.numPages}: ${Math.round(m.progress * 100)}%`
-                      );
-                    }
-                  },
-                });
-              }
+              try {
+                if (!worker) {
+                  setProgress('Carregando mecanismo de OCR...');
+                  worker = await createWorker('por+eng', 1, {
+                    logger: (m: any) => {
+                      if (m.status === 'recognizing text') {
+                        setProgress(
+                          `OCR página ${pageNum}/${pdf.numPages}: ${Math.round(m.progress * 100)}%`
+                        );
+                      }
+                    },
+                  });
+                }
 
-              const vp = page.getViewport({ scale: 2.0 });
-              const canvas = document.createElement('canvas');
-              canvas.width = Math.ceil(vp.width);
-              canvas.height = Math.ceil(vp.height);
-              const ctx = canvas.getContext('2d');
+                const vp = page.getViewport({ scale: 2.0 });
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.ceil(vp.width);
+                canvas.height = Math.ceil(vp.height);
+                const ctx = canvas.getContext('2d');
 
-              if (ctx) {
-                await page.render({ canvasContext: ctx, viewport: vp }).promise;
-                const ocrRes = await worker.recognize(canvas);
-                const ocrText = ocrRes.data.text || '';
-                pageText = nativeText ? `${nativeText}\n${ocrText}` : ocrText;
+                if (ctx) {
+                  await page.render({ canvasContext: ctx, viewport: vp }).promise;
+                  const ocrRes = await worker.recognize(canvas);
+                  const ocrText = ocrRes.data.text || '';
+                  pageText = nativeText ? `${nativeText}\n${ocrText}` : ocrText;
+                }
+              } catch (ocrErr) {
+                console.warn(`Erro no OCR da página ${pageNum}:`, ocrErr);
               }
             }
 
@@ -522,6 +526,25 @@ export const WhatsAppReportView: React.FC = () => {
     setShowConfirmClear(false);
   }
 
+
+  // Permite confirmar ou alterar a plataforma/pedido de uma etiqueta com pendência em 1 clique
+  function handleResolvePending(itemId: string, targetPlatform: Platform, newOrder?: string) {
+    setLabels((prev) =>
+      prev.map((it) => {
+        if (it.id !== itemId) return it;
+        const finalOrder = (newOrder !== undefined ? newOrder : it.orderNumber || '').trim();
+        return {
+          ...it,
+          platform: targetPlatform,
+          orderNumber: finalOrder,
+          confidence: finalOrder ? 'Detectado' : 'Revisar',
+          pendingReason: finalOrder ? '' : 'Número do pedido não encontrado',
+          include: Boolean(finalOrder),
+        };
+      })
+    );
+    setNotice(`Etiqueta atualizada para ${targetPlatform} com sucesso!`);
+  }
 
   const platformCardStyles: Record<Platform, { border: string; bg: string; text: string; iconColor: string }> = {
     'Shopee': {
@@ -779,6 +802,79 @@ export const WhatsAppReportView: React.FC = () => {
                 </div>
               </div>
 
+              {/* Painel Interativo de Resolução Imediata de Pendências */}
+              {summary.realPendingCount > 0 && (
+                <div className="rounded-xl border border-amber-900/70 bg-amber-950/30 p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-amber-300 font-semibold text-sm">
+                    <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
+                    <span>{summary.realPendingCount} etiqueta(s) pendente(s) de conferência</span>
+                  </div>
+                  <p className="text-xs text-slate-300">
+                    O sistema detectou páginas onde o logotipo é imagem ou a identificação precisa de confirmação. Você pode confirmá-las com 1 clique abaixo:
+                  </p>
+                  <div className="space-y-2">
+                    {summary.items
+                      .filter((it) => it.confidence === 'Revisar' && !it.duplicate)
+                      .map((it) => (
+                        <div
+                          key={it.id}
+                          className="rounded-lg border border-slate-800 bg-slate-900/80 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                        >
+                          <div>
+                            <div className="text-slate-200 font-medium">
+                              Página #{it.page} ({it.file})
+                            </div>
+                            <div className="text-amber-400 text-[11px] mt-0.5">
+                              Motivo: {it.pendingReason || 'Pendente de conferência'}
+                            </div>
+                            {it.orderNumber && (
+                              <div className="text-emerald-400 font-mono text-[11px] mt-0.5">
+                                Identificador extraído: {it.orderNumber}
+                              </div>
+                            )}
+                            {it.rawSnippet && (
+                              <div className="text-slate-400 font-mono text-[11px] mt-1 truncate max-w-md">
+                                Trecho: {it.rawSnippet}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                            <span className="text-[11px] text-slate-400 mr-1">Confirmar como:</span>
+                            <button
+                              type="button"
+                              onClick={() => handleResolvePending(it.id, 'SHEIN')}
+                              className="px-2.5 py-1 rounded bg-rose-950/80 border border-rose-700/60 text-rose-300 hover:bg-rose-900 font-medium cursor-pointer transition"
+                            >
+                              SHEIN
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleResolvePending(it.id, 'Shopee')}
+                              className="px-2.5 py-1 rounded bg-amber-950/80 border border-amber-700/60 text-amber-300 hover:bg-amber-900 font-medium cursor-pointer transition"
+                            >
+                              Shopee
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleResolvePending(it.id, 'TikTok Shop')}
+                              className="px-2.5 py-1 rounded bg-slate-800 border border-slate-600 text-slate-200 hover:bg-slate-700 font-medium cursor-pointer transition"
+                            >
+                              TikTok Shop
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleResolvePending(it.id, 'Mercado Livre')}
+                              className="px-2.5 py-1 rounded bg-yellow-950/80 border border-yellow-700/60 text-yellow-300 hover:bg-yellow-900 font-medium cursor-pointer transition"
+                            >
+                              Mercado Livre
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
               {/* Prévia da Mensagem Oficial WhatsApp */}
               <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
                 <div className="flex items-center justify-between text-xs text-slate-400 font-medium mb-2">
@@ -818,7 +914,7 @@ export const WhatsAppReportView: React.FC = () => {
                           <th className="p-2">Arquivo</th>
                           <th className="p-2">Marketplace</th>
                           <th className="p-2">Identificador</th>
-                          <th className="p-2">Status</th>
+                          <th className="p-2">Status / Ação</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -845,9 +941,25 @@ export const WhatsAppReportView: React.FC = () => {
                               ) : item.confidence === 'Detectado' ? (
                                 <span className="text-emerald-400">Confirmado</span>
                               ) : (
-                                <span className="text-amber-400">
-                                  {item.pendingReason || 'Pendente'}
-                                </span>
+                                <div className="flex flex-wrap items-center gap-1">
+                                  <span className="text-amber-400 mr-1">
+                                    {item.pendingReason || 'Pendente'}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleResolvePending(item.id, 'SHEIN')}
+                                    className="px-1.5 py-0.5 text-[10px] rounded bg-rose-950 border border-rose-700/60 text-rose-300 hover:bg-rose-900"
+                                  >
+                                    + SHEIN
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleResolvePending(item.id, 'Shopee')}
+                                    className="px-1.5 py-0.5 text-[10px] rounded bg-amber-950 border border-amber-700/60 text-amber-300 hover:bg-amber-900"
+                                  >
+                                    + Shopee
+                                  </button>
+                                </div>
                               )}
                             </td>
                           </tr>

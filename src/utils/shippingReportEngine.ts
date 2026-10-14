@@ -90,28 +90,126 @@ export function detectPlatform(text: string, fileName = ''): Platform | '' {
 
   const raw = text || '';
   // Se houver texto na etiqueta, use exclusivamente o texto da etiqueta para não herdar
-  // palavras do nome do arquivo (ex: "etiquetas_mercado_livre.pdf" contendo também TikTok)
+  // palavras do nome do arquivo (ex: "etiquetas_mercado_livre.pdf" contendo também TikTok/SHEIN)
   const norm = normalizeText(raw ? raw : fileName);
 
-  // 1. SHEIN: Nome explícito ou identificador inequívoco GSH...
-  if (
+  // 1. SHEIN:
+  // - Nome explícito / variações: 'shein', 's h e i n', 'sh ein', 'she in', 'shein express', 'shein logistics', 'shein brasil', 'shein marketplace', 'shein local', 'shein.com', 'shn', 'she!n', 'she1n', 'shen', 'sheln', '5hein'
+  // - Razão Social / CNPJ Shein Brasil / Entidades corporativas globais da Shein:
+  //     'shein brasil tecnologia', '44.498.492', '44498492', 'zoetop', 'roadget', 'infinite styles'
+  // - Código GSH (inclusive com espaços/hífens ou variações OCR 6SH, CSH, QSH, G5H): GSH19C..., GSH M8849...
+  // - Códigos de pedido SHEIN com prefixo SH / SHN / SHE: SH24..., SHN2024..., SHE2024...
+  // - Transportadoras e parceiros logísticos SHEIN no Brasil:
+  //     Anjun Express (Anjun, tracking AJ...),
+  //     Pegaki (rede oficial de pontos de coleta e entrega da SHEIN no Brasil),
+  //     iMile (operador logístico SHEIN),
+  //     Roadbull,
+  //     Correios (faixas oficiais de rastreio SHEIN: NL...BR, NB...BR, NX...BR, QM...BR, QB...BR),
+  //     Total Express / Jadlog / Loggi com dados SHEIN
+  // - Termos de triagem e rotas SHEIN: PUDO D2D, PUDO, D2D, DF-W-H..., DF-W-D..., DF-W-..., QUICK SHIP, QUICKSHIP, CT SHEIN, CD SHEIN, SAO-SHEIN, GRU-SHEIN
+  // - Código de referência SHEIN: GC2610134951478277 (GC...) ou Ref. No
+  const hasSheinMention =
     norm.includes('shein') ||
+    /\b[s5]\s*h\s*e\s*i\s*n\b/i.test(raw) ||
     norm.includes('sh ein') ||
+    norm.includes('she in') ||
+    norm.includes('she!n') ||
+    norm.includes('she1n') ||
+    norm.includes('she|n') ||
+    norm.includes('sheln') ||
+    norm.includes('5hein') ||
     norm.includes('shein express') ||
-    /\bgsh[0-9a-z]{8,22}\b/i.test(raw)
+    norm.includes('shein logistics') ||
+    norm.includes('shein.com') ||
+    norm.includes('shein brasil') ||
+    norm.includes('shein marketplace') ||
+    norm.includes('shein local') ||
+    norm.includes('shn') ||
+    norm.includes('44.498.492') ||
+    norm.includes('44498492') ||
+    norm.includes('zoetop') ||
+    norm.includes('roadget') ||
+    norm.includes('infinite styles') ||
+    norm.includes('quick ship') ||
+    norm.includes('quickship');
+
+  const hasGshCode =
+    /\b(?:g\s*s\s*h|[6qcog]\s*[s5\$]\s*h)[\s\-_:*]*[0-9a-z]{7,25}\b/i.test(raw) ||
+    /\bgsh[0-9a-z]{7,25}\b/i.test(raw);
+
+  const hasSheinOrderCode =
+    /\b(?:shn?|she)[0-9a-z]{7,22}\b/i.test(raw) ||
+    /\b(?:pedido|order\s*(?:id|number|no\.?|#)?|ref\.?\s*no\.?)\s*[:#\-]?\s*(?:shn?|she)[0-9a-z]{6,22}\b/i.test(
+      raw
+    );
+
+  const hasAnjunCarrier =
+    norm.includes('anjun') ||
+    /\banjun\s*(?:express)?\b/i.test(raw) ||
+    /\baj\d{10,16}\b/i.test(raw);
+
+  const hasPegakiCarrier =
+    norm.includes('pegaki') ||
+    /\bpegaki\b/i.test(raw) ||
+    /\bpgk\d{8,16}\b/i.test(raw);
+
+  const hasIMileCarrier =
+    norm.includes('imile') ||
+    /\bimile(?:\s*delivery|\s*brasil)?\b/i.test(raw);
+
+  const hasCorreiosShein = /\b(N[A-Z]|Q[BM])\d{9}BR\b/i.test(raw);
+
+  const hasSheinRef =
+    /\bgc\d{10,20}\b/i.test(raw) ||
+    ((norm.includes('ref.no') || norm.includes('ref no') || norm.includes('reference')) &&
+      /\bgc[0-9a-z]{8,20}\b/i.test(raw));
+
+  const hasSheinPudo =
+    (norm.includes('pudo') && norm.includes('d2d')) ||
+    norm.includes('pudo') ||
+    norm.includes('d2d') ||
+    /\bdf-w-[hd]\d+\b/i.test(raw) ||
+    /\bdf-w-\w+\b/i.test(raw);
+
+  if (
+    hasSheinMention ||
+    hasGshCode ||
+    hasSheinOrderCode ||
+    hasAnjunCarrier ||
+    hasPegakiCarrier ||
+    hasIMileCarrier ||
+    hasCorreiosShein ||
+    hasSheinRef ||
+    hasSheinPudo
   ) {
     return 'SHEIN';
   }
 
-  // 2. SHOPEE: Nome Shopee, SPX Express ou SPXBR
-  if (
+  // 2. SHOPEE:
+  // - Nome Shopee / variações: 'shopee', 'shope', 'shoppee', 'spx express', 'spxbr', 'spx', 'shopee.com'
+  // - Padrão de pedido Shopee Order SN (YYMMDD + alfanumérico): ex: 261014KVS9XT7W, 261014KVY30WGX, 24101389XQ92LA
+  // - Centros operacionais e rotas Shopee: 'SOC SP', 'SOC RJ', 'SOC PR', 'LSP-93', 'LSP-51', etc.
+  // - Rastreio Shopee Correios BR...N ou BR...S
+  const hasShopeeMention =
     norm.includes('shopee') ||
+    norm.includes('shope') ||
+    norm.includes('shoppee') ||
     norm.includes('spx express') ||
     norm.includes('spxbr') ||
     norm.includes('spx') ||
-    norm.includes('shopee.com') ||
-    /\b(?:order\s*sn)\s*[:#\-]?\s*([2-3][0-9][A-Z0-9]{10,16})/i.test(raw)
-  ) {
+    norm.includes('shopee.com');
+
+  const hasShopeeOrderSn =
+    /\b(2[3-9][0-9]{4}[0-9a-z]{7,13})\b/i.test(raw) ||
+    /\b(2[3-9][0-9]{2}[0-9a-z]{8,14})\b/i.test(raw) ||
+    /\b(?:order\s*sn)\s*[:#\-]?\s*([2-3][0-9][A-Z0-9]{10,16})/i.test(raw);
+
+  const hasShopeeHub =
+    /\bsoc\s*sp\d*\b/i.test(raw) ||
+    /\bsoc\s*[a-z]{2}\d*\b/i.test(raw) ||
+    /\blsp-\d+\b/i.test(raw);
+
+  if (hasShopeeMention || hasShopeeOrderSn || hasShopeeHub) {
     return 'Shopee';
   }
 
@@ -155,34 +253,13 @@ export function detectPlatform(text: string, fileName = ''): Platform | '' {
     );
   const hasTikTokOrderStandalone = /\b(999\d{11,14}|57\d{12,15}|58\d{12,15})\b/.test(raw);
 
-  // e) Campo "Pedido:" com 13 a 18 dígitos quando não é Mercado Livre (sem Pack ID nem rotas Meli)
-  const hasGenericOrder14to17 =
-    /(?:pedido|order\s*(?:id|number|no\.?|#)?|id\s*do\s*pedido|ped[ilc1o][ldo0])\s*[:#\-]?\s*([0-9]{13,18})\b/i.test(
-      raw
-    );
-
-  // Layout característico Mercado Envios para desambiguação
-  const hasPackId =
-    /pack\s*id\s*[:#]?\s*\d+/i.test(raw) ||
-    /pacote\s*id\s*[:#]?\s*\d+/i.test(raw) ||
-    /\b20000\d{10,12}\b/.test(raw);
-  const hasMeliRoute = /\b(xpr\d?|xsp\d?|spr\d?|xsc\d?|xmg\d?|xba\d?|xrs\d?|cpt\d?|rpr\d?|vpr\d?|bsb\d?|xgo\d?)\b/i.test(
-    raw
-  );
-
   if (hasTikTokMention) {
-    return 'TikTok Shop';
-  }
-  if (hasJTExpress) {
-    return 'TikTok Shop';
-  }
-  if (hasJTTracking) {
     return 'TikTok Shop';
   }
   if (hasTikTokOrderExplicit || hasTikTokOrderStandalone) {
     return 'TikTok Shop';
   }
-  if (hasGenericOrder14to17 && !hasPackId && !hasMeliRoute) {
+  if (hasJTExpress || hasJTTracking) {
     return 'TikTok Shop';
   }
 
@@ -201,15 +278,38 @@ export function detectPlatform(text: string, fileName = ''): Platform | '' {
   }
 
   // Layout característico Mercado Envios:
-  // - Presença de "Pack ID" (ou Pacote ID)
-  // - E obrigatoriamente roteamento Mercado Envios (XPR, XSP, SPR, etc.) ou seller hash #1476198771 com Pack ID
+  // - Presença de "Pack ID" (ou Pacote ID) ou Venda (20000...)
+  // - E obrigatoriamente roteamento Mercado Envios (XPR, XSP, SSP, SDF, SMN, SRS, etc.) ou seller hash #1476198771 com Pack ID/Venda
+  const hasPackId =
+    /pack\s*id\s*[:#]?\s*\d+/i.test(raw) ||
+    /pacote\s*id\s*[:#]?\s*\d+/i.test(raw) ||
+    /\b20000\d{10,12}\b/.test(raw);
+  const hasMeliRoute = /\b(xpr\d?|xsp\d?|spr\d?|ssp\d?|sdf\d?|smn\d?|srs\d?|xsc\d?|xmg\d?|xba\d?|xrs\d?|cpt\d?|rpr\d?|vpr\d?|bsb\d?|xgo\d?)\b/i.test(
+    raw
+  );
+  const hasVenda = /(?:venda|id\s*(?:da\s*)?venda)\s*[:#\-]?\s*20000\d{9,12}/i.test(raw);
   const hasSellerHashId = /#\d{7,12}\b/.test(raw);
 
-  if (hasPackId && (hasMeliRoute || hasSellerHashId)) {
+  if ((hasPackId || hasVenda) && (hasMeliRoute || hasSellerHashId)) {
     return 'Mercado Livre';
   }
-  if (hasMeliRoute && (hasPackId || hasSellerHashId)) {
+  if (hasMeliRoute && (hasPackId || hasVenda || hasSellerHashId)) {
     return 'Mercado Livre';
+  }
+
+  // 5. Fallback por nome do arquivo (quando o texto nativo/OCR não contém marcas explícitas)
+  if (fileName) {
+    const fnNorm = normalizeText(fileName);
+    if (fnNorm.includes('shein') || fnNorm.includes('shn')) return 'SHEIN';
+    if (fnNorm.includes('shopee') || fnNorm.includes('spx')) return 'Shopee';
+    if (fnNorm.includes('tiktok') || fnNorm.includes('tik tok')) return 'TikTok Shop';
+    if (
+      fnNorm.includes('mercado livre') ||
+      fnNorm.includes('mercadolivre') ||
+      fnNorm.includes('meli')
+    ) {
+      return 'Mercado Livre';
+    }
   }
 
   return '';
@@ -225,23 +325,61 @@ export function extractOrderNumber(text: string, platform?: Platform | ''): stri
   const raw = text.trim();
 
   // A) SHEIN: prioriza o código GSH quando existe na etiqueta.
-  // Algumas etiquetas exibem o pedido em campo próprio e não imprimem o GSH;
-  // nesses casos, usa o valor explicitamente associado a Pedido/Order ID.
-  if (platform === 'SHEIN' || /\bgsh[0-9a-z]{8,22}\b/i.test(raw)) {
-    const sheinMatch = raw.match(/\b(G\s*S\s*H)[\s\-]*([0-9A-Z]{8,22})\b/i);
-    if (sheinMatch) return `GSH${sheinMatch[2].replace(/[^0-9A-Z]/gi, '').toUpperCase()}`;
-
-    const explicitSheinOrder = raw.match(
-      /(?:order\s*(?:id|no\.?|number|#)|order\s*number|pedido(?:\s*(?:id|n[uú]mero|n[ºo°.]?))?|n[uú]mero\s*do\s*pedido|id\s*do\s*pedido)\s*[:#\-]?\s*([A-Z0-9][A-Z0-9\-]{7,29})/i
+  if (
+    platform === 'SHEIN' ||
+    /\b(?:g\s*s\s*h|[6qcog]\s*[s5\$]\s*h)[\s\-_:*]*[0-9a-z]{7,25}\b/i.test(raw) ||
+    /\b(?:shn?|she)[0-9a-z]{7,22}\b/i.test(raw) ||
+    /\bgc\d{10,20}\b/i.test(raw) ||
+    /\baj\d{10,16}\b/i.test(raw) ||
+    /\bpgk\d{8,16}\b/i.test(raw) ||
+    /\b(N[A-Z]|Q[BM])\d{9}BR\b/i.test(raw)
+  ) {
+    // 1. Código GSH (ex: Pedido:GSH19C572000RL9 -> GSH19C572000RL9, GSH M8849... -> GSHM8849..., 6SH... -> GSH...)
+    const sheinMatch = raw.match(
+      /(?:\b|\*)(?:G\s*S\s*H|[6QCOG]\s*[S5\$]\s*H)[\s\-_:*]*([0-9A-Z]{7,25})(?:\b|\*)/i
     );
+    if (sheinMatch) return `GSH${sheinMatch[1].replace(/[^0-9A-Z]/gi, '').toUpperCase()}`;
+
+    // 2. Campo explícito de pedido / Ref / Order No
+    const explicitSheinOrder =
+      raw.match(
+        /(?:order\s*(?:id|no\.?|number|#|sn)|order\s*number|pedido(?:\s*(?:id|n[uú]mero|n[ºo°.]?))?|n[uú]mero\s*do\s*pedido|id\s*do\s*pedido|ref(?:\.?\s*no\.?|\.?\s*cliente|\.?\s*ped\.?)?|refer[eê]ncia|sub-?pedido|pacote)\s*[:#\-_*]*\s*([A-Z0-9][A-Z0-9\-]{5,29})/i
+      ) ||
+      raw.match(
+        /(?:ref\.?\s*no\.?|reference(?:\s*no\.?)?|ref:?)\s*[:#\-_*]*\s*([A-Z0-9][A-Z0-9\-]{5,29})/i
+      );
     if (explicitSheinOrder) {
       const candidate = explicitSheinOrder[1].replace(/[^A-Z0-9]/gi, '').toUpperCase();
-      // Não confundir código GSH já tratado acima nem CEP/telefone curtos.
-      if (candidate.length >= 8 && !/^0+$/.test(candidate)) return candidate;
+      if (candidate.length >= 6 && !/^0+$/.test(candidate) && candidate !== '141') return candidate;
     }
 
-    // Sem código GSH ou campo explícito de pedido, não adivinha a partir de
-    // números aleatórios: evita contabilizar rastreio, telefone ou CEP como pedido.
+    // 3. Referência Shein GC (ex: Ref.No:GC2610134951478277)
+    const mGC = raw.match(/(?:\b|\*)(GC\d{10,20})(?:\b|\*)/i);
+    if (mGC) return mGC[1].toUpperCase();
+
+    // 4. Código SH... ou SHN... ou SHE... (ex: SH241014123456)
+    const mSH = raw.match(/(?:\b|\*)((?:SHN?|SHE)[0-9A-Z]{7,22})(?:\b|\*)/i);
+    if (mSH) return mSH[1].toUpperCase();
+
+    // 5. Rastreio Anjun se disponível
+    const mAJ = raw.match(/\b(AJ\d{10,16})\b/i);
+    if (mAJ) return mAJ[1].toUpperCase();
+
+    // 6. Rastreio Pegaki se disponível
+    const mPGK = raw.match(/\b(PGK\d{8,16})\b/i);
+    if (mPGK) return mPGK[1].toUpperCase();
+
+    // 7. Rastreio Correios Shein (NL...BR, NB...BR, NX...BR, QM...BR)
+    const mCorreiosShein = raw.match(/\b((?:N[A-Z]|Q[BM])\d{9}BR)\b/i);
+    if (mCorreiosShein) return mCorreiosShein[1].toUpperCase();
+
+    // 8. Número longo de pedido da SHEIN (10 a 18 dígitos)
+    const longNums = raw.match(/\b(\d{10,18})\b/g) || [];
+    for (const num of longNums) {
+      if (!/^0+$/.test(num) && !/^\d{4}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])$/.test(num)) {
+        return num;
+      }
+    }
   }
 
   // B) TIKTOK SHOP: Pedido explícito ou padrão 14-16 dígitos (ex: 999882459194835)
@@ -292,7 +430,7 @@ export function extractOrderNumber(text: string, platform?: Platform | ''): stri
       return mPack[1].trim();
     }
 
-    // 3. Padrão numérico 20000... típico de Pack ID
+    // 3. Padrão numérico 20000... típico de Pack ID ou Venda
     const mPackDirect = raw.match(/\b(20000\d{10,12})\b/);
     if (mPackDirect) {
       return mPackDirect[1];
@@ -300,29 +438,60 @@ export function extractOrderNumber(text: string, platform?: Platform | ''): stri
   }
 
   // D) SHOPEE:
-  if (platform === 'Shopee') {
-    // 1. Campo explícito "Pedido:" ou "Order SN:"
+  if (
+    platform === 'Shopee' ||
+    /\b(2[3-9][0-9]{4}[0-9a-z]{7,13})\b/i.test(raw) ||
+    /\b(2[3-9][0-9]{2}[0-9a-z]{8,14})\b/i.test(raw)
+  ) {
+    // 1. Padrão Shopee Order SN (começando com ano 24..., 25..., 26..., ex: 261014KVS9XT7W, 261014KVY30WGX)
+    const mPattern =
+      raw.match(/\b(2[3-9][0-9]{4}[0-9A-Z]{7,13})\b/) ||
+      raw.match(/\b(2[3-9][0-9]{2}[0-9A-Z]{8,14})\b/);
+    if (mPattern) {
+      return mPattern[1].toUpperCase();
+    }
+
+    // 2. Campo explícito "Pedido:" ou "Order SN:"
     const mShopee =
       raw.match(/(?:order\s*sn|n[uú]mero\s*(?:do\s*)?pedido|pedido)\s*[:#\-]?\s*([2-3][0-9][A-Z0-9]{10,16})/i) ||
       raw.match(/(?:order\s*sn|pedido)\s*[:#\-]?\s*([A-Z0-9]{12,20})/i);
     if (mShopee) {
       return mShopee[1].trim();
     }
-    // 2. Padrão Shopee Order SN (começando com ano corrente 24..., 25..., 26...)
-    const mPattern = raw.match(/\b(2[3-9][0-9]{2}[A-Z0-9]{10,14})\b/);
-    if (mPattern) {
-      return mPattern[1];
-    }
   }
 
   // E) BUSCA GENÉRICA RESILIENTE:
-  // 1. Padrão específico TikTok (999..., 57..., 58...)
+  // 1. SHEIN GSH... ou GC...
+  const mSheinFallback = raw.match(/\b(G\s*S\s*H)[\s\-]*([0-9A-Z]{7,25})\b/i);
+  if (mSheinFallback) {
+    return `GSH${mSheinFallback[2].replace(/[^0-9A-Z]/gi, '').toUpperCase()}`;
+  }
+  const mSheinGcFallback = raw.match(/\b(GC\d{10,20})\b/i);
+  if (mSheinGcFallback) {
+    return mSheinGcFallback[1].toUpperCase();
+  }
+
+  // 2. Shopee 26...
+  const mShopeeFallback =
+    raw.match(/\b(2[3-9][0-9]{4}[0-9A-Z]{7,13})\b/) ||
+    raw.match(/\b(2[3-9][0-9]{2}[0-9A-Z]{8,14})\b/);
+  if (mShopeeFallback) {
+    return mShopeeFallback[1].toUpperCase();
+  }
+
+  // 3. TikTok (999..., 57..., 58...)
   const mTikTokFallback = raw.match(/\b(999\d{10,15}|57\d{11,16}|58\d{11,16})\b/);
   if (mTikTokFallback) {
     return mTikTokFallback[1];
   }
 
-  // 2. Rótulo explícito "Pedido", "Order ID", "Nº do Pedido"
+  // 4. Mercado Livre 20000...
+  const mMeliDirect = raw.match(/\b(20000\d{10,12})\b/);
+  if (mMeliDirect) {
+    return mMeliDirect[1];
+  }
+
+  // 5. Rótulo explícito "Pedido", "Order ID", "Nº do Pedido"
   const mGenericExplicit = raw.match(
     /(?:n[uú]mero\s*(?:do\s*)?pedido|order\s*(?:id|number|no\.?|#)|id\s*do\s*pedido|pedido|ped[ilc1o][ldo0])\s*[:#\-]?\s*([A-Z0-9][A-Z0-9\-]{7,25})/i
   );
@@ -330,13 +499,13 @@ export function extractOrderNumber(text: string, platform?: Platform | ''): stri
     return mGenericExplicit[1].trim();
   }
 
-  // 3. Pack ID genérico
+  // 6. Pack ID genérico
   const mGenericPack = raw.match(/pack\s*id\s*[:#\-]?\s*(\d{10,20})/i);
   if (mGenericPack) {
     return mGenericPack[1].trim();
   }
 
-  // 4. Padrão numérico longo (12 a 18 dígitos, típico de pedidos de marketplace)
+  // 7. Padrão numérico longo (12 a 18 dígitos, típico de pedidos de marketplace)
   // Rejeita CEPs, CNPJs, códigos curtos de NF ou números de vendedor iniciados com #
   const longNumbers = raw.match(/\b(\d{12,18})\b/g) || [];
   for (const num of longNumbers) {
@@ -367,9 +536,32 @@ export function segmentPageIntoLabels(pageText: string): string[] {
     return lineSplits.map((s) => s.trim());
   }
 
-  // 2. Verifica marcadores múltiplos de início de etiqueta em uma mesma página
+  // 2. Análise de unicidade: Se a página contiver 0 ou 1 pedido identificável,
+  // é garantidamente uma única etiqueta (ex: térmica 10x15cm ou A4 individual).
+  // Manter todo o texto junto evita separar cabeçalho e rodapé.
+  const ordersFound = new Set<string>();
+  const gshMatches =
+    text.match(/\b(?:G\s*S\s*H|[6QCOG]\s*[S5\$]\s*H)[\s\-_:*]*[0-9A-Z]{7,25}\b/gi) || [];
+  gshMatches.forEach((m) => ordersFound.add(m.replace(/[^0-9A-Z]/gi, '').toUpperCase()));
+
+  const packMatches = text.match(/pack\s*id\s*[:#\-]?\s*(\d{10,20})/gi) || [];
+  packMatches.forEach((m) => ordersFound.add(m.replace(/[^0-9]/g, '')));
+
+  const ttMatches = text.match(/\b(?:999\d{11,15}|57\d{12,16}|58\d{12,16})\b/g) || [];
+  ttMatches.forEach((m) => ordersFound.add(m));
+
+  const shopeeMatches = text.match(/\b(?:2[3-9][0-9]{4}[0-9A-Z]{7,13})\b/gi) || [];
+  shopeeMatches.forEach((m) => ordersFound.add(m.toUpperCase()));
+
+  // Se houver 0 ou 1 pedido no total, a página é certamente uma única etiqueta:
+  if (ordersFound.size <= 1) {
+    return [text];
+  }
+
+  // 3. Se houver comprovadamente 2 ou mais pedidos distintos na mesma página (grade A4):
+  // Divide nos cabeçalhos principais de início de etiqueta
   const headerRegex =
-    /(?:(?:remetente\s*:|destinat[aá]rio\s*:|pack\s*id\s*:|mercado\s*(?:envios|livre)|spx\s*express|shopee|shein\s*(?:express)?|gsh[0-9a-z]{8,}|tiktok(?:\s*shop)?|tik\s*tok|j\s*&?\s*t\s*(?:express)?|jnt\s*(?:express)?|pedido\s*:\s*(?:999|57|58|2[3-9]|gsh))\b)/gi;
+    /(?:(?:etiqueta\s*de\s*envio|mercado\s*(?:envios|livre)|spx\s*express|shopee(?:\s*brasil)?|shein\s*(?:express|logistics|brasil)?|tiktok(?:\s*shop)?)\b)/gi;
 
   let match: RegExpExecArray | null;
   const indices: number[] = [];
@@ -377,8 +569,6 @@ export function segmentPageIntoLabels(pageText: string): string[] {
     indices.push(match.index);
   }
 
-  // Se houver 2 ou mais marcadores com distância (> 60 caracteres),
-  // a página contém mais de uma etiqueta impressa em grade (A4).
   if (indices.length >= 2) {
     const validCuts: number[] = [0];
     for (let i = 1; i < indices.length; i++) {
@@ -437,12 +627,23 @@ export function processLabelBlock(
   if (!platform && orderNumber) {
     if (/^(?:999\d{10,15}|57\d{11,16}|58\d{11,16})$/.test(orderNumber)) {
       platform = 'TikTok Shop';
-    } else if (/^GSH[0-9A-Z]{8,22}$/i.test(orderNumber)) {
+    } else if (
+      /^(?:GSH[0-9A-Z]{7,25}|GC\d{10,20}|AJ\d{10,16}|PGK\d{8,16}|SHN?[0-9A-Z]{7,22}|SHE[0-9A-Z]{7,22}|N[A-Z]\d{9}BR|Q[BM]\d{9}BR)$/i.test(
+        orderNumber
+      )
+    ) {
       platform = 'SHEIN';
     } else if (/^20000\d{10,12}$/.test(orderNumber)) {
       platform = 'Mercado Livre';
     } else if (/^2[3-9][0-9]{2}[A-Z0-9]{10,14}$/.test(orderNumber)) {
       platform = 'Shopee';
+    } else if (fileName) {
+      const fnNorm = normalizeText(fileName);
+      if (fnNorm.includes('shein') || fnNorm.includes('shn')) platform = 'SHEIN';
+      else if (fnNorm.includes('shopee') || fnNorm.includes('spx')) platform = 'Shopee';
+      else if (fnNorm.includes('tiktok')) platform = 'TikTok Shop';
+      else if (fnNorm.includes('mercado livre') || fnNorm.includes('meli'))
+        platform = 'Mercado Livre';
     }
   }
 
