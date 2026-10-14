@@ -612,6 +612,12 @@ export default function App() {
             mergedList.push({
               ...localProd,
               ...remoteProd,
+              price_history:
+                remoteProd.price_history && remoteProd.price_history.length > 0
+                  ? remoteProd.price_history
+                  : localProd?.price_history || [],
+              sku: remoteProd.sku || localProd?.sku,
+              barcode: remoteProd.barcode || localProd?.barcode,
               // Cloud state is the source of truth across all devices (PC and mobile)
               is_new: Boolean(remoteProd.is_new),
               status: (remoteProd.status as ProductStatus) || 'Pendente',
