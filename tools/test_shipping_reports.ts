@@ -83,6 +83,38 @@ assert(
 );
 
 // =========================================================================
+// TESTE 3B: SHEIN com número explícito de pedido sem código GSH
+// =========================================================================
+const sheinOrderWithoutGsh = `
+SHEIN EXPRESS
+Order ID: SHN20261014001234
+CODIGO DE RASTREIO: BR123456789XX
+DESTINATARIO: CLIENTE SHEIN
+`;
+const sheinWithoutGshItem = processLabelBlock(sheinOrderWithoutGsh, 'shein_sem_gsh.pdf', 1, 0);
+assert(
+  sheinWithoutGshItem.platform === 'SHEIN' &&
+    sheinWithoutGshItem.orderNumber === 'SHN20261014001234' &&
+    sheinWithoutGshItem.confidence === 'Detectado',
+  '3B. SHEIN reconhecida e pedido extraído do campo Order ID mesmo sem identificador GSH'
+);
+
+// =========================================================================
+// TESTE 3C: SHEIN com GSH separado por espaço (OCR)
+// =========================================================================
+const sheinGshOcr = `
+SHEIN EXPRESS
+GSH M88492019483
+DESTINATARIO: CLIENTE SHEIN
+`;
+const sheinGshOcrItem = processLabelBlock(sheinGshOcr, 'shein_ocr.pdf', 1, 0);
+assert(
+  sheinGshOcrItem.platform === 'SHEIN' &&
+    sheinGshOcrItem.orderNumber === 'GSHM88492019483',
+  '3C. SHEIN recupera código GSH quando o OCR insere espaço após GSH'
+);
+
+// =========================================================================
 // TESTE 4: Shopee com SPX Express
 // =========================================================================
 const shopeeLabelText = `
