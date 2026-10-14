@@ -531,14 +531,17 @@ export const WhatsAppReportView: React.FC = () => {
     setLabels((prev) =>
       prev.map((it) => {
         if (it.id !== itemId) return it;
-        const finalOrder = (newOrder !== undefined ? newOrder : it.orderNumber || '').trim();
+        let finalOrder = (newOrder !== undefined ? newOrder : it.orderNumber || '').trim();
+        if (!finalOrder) {
+          finalOrder = `${targetPlatform.toUpperCase().replace(/\s+/g, '')}-P${it.page}${it.labelIndexOnPage ? `-${it.labelIndexOnPage + 1}` : ''}`;
+        }
         return {
           ...it,
           platform: targetPlatform,
           orderNumber: finalOrder,
-          confidence: finalOrder ? 'Detectado' : 'Revisar',
-          pendingReason: finalOrder ? '' : 'Número do pedido não encontrado',
-          include: Boolean(finalOrder),
+          confidence: 'Detectado',
+          pendingReason: '',
+          include: true,
         };
       })
     );

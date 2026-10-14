@@ -324,15 +324,14 @@ export function extractOrderNumber(text: string, platform?: Platform | ''): stri
 
   const raw = text.trim();
 
-  // A) SHEIN: prioriza o código GSH quando existe na etiqueta.
+  // A) SHEIN: prioriza o código GSH e referências completas da SHEIN no Brasil.
   if (
     platform === 'SHEIN' ||
     /\b(?:g\s*s\s*h|[6qcog]\s*[s5\$]\s*h)[\s\-_:*]*[0-9a-z]{7,25}\b/i.test(raw) ||
-    /\b(?:shn?|she)[0-9a-z]{7,22}\b/i.test(raw) ||
-    /\bgc\d{10,20}\b/i.test(raw) ||
-    /\baj\d{10,16}\b/i.test(raw) ||
-    /\bpgk\d{8,16}\b/i.test(raw) ||
-    /\b(N[A-Z]|Q[BM])\d{9}BR\b/i.test(raw)
+    /\b(?:shn?|she)\d{6,22}\b/i.test(raw) ||
+    /\bgc\d{8,22}\b/i.test(raw) ||
+    /\baj\d{8,18}\b/i.test(raw) ||
+    /\b(?:pgk|pe)\d{6,18}\b/i.test(raw)
   ) {
     // 1. Código GSH (ex: Pedido:GSH19C572000RL9 -> GSH19C572000RL9, GSH M8849... -> GSHM8849..., 6SH... -> GSH...)
     const sheinMatch = raw.match(
@@ -340,44 +339,78 @@ export function extractOrderNumber(text: string, platform?: Platform | ''): stri
     );
     if (sheinMatch) return `GSH${sheinMatch[1].replace(/[^0-9A-Z]/gi, '').toUpperCase()}`;
 
-    // 2. Campo explícito de pedido / Ref / Order No
+    // 2. Referência Shein GC (ex: Ref.No:GC2610134951478277 ou GC2610...)
+    const mGC = raw.match(/(?:\b|\*)(GC\d{8,22})(?:\b|\*)/i);
+    if (mGC) return mGC[1].toUpperCase();
+
+    // 3. Código SH... ou SHN... ou SHE... (ex: SHN202410149912, SH241014123456)
+    const mSH = raw.match(/(?:\b|\*)((?:SHN?|SHE)\d{6,22})(?:\b|\*)/i);
+    if (mSH) return mSH[1].toUpperCase();
+
+    // 4. Identificador de pacote UpSeller ERP (#UP8YXK010082 ou UP8YXK010082)
+    const mUp = raw.match(/(?:#|\b)(UP[0-9A-Z]{8,16})\b/i);
+    if (mUp) return mUp[1].toUpperCase();
+
+    // 5. Campo explícito de pedido / Ref / Order No (suporta "Pedido SHEIN:", "Pedido:", "Order ID:", etc.)
     const explicitSheinOrder =
       raw.match(
-        /(?:order\s*(?:id|no\.?|number|#|sn)|order\s*number|pedido(?:\s*(?:id|n[uú]mero|n[ºo°.]?))?|n[uú]mero\s*do\s*pedido|id\s*do\s*pedido|ref(?:\.?\s*no\.?|\.?\s*cliente|\.?\s*ped\.?)?|refer[eê]ncia|sub-?pedido|pacote)\s*[:#\-_*]*\s*([A-Z0-9][A-Z0-9\-]{5,29})/i
+        /(?:order\s*(?:id|no\.?|number|#|sn)?|pedido(?:\s*(?:shein|id|n[uú]mero|n[ºo°.]?))?|n[uú]mero\s*do\s*pedido|id\s*do\s*pedido|ref(?:\.?\s*no\.?|\.?\s*cliente|\.?\s*ped\.?)?|refer[eê]ncia|sub-?pedido|pacote)\s*[:#\-_*]*\s*([A-Z0-9][A-Z0-9\-]{4,29})/i
       ) ||
       raw.match(
-        /(?:ref\.?\s*no\.?|reference(?:\s*no\.?)?|ref:?)\s*[:#\-_*]*\s*([A-Z0-9][A-Z0-9\-]{5,29})/i
+        /(?:ref\.?\s*no\.?|reference(?:\s*no\.?)?|ref:?)\s*[:#\-_*]*\s*([A-Z0-9][A-Z0-9\-]{4,29})/i
       );
     if (explicitSheinOrder) {
       const candidate = explicitSheinOrder[1].replace(/[^A-Z0-9]/gi, '').toUpperCase();
-      if (candidate.length >= 6 && !/^0+$/.test(candidate) && candidate !== '141') return candidate;
+      if (
+        candidate.length >= 5 &&
+        !/^0+$/.test(candidate) &&
+        candidate !== '141' &&
+        candidate !== 'SHEIN' &&
+        candidate !== 'BRASIL'
+      ) {
+        return candidate;
+      }
     }
 
-    // 3. Referência Shein GC (ex: Ref.No:GC2610134951478277)
-    const mGC = raw.match(/(?:\b|\*)(GC\d{10,20})(?:\b|\*)/i);
-    if (mGC) return mGC[1].toUpperCase();
-
-    // 4. Código SH... ou SHN... ou SHE... (ex: SH241014123456)
-    const mSH = raw.match(/(?:\b|\*)((?:SHN?|SHE)[0-9A-Z]{7,22})(?:\b|\*)/i);
-    if (mSH) return mSH[1].toUpperCase();
-
-    // 5. Rastreio Anjun se disponível
-    const mAJ = raw.match(/\b(AJ\d{10,16})\b/i);
-    if (mAJ) return mAJ[1].toUpperCase();
-
-    // 6. Rastreio Pegaki se disponível
-    const mPGK = raw.match(/\b(PGK\d{8,16})\b/i);
-    if (mPGK) return mPGK[1].toUpperCase();
-
-    // 7. Rastreio Correios Shein (NL...BR, NB...BR, NX...BR, QM...BR)
-    const mCorreiosShein = raw.match(/\b((?:N[A-Z]|Q[BM])\d{9}BR)\b/i);
+    // 6. Rastreio Correios oficial (qualquer código válido de 2 letras + 9 dígitos + BR)
+    const mCorreiosShein = raw.match(/\b([A-Z]{2}\d{9}BR)\b/i);
     if (mCorreiosShein) return mCorreiosShein[1].toUpperCase();
 
-    // 8. Número longo de pedido da SHEIN (10 a 18 dígitos)
-    const longNums = raw.match(/\b(\d{10,18})\b/g) || [];
+    // 7. Rastreio de transportadoras parceiras SHEIN no Brasil
+    // Anjun Express (AJ...), Pegaki (PGK... ou PE...), J&T Express (JT... ou 888...), Total Express (EXP...), Jadlog (1008...), Loggi (LOG...)
+    const mCarrier =
+      raw.match(/\b(AJ\d{8,18})\b/i) ||
+      raw.match(/\b(PGK\d{6,18}|PE\d{6,18})\b/i) ||
+      raw.match(/\b(JT\d{9,16}|JTE\d{9,16}|888\d{9,13})\b/i) ||
+      raw.match(/\b(EXP\d{8,16}|RODO\d{8,16})\b/i) ||
+      raw.match(/\b(1008\d{8,12})\b/i) ||
+      raw.match(/\b(LOG\d{8,16})\b/i);
+    if (mCarrier) return mCarrier[1].toUpperCase();
+
+    // 8. Número longo de pedido ou código de barras da SHEIN (8 a 20 dígitos)
+    const longNums = raw.match(/\b(\d{8,20})\b/g) || [];
     for (const num of longNums) {
-      if (!/^0+$/.test(num) && !/^\d{4}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])$/.test(num)) {
+      if (
+        !/^0+$/.test(num) &&
+        !/^\d{4}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])$/.test(num) &&
+        !/^\d{5}\d{3}$/.test(num)
+      ) {
         return num;
+      }
+    }
+
+    // 9. Qualquer token alfanumérico não-trivial de 7 a 25 caracteres presente na etiqueta
+    const alphaNums = raw.match(/\b([A-Z0-9]{7,25})\b/g) || [];
+    for (const cand of alphaNums) {
+      const u = cand.toUpperCase();
+      if (
+        !/^(?:DESTINATARIO|REMETENTE|ENDERECO|BAIRRO|CIDADE|ESTADO|BRASIL|ENVIOS|EXPRESS|LOGISTICS|PRODUTO|CONTEUDO|DECLARACAO|AVENIDA|TELEFONE|PAC|SEDEX|CORREIOS|SHEIN|MARKETPLACE)$/i.test(
+          u
+        ) &&
+        !/^0+$/.test(u) &&
+        !/^\d{8}$/.test(u)
+      ) {
+        return u;
       }
     }
   }
@@ -544,6 +577,10 @@ export function segmentPageIntoLabels(pageText: string): string[] {
     text.match(/\b(?:G\s*S\s*H|[6QCOG]\s*[S5\$]\s*H)[\s\-_:*]*[0-9A-Z]{7,25}\b/gi) || [];
   gshMatches.forEach((m) => ordersFound.add(m.replace(/[^0-9A-Z]/gi, '').toUpperCase()));
 
+  const sheinOtherMatches =
+    text.match(/\b(?:GC\d{8,22}|AJ\d{8,18}|UP[0-9A-Z]{8,16}|[A-Z]{2}\d{9}BR)\b/gi) || [];
+  sheinOtherMatches.forEach((m) => ordersFound.add(m.toUpperCase()));
+
   const packMatches = text.match(/pack\s*id\s*[:#\-]?\s*(\d{10,20})/gi) || [];
   packMatches.forEach((m) => ordersFound.add(m.replace(/[^0-9]/g, '')));
 
@@ -628,7 +665,7 @@ export function processLabelBlock(
     if (/^(?:999\d{10,15}|57\d{11,16}|58\d{11,16})$/.test(orderNumber)) {
       platform = 'TikTok Shop';
     } else if (
-      /^(?:GSH[0-9A-Z]{7,25}|GC\d{10,20}|AJ\d{10,16}|PGK\d{8,16}|SHN?[0-9A-Z]{7,22}|SHE[0-9A-Z]{7,22}|N[A-Z]\d{9}BR|Q[BM]\d{9}BR)$/i.test(
+      /^(?:GSH[0-9A-Z]{7,25}|GC\d{8,22}|AJ\d{8,18}|(?:PGK|PE)\d{6,18}|(?:SHN?|SHE)\d{6,22}|[A-Z]{2}\d{9}BR|UP[0-9A-Z]{8,16})$/i.test(
         orderNumber
       )
     ) {
@@ -644,6 +681,29 @@ export function processLabelBlock(
       else if (fnNorm.includes('tiktok')) platform = 'TikTok Shop';
       else if (fnNorm.includes('mercado livre') || fnNorm.includes('meli'))
         platform = 'Mercado Livre';
+    }
+  }
+
+  // Resgate automático de pedido para plataforma identificada (evita deixar etiquetas SHEIN com pendência quando a plataforma foi confirmada)
+  if (platform && !orderNumber) {
+    // 1. Tenta encontrar qualquer token alfanumérico não-trivial de 6 a 25 caracteres
+    const alphaCand = textClean.match(/\b([A-Z0-9]{6,25})\b/g) || [];
+    for (const cand of alphaCand) {
+      const u = cand.toUpperCase();
+      if (
+        !/^(?:DESTINATARIO|REMETENTE|ENDERECO|BAIRRO|CIDADE|ESTADO|BRASIL|ENVIOS|EXPRESS|LOGISTICS|PRODUTO|CONTEUDO|DECLARACAO|AVENIDA|TELEFONE|PAC|SEDEX|CORREIOS|SHEIN|MARKETPLACE|SHOPEE|TIKTOK)$/i.test(
+          u
+        ) &&
+        !/^0+$/.test(u) &&
+        !/^\d{8}$/.test(u)
+      ) {
+        orderNumber = u;
+        break;
+      }
+    }
+    // 2. Se a plataforma é certa (ex: SHEIN com logotipo/nome no texto), assegura que a contagem seja honrada:
+    if (!orderNumber) {
+      orderNumber = `${platform.toUpperCase().replace(/\s+/g, '')}-P${pageNumber}${labelIndex > 0 ? `-${labelIndex + 1}` : ''}`;
     }
   }
 
