@@ -197,10 +197,8 @@ export async function resolveVideoUrl(rawUrl: string): Promise<string> {
 }
 
 /**
- * Faz o upload de um arquivo de vídeo selecionado do computador.
- * 1. Extrai metadados (thumbnail e duração real)
- * 2. Tenta fazer upload para Supabase Storage se disponível
- * 3. Se não houver storage configurado, salva com segurança no IndexedDB
+ * Upload obrigatório para armazenamento remoto compartilhado.
+ * IndexedDB é local ao navegador e não serve como fallback entre computadores.
  */
 export async function uploadLocalVideoFile(
   file: File,
@@ -211,58 +209,50 @@ export async function uploadLocalVideoFile(
   duration: string;
   fileName: string;
   fileSizeFormatted: string;
-  storageType: 'supabase' | 'indexeddb';
+  storageType: 'supabase';
 }> {
-  // 1. Extrair thumbnail e duração
   const meta = await extractVideoMetadata(file);
-
-  // Formatar tamanho em MB/KB
   const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
-  const fileSizeFormatted = file.size > 1024 * 1024 ? `${sizeMb} MB` : `${Math.round(file.size / 1024)} KB`;
+  const fileSizeFormatted = file.size > 1024 * 1024
+    ? `${sizeMb} MB`
+    : `${Math.round(file.size / 1024)} KB`;
 
-  // 2. Tentar upload no Supabase Storage
   const client = getSupabaseClient();
-  if (client) {
-    try {
-      const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const filePath = `videos/${productId ? productId + '_' : ''}${Date.now()}_${sanitizedName}`;
-
-      // Tenta bucket 'product-videos' ou 'videos'
-      for (const bucketName of ['product-videos', 'videos', 'public']) {
-        const { data, error } = await client.storage.from(bucketName).upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: true
-        });
-
-        if (!error && data) {
-          const { data: pubData } = client.storage.from(bucketName).getPublicUrl(filePath);
-          if (pubData?.publicUrl) {
-            return {
-              videoUrl: pubData.publicUrl,
-              thumbnail: meta.thumbnail,
-              duration: meta.durationFormatted,
-              fileName: file.name,
-              fileSizeFormatted,
-              storageType: 'supabase'
-            };
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('[VideoStorage] Supabase Storage não acessível ou sem bucket, utilizando IndexedDB local:', e);
-    }
+  if (!client) {
+    throw new Error('Supabase não está configurado. Conecte a nuvem antes de enviar vídeos.');
   }
 
-  // 3. Fallback: IndexedDB local ultra-rápido com persistência no navegador
-  const localId = `video_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-  const localRef = await saveLocalVideoToIndexedDb(localId, file, file.name, meta.thumbnail, meta.durationFormatted);
+  const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const safeProductId = String(productId || 'sem-produto').replace(/[^a-zA-Z0-9._-]/g, '_');
+  const filePath = `${safeProductId}/${Date.now()}_${crypto.randomUUID()}_${sanitizedName}`;
+  const bucketName = 'product-videos';
+
+  const { data, error } = await client.storage.from(bucketName).upload(filePath, file, {
+    cacheControl: '3600',
+    upsert: false,
+    contentType: file.type || 'video/mp4'
+  });
+
+  if (error || !data) {
+    const detail = error?.message || 'O Supabase não confirmou o upload.';
+    throw new Error(
+      detail.toLowerCase().includes('bucket') || detail.toLowerCase().includes('not found')
+        ? 'O armazenamento remoto de vídeos não está configurado. Execute o SQL de configuração atualizado no Supabase e tente novamente.'
+        : `Não foi possível enviar o vídeo para a nuvem: ${detail}`
+    );
+  }
+
+  const { data: pubData } = client.storage.from(bucketName).getPublicUrl(data.path);
+  if (!pubData?.publicUrl) {
+    throw new Error('O vídeo foi enviado, mas o Supabase não retornou uma URL pública. Verifique as permissões do bucket product-videos.');
+  }
 
   return {
-    videoUrl: localRef,
+    videoUrl: pubData.publicUrl,
     thumbnail: meta.thumbnail,
     duration: meta.durationFormatted,
     fileName: file.name,
     fileSizeFormatted,
-    storageType: 'indexeddb'
+    storageType: 'supabase'
   };
 }
