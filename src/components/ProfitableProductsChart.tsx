@@ -42,6 +42,7 @@ import {
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
 
 const ORDER_STORAGE_KEY = 'marketpreco_shipping_report_orders_v1';
+const HISTORY_LABELS_KEY = 'marketpreco_shipping_report_history_labels_v1';
 
 export interface ProfitableProductsChartProps {
   products: Product[];
@@ -72,6 +73,31 @@ export interface PdfProductProfitItem {
   profitCalculated?: boolean;
 }
 
+function loadHistoricalLabels(): ProcessedLabel[] {
+  try {
+    const current = JSON.parse(localStorage.getItem(ORDER_STORAGE_KEY) || '[]');
+    const batches = JSON.parse(localStorage.getItem(HISTORY_LABELS_KEY) || '[]');
+    const historical = Array.isArray(batches)
+      ? batches.flatMap((batch: any) => Array.isArray(batch?.labels) ? batch.labels : [])
+      : [];
+    const combined = [...historical, ...(Array.isArray(current) ? current : [])] as ProcessedLabel[];
+    const seen = new Set<string>();
+    return combined.filter((label) => {
+      if (label.duplicate) return false;
+      const order = String(label.orderNumber || '').trim().toLowerCase();
+      const key = label.platform && order
+        ? `${label.platform}:${order}`
+        : `${label.file || ''}:${label.page || 0}:${label.labelIndexOnPage || 0}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  } catch (error) {
+    console.warn('Não foi possível ler o histórico de itens:', error);
+    return [];
+  }
+}
+
 export const ProfitableProductsChart: React.FC<ProfitableProductsChartProps> = ({
   products = [],
   labels: initialLabels,
@@ -95,14 +121,11 @@ export const ProfitableProductsChart: React.FC<ProfitableProductsChartProps> = (
       return;
     }
     try {
-      const stored = localStorage.getItem(ORDER_STORAGE_KEY);
-      if (stored) {
-        const parsed: ProcessedLabel[] = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setLabels(parsed);
-          const firstFile = parsed[0]?.file;
-          if (firstFile) setPdfFileName(firstFile);
-        }
+      const parsed = loadHistoricalLabels();
+      if (parsed.length > 0) {
+        setLabels(parsed);
+        const firstFile = parsed[0]?.file;
+        if (firstFile) setPdfFileName(firstFile);
       }
     } catch (e) {
       console.warn('Aviso ao carregar etiquetas salvas do relatório:', e);
@@ -114,14 +137,11 @@ export const ProfitableProductsChart: React.FC<ProfitableProductsChartProps> = (
     const handleUpdate = () => {
       if (initialLabels && initialLabels.length > 0) return;
       try {
-        const stored = localStorage.getItem(ORDER_STORAGE_KEY);
-        if (stored) {
-          const parsed: ProcessedLabel[] = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setLabels(parsed);
-            const firstFile = parsed[0]?.file;
-            if (firstFile) setPdfFileName(firstFile);
-          }
+        const parsed = loadHistoricalLabels();
+        if (parsed.length > 0) {
+          setLabels(parsed);
+          const firstFile = parsed[0]?.file;
+          if (firstFile) setPdfFileName(firstFile);
         }
       } catch (e) {
         console.warn('Aviso ao atualizar etiquetas em tempo real:', e);
@@ -139,16 +159,13 @@ export const ProfitableProductsChart: React.FC<ProfitableProductsChartProps> = (
   // Permite recarregar as etiquetas mais recentes salvas do relatório
   const reloadFromReportCache = () => {
     try {
-      const stored = localStorage.getItem(ORDER_STORAGE_KEY);
-      if (stored) {
-        const parsed: ProcessedLabel[] = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setLabels(parsed);
-          const firstFile = parsed[0]?.file;
-          if (firstFile) setPdfFileName(firstFile);
-          setUploadNotice(`${parsed.length} etiqueta(s) sincronizada(s) do Relatório de Expedição.`);
-          return;
-        }
+      const parsed = loadHistoricalLabels();
+      if (parsed.length > 0) {
+        setLabels(parsed);
+        const firstFile = parsed[0]?.file;
+        if (firstFile) setPdfFileName(firstFile);
+        setUploadNotice(`${parsed.length} etiqueta(s) sincronizada(s) do histórico de pedidos.`);
+        return;
       }
       setUploadNotice('Nenhum lote de relatório encontrado no momento. Envie o PDF abaixo.');
     } catch (e) {
