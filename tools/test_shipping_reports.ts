@@ -676,6 +676,22 @@ assert(
 
 // =========================================================================
 // =========================================================================
+// TESTE 29C: Não classificar como Shopee apenas pelo padrão do código do pedido
+// =========================================================================
+const nonShopeeNumericOrder = `
+ETIQUETA DE ENVIO
+Pedido: 261014KVY30WGX
+Ref.No: GC2610134951478299
+AJ261013121661309
+`;
+const nonShopeeNumericItem = processLabelBlock(nonShopeeNumericOrder, '16-10,1.pdf', 2, 0);
+assert(
+  nonShopeeNumericItem.platform !== 'Shopee',
+  '29C. Um código parecido com Order SN, sem marca ou evidência logística Shopee, não é classificado como Shopee'
+);
+
+// =========================================================================
+// =========================================================================
 // TESTE 30: Etiqueta real Mercado Livre UpSeller ERP (Screenshot enviado pelo usuário)
 // =========================================================================
 const realMeliScreenshotText = `
