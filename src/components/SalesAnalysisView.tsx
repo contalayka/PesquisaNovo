@@ -169,9 +169,9 @@ export const SalesAnalysisView: React.FC = () => {
     } finally { setShopeeBusy(false); }
   };
   const onShopeeImageUpload = async (file?: File) => {
-    if (!file) return; setImageBusy(true); setNotice('');
+    if (!file) { setNotice('Selecione uma imagem para iniciar a leitura.'); return; } setImageBusy(true); setNotice('Carregando o leitor de texto da imagem… isso pode levar alguns segundos na primeira tentativa.');
     try {
-      const result = await Tesseract.recognize(file, 'por+eng');
+      const result = await Tesseract.recognize(file, 'por+eng', { logger: m => { if (m.status) setNotice('Lendo imagem Shopee: '+m.status+(typeof m.progress==='number'?' '+Math.round(m.progress*100)+'%':'')); } });
       const words = (result.data as any).words as Array<{text:string; bbox:{x0:number;y0:number;x1:number;y1:number}}> | undefined;
       const norm = (s:string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
       const raw = (words||[]).filter(w=>w.text?.trim()).map(w=>({text:w.text.trim(),x:w.bbox.x0,y:(w.bbox.y0+w.bbox.y1)/2})).sort((a,b)=>a.y-b.y||a.x-b.x);
@@ -282,7 +282,7 @@ export const SalesAnalysisView: React.FC = () => {
           {imageBusy ? <RefreshCw className="mb-2 h-6 w-6 animate-spin text-orange-300"/> : <Upload className="mb-2 h-6 w-6 text-orange-300"/>}
           <span className="font-medium">{imageBusy ? 'Lendo imagem e métricas…' : 'Selecionar imagem da Shopee'}</span>
           <span className="mt-1 text-xs text-slate-400">PNG, JPG ou WEBP • nome do produto e Performance visíveis</span>
-          <input className="hidden" type="file" accept="image/png,image/jpeg,image/webp" disabled={imageBusy} onChange={e=>{void onShopeeImageUpload(e.target.files?.[0]);e.currentTarget.value="";}}/>
+          <input className="mt-3 block w-full max-w-md text-sm text-slate-200 file:mr-3 file:rounded-lg file:border-0 file:bg-orange-500 file:px-4 file:py-2 file:font-semibold file:text-black hover:file:bg-orange-400" type="file" accept="image/*" disabled={imageBusy} onChange={e=>{const file=e.currentTarget.files?.[0];if(file){setNotice('Arquivo selecionado: '+file.name+'. Iniciando leitura OCR…');void onShopeeImageUpload(file);}e.currentTarget.value='';}}/>
         </label>
       </section>
 
