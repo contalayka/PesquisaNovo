@@ -2249,7 +2249,14 @@ export default function App() {
           {currentSidebarSection === 'videos' && <VideoFinderView products={products} />}
 
           {/* VIEW: RELATÓRIOS DE PEDIDOS PARA WHATSAPP */}
-          {currentSidebarSection === 'relatorios' && <WhatsAppReportView />}
+          {currentSidebarSection === 'relatorios' && (
+            <WhatsAppReportView
+              products={products}
+              onOpenResearch={(p) => setActiveResearchProduct(p)}
+              onOpenSimulator={(p) => handleOpenSimulator(p)}
+              onNavigateToProducts={() => setCurrentSidebarSection('produtos')}
+            />
+          )}
 
           {/* VIEW: ESTOQUE / CUSTO INTERNO — base totalmente separada do catálogo principal */}
           {currentSidebarSection === 'estoque_interno' && (

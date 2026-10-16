@@ -672,10 +672,12 @@ export function extractProductsFromLabel(rawText: string): ExtractedLabelItem[] 
       /^(?:\d+[\.\)\-:]|\*)\s*(.+?)(?:\s*(?:\(\s*\*\s*(\d+)\s*\)|\*\s*(\d+)|\(\s*x\s*(\d+)\s*\)|x\s*(\d+)))?$/i
     );
     if (mItem) {
-      const candidateName = mItem[1].trim();
+      let candidateName = mItem[1].trim();
+      // Remove prefixos como [SKU-123] ou (COD) se houver
+      candidateName = candidateName.replace(/^\[[^\]]+\]\s*/, '').replace(/^\([^\)]+\)\s*/, '');
       if (
         candidateName.length >= 4 &&
-        !/^(?:avenida|rua|alameda|travessa|rodovia|cep|destinatario|destinat[aá]rio|remetente|pedido|pack\s*id|xpr|srs|total\s*items|deadline|peso\s*bruto|sku:\s*\d+|etiqueta|data|declaracao|declara[cç][aã]o|peso)/i.test(
+        !/^(?:avenida|rua|alameda|travessa|rodovia|cep|destinatario|destinat[aá]rio|remetente|pedido|pack\s*id|xpr|srs|total\s*items|deadline|peso\s*bruto|sku:\s*\d+|etiqueta|data|declaracao|declara[cç][aã]o|peso|valor|chave\s*de\s*acesso|serie|nfe)/i.test(
           candidateName
         )
       ) {
@@ -685,13 +687,31 @@ export function extractProductsFromLabel(rawText: string): ExtractedLabelItem[] 
       }
     }
 
-    // Padrão 2: "PRODUTO:" / "ITEM:" / "CONTEÚDO:"
+    // Padrão 2: "PRODUTO:" / "ITEM:" / "CONTEÚDO:" / "DESCRIÇÃO:" / "MERCADORIA:"
     const mExplicit = trimmed.match(
-      /(?:produto|descri[cç][aã]o|item|conte[uú]do)\s*[:\-]\s*(.+?)(?:\s*(?:qtd|quantidade|x|\*)\s*[:\-]?\s*(\d+))?$/i
+      /(?:produto|descri[cç][aã]o(?:\s*dos?\s*bens)?|item|conte[uú]do|mercadoria)\s*[:\-]\s*(.+?)(?:\s*(?:qtd|quantidade|quant\.|unidades?|x|\*)\s*[:\-]?\s*(\d+))?$/i
     );
     if (mExplicit) {
-      const name = mExplicit[1].trim();
+      let name = mExplicit[1].trim();
+      name = name.replace(/^\[[^\]]+\]\s*/, '').replace(/^\([^\)]+\)\s*/, '');
       const qty = parseInt(mExplicit[2] || '1', 10);
+      if (
+        name.length >= 4 &&
+        !/^(?:avenida|rua|destinatario|remetente|conforme|declaracao|declarado|anexo)/i.test(name)
+      ) {
+        items.push({ name, qty: isNaN(qty) || qty <= 0 ? 1 : qty });
+        continue;
+      }
+    }
+
+    // Padrão 3: Declaração de Conteúdo dos Correios / Mercado Envios / Shopee
+    // "Discriminação do Conteúdo: Manteigueira Vidro ... Quantidade: 1"
+    const mDeclaracao = trimmed.match(
+      /(?:discrimina[cç][aã]o\s*(?:do\s*conte[uú]do)?|declara[cç][aã]o\s*de\s*conte[uú]do)\s*[:\-]\s*(.+?)(?:\s*(?:qtd|quantidade|quant\.|unidades?|x|\*)\s*[:\-]?\s*(\d+))?$/i
+    );
+    if (mDeclaracao) {
+      const name = mDeclaracao[1].trim();
+      const qty = parseInt(mDeclaracao[2] || '1', 10);
       if (name.length >= 4) {
         items.push({ name, qty: isNaN(qty) || qty <= 0 ? 1 : qty });
         continue;

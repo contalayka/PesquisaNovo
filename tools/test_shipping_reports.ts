@@ -8,6 +8,7 @@ import {
   formatWhatsAppMessage,
   createEmptyCounts,
   ProcessedLabel,
+  extractProductsFromLabel,
 } from '../src/utils/shippingReportEngine';
 
 console.log('=== INICIANDO SUÍTE DE TESTES OBRIGATÓRIOS (RELATÓRIO DE EXPEDIÇÃO) ===\n');
@@ -740,6 +741,27 @@ assert(
   `32. Quatro pedidos SHEIN únicos dos PDFs são contabilizados; GSH repetido entre arquivos é deduplicado sem virar pendência`
 );
 
+// =========================================================================
+// TESTE 33: Extração de produtos a partir da etiqueta de envio (UpSeller / Declaração)
+// =========================================================================
+const extractedItems = extractProductsFromLabel(realSheinScreenshotText);
+assert(
+  extractedItems.length === 1 &&
+    extractedItems[0].name.includes('Manteigueira Em Vidro Redonda') &&
+    extractedItems[0].qty === 1,
+  `33. Produto e quantidade da etiqueta UpSeller extraídos com sucesso para o gráfico de lucratividade`
+);
+
+// =========================================================================
+// TESTE 34: ProcessLabelBlock embute os produtos extraídos no objeto ProcessedLabel
+// =========================================================================
+assert(
+  labelItem28.extractedProducts &&
+    labelItem28.extractedProducts.length === 1 &&
+    labelItem28.extractedProducts[0].name.includes('Manteigueira'),
+  `34. ProcessLabelBlock embute os produtos extraídos garantindo dados para o gráfico de produtos mais lucrativos`
+);
+
 console.log(`\n======================================================`);
 console.log(`RESULTADO FINAL: ${passedTests} de ${totalTests} TESTES APROVADOS!`);
 console.log(`======================================================\n`);
@@ -747,3 +769,4 @@ console.log(`======================================================\n`);
 if (passedTests !== totalTests) {
   process.exit(1);
 }
+

@@ -108,6 +108,33 @@ export const ProfitableProductsChart: React.FC<ProfitableProductsChartProps> = (
     }
   }, [initialLabels]);
 
+  // Escuta atualizações automáticas geradas em tempo real ao ler ou alterar etiquetas no relatório
+  useEffect(() => {
+    const handleUpdate = () => {
+      if (initialLabels && initialLabels.length > 0) return;
+      try {
+        const stored = localStorage.getItem(ORDER_STORAGE_KEY);
+        if (stored) {
+          const parsed: ProcessedLabel[] = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setLabels(parsed);
+            const firstFile = parsed[0]?.file;
+            if (firstFile) setPdfFileName(firstFile);
+          }
+        }
+      } catch (e) {
+        console.warn('Aviso ao atualizar etiquetas em tempo real:', e);
+      }
+    };
+
+    window.addEventListener('marketpreco_labels_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('marketpreco_labels_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, [initialLabels]);
+
   // Permite recarregar as etiquetas mais recentes salvas do relatório
   const reloadFromReportCache = () => {
     try {

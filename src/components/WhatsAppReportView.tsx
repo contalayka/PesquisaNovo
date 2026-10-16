@@ -37,6 +37,8 @@ import {
   formatWhatsAppMessage,
   normalizeOrderCode,
 } from '../utils/shippingReportEngine';
+import { Product } from '../types';
+import { ProfitableProductsChart } from './ProfitableProductsChart';
 
 type Batch = {
   id: string;
@@ -47,6 +49,13 @@ type Batch = {
   counts: Record<string, number>;
   pending_count: number;
 };
+
+export interface WhatsAppReportViewProps {
+  products?: Product[];
+  onOpenResearch?: (product: Product) => void;
+  onOpenSimulator?: (product: Product) => void;
+  onNavigateToProducts?: () => void;
+}
 
 const inputClass =
   'mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-500';
@@ -64,7 +73,12 @@ function getTodayIsoDate(): string {
   return `${obj.year}-${obj.month}-${obj.day}`;
 }
 
-export const WhatsAppReportView: React.FC = () => {
+export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
+  products = [],
+  onOpenResearch,
+  onOpenSimulator,
+  onNavigateToProducts,
+}) => {
   const [date, setDate] = useState<string>(getTodayIsoDate);
   const [files, setFiles] = useState<File[]>([]);
   const [labels, setLabels] = useState<ProcessedLabel[]>([]);
@@ -238,40 +252,45 @@ export const WhatsAppReportView: React.FC = () => {
 
             let pageText = nativeText;
 
-            // 2. OCR obrigatório em PDFs: o texto nativo pode reconhecer o código de pedido
-            // como um Order SN da Shopee e ignorar o logotipo SHEIN, que costuma ser uma imagem.
-            // Isso é especialmente importante em etiquetas UpSeller com pedido numérico/alfanumérico.
-            try {
-              if (!worker) {
-                setProgress('Carregando mecanismo de OCR...');
-                worker = await createWorker('por+eng', 1, {
-                  logger: (m: any) => {
-                    if (m.status === 'recognizing text') {
-                      setProgress(
-                        `OCR página ${pageNum}/${pdf.numPages}: ${Math.round(m.progress * 100)}%`
-                      );
-                    }
-                  },
-                });
-              }
+            // Se o texto nativo já identificou a plataforma E o número do pedido,
+            // dispensamos o OCR pesado, processando em milissegundos sem travar o navegador.
+            // Apenas se o texto for escasso ou faltar plataforma/pedido, ativamos o OCR como reforço.
+            const initialPlatform = detectPlatform(nativeText, file.name);
+            const initialOrder = extractOrderNumber(nativeText, initialPlatform);
+            const needsOcr = (!initialPlatform || !initialOrder) && nativeText.length < 50;
 
-              const vp = page.getViewport({ scale: 2.5 });
-              const canvas = document.createElement('canvas');
-              canvas.width = Math.ceil(vp.width);
-              canvas.height = Math.ceil(vp.height);
-              const ctx = canvas.getContext('2d');
+            if (needsOcr) {
+              try {
+                if (!worker) {
+                  setProgress('Carregando mecanismo de OCR...');
+                  worker = await createWorker('por+eng', 1, {
+                    logger: (m: any) => {
+                      if (m.status === 'recognizing text') {
+                        setProgress(
+                          `OCR página ${pageNum}/${pdf.numPages}: ${Math.round(m.progress * 100)}%`
+                        );
+                      }
+                    },
+                  });
+                }
 
-              if (ctx) {
-                await page.render({ canvasContext: ctx, viewport: vp }).promise;
-                const ocrRes = await worker.recognize(canvas);
-                const ocrText = ocrRes.data.text || '';
-                // Texto nativo primeiro, OCR depois: detectPlatform prioriza marca explícita SHEIN
-                // sobre padrões de pedido que também podem aparecer em etiquetas SHEIN.
-                pageText = [nativeText, ocrText].filter(Boolean).join('\\n');
+                const vp = page.getViewport({ scale: 2.5 });
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.ceil(vp.width);
+                canvas.height = Math.ceil(vp.height);
+                const ctx = canvas.getContext('2d');
+
+                if (ctx) {
+                  await page.render({ canvasContext: ctx, viewport: vp }).promise;
+                  const ocrRes = await worker.recognize(canvas);
+                  const ocrText = ocrRes.data.text || '';
+                  pageText = [nativeText, ocrText].filter(Boolean).join('\n');
+                }
+              } catch (ocrErr) {
+                console.warn(`Erro no OCR da página ${pageNum}:`, ocrErr);
+                pageText = nativeText;
               }
-            } catch (ocrErr) {
-              // OCR é adicional; se falhar, ainda tentamos processar o texto nativo do PDF.
-              console.warn(`Erro no OCR da página ${pageNum}:`, ocrErr);
+            } else {
               pageText = nativeText;
             }
 
@@ -321,6 +340,7 @@ export const WhatsAppReportView: React.FC = () => {
       setLabels(calculated.items);
       try {
         localStorage.setItem(ORDER_KEY, JSON.stringify(calculated.items));
+        window.dispatchEvent(new Event('marketpreco_labels_updated'));
       } catch (e) {
         console.warn('Erro ao salvar no localStorage:', e);
       }
@@ -520,16 +540,16 @@ export const WhatsAppReportView: React.FC = () => {
     setLabels([]);
     setFiles([]);
     localStorage.removeItem(ORDER_KEY);
+    window.dispatchEvent(new Event('marketpreco_labels_updated'));
     setNotice('Lista atual limpa com sucesso. O histórico salvo permanece seguro.');
     setError('');
     setShowConfirmClear(false);
   }
 
-
   // Permite confirmar ou alterar a plataforma/pedido de uma etiqueta com pendência em 1 clique
   function handleResolvePending(itemId: string, targetPlatform: Platform, newOrder?: string) {
-    setLabels((prev) =>
-      prev.map((it) => {
+    setLabels((prev) => {
+      const updated = prev.map((it) => {
         if (it.id !== itemId) return it;
         let finalOrder = (newOrder !== undefined ? newOrder : it.orderNumber || '').trim();
         if (!finalOrder) {
@@ -539,12 +559,19 @@ export const WhatsAppReportView: React.FC = () => {
           ...it,
           platform: targetPlatform,
           orderNumber: finalOrder,
-          confidence: 'Detectado',
-          pendingReason: '',
+          confidence: 'Detectado' as const,
+          pendingReason: '' as const,
           include: true,
         };
-      })
-    );
+      });
+      try {
+        localStorage.setItem(ORDER_KEY, JSON.stringify(updated));
+        window.dispatchEvent(new Event('marketpreco_labels_updated'));
+      } catch (e) {
+        console.warn('Erro ao atualizar localStorage:', e);
+      }
+      return updated;
+    });
     setNotice(`Etiqueta atualizada para ${targetPlatform} com sucesso!`);
   }
 
@@ -973,6 +1000,17 @@ export const WhatsAppReportView: React.FC = () => {
               </div>
             </section>
           )}
+
+          {/* Gráfico dos Produtos Mais Lucrativos do PDF de Expedição (Recharts) */}
+          <div className="pt-2">
+            <ProfitableProductsChart
+              products={products}
+              labels={labels}
+              onOpenResearch={onOpenResearch}
+              onOpenSimulator={onOpenSimulator}
+              onNavigateToProducts={onNavigateToProducts}
+            />
+          </div>
         </>
       ) : (
         /* Seção Histórico de Lotes Salvos */
