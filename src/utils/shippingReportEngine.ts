@@ -219,7 +219,9 @@ export function detectPlatform(text: string, fileName = ''): Platform | '' {
     /\bsoc\s*[a-z]{2}\d*\b/i.test(raw) ||
     /\blsp-\d+\b/i.test(raw);
 
-  if (hasShopeeMention || hasShopeeOrderSn || hasShopeeHub) {
+  // Não classificar Shopee apenas pelo formato numérico/alfanumérico do pedido:
+  // outras plataformas podem usar códigos parecidos. Exigir evidência logística/marca.
+  if (hasShopeeMention || hasShopeeHub) {
     return 'Shopee';
   }
 
@@ -769,8 +771,6 @@ export function processLabelBlock(
       platform = 'SHEIN';
     } else if (/^20000\d{10,12}$/.test(orderNumber)) {
       platform = 'Mercado Livre';
-    } else if (/^2[3-9][0-9]{2}[A-Z0-9]{10,14}$/.test(orderNumber)) {
-      platform = 'Shopee';
     } else if (fileName) {
       const fnNorm = normalizeText(fileName);
       if (fnNorm.includes('shein') || fnNorm.includes('shn')) platform = 'SHEIN';
