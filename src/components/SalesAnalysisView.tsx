@@ -85,7 +85,7 @@ export const SalesAnalysisView: React.FC = () => {
           if (!knownIds.has(itemId)) updated.push({
             id: itemId, platform: 'Mercado Livre', title: itemId, listingId: itemId,
             views, orders: 0, units: 0, revenue: 0, price: 0, cost: 0,
-            competitorPrice: 0, feePercent: 0, targetMarginPercent: 20, url: `https://produto.mercadolivre.com.br/${itemId}`,
+            competitorPrice: 0, feePercent: 0, targetMarginPercent: 20, url: '',
             period: `${mlDateFrom} a ${mlDateTo}`, updatedAt: new Date().toISOString(),
           });
         });
