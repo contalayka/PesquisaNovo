@@ -335,16 +335,29 @@ export const ProfitableProductsChart: React.FC<ProfitableProductsChartProps> = (
         }
       }
 
-      // Se não tiver preço de pesquisa cadastrado, mas o produto foi expedido,
-      // estimamos com base em margem mínima padrão para o gráfico ser informativo
-      const finalCost = cost > 0 ? cost : 15.0; // Fallback orientador se não cadastrado
-      const finalMarketPrice =
-        marketPrice > 0 ? marketPrice : finalCost > 0 ? finalCost * 2.2 : 35.0;
-
-      const unitProfit = finalMarketPrice - finalCost;
+      // O preço pesquisado de concorrentes não é necessariamente o preço real de venda.
+      // Nunca estimar custo ou preço quando os dados não estiverem cadastrados.
+      const finalCost = cost > 0 ? cost : 0;
+      const salePriceKeys = ['preco_venda', 'preço de venda', 'preco de venda', 'sale_price', 'selling_price', 'valor de venda', 'preço venda', 'preco venda'];
+      let savedSalePrice = 0;
+      if (matchedProd?.rawColumns) {
+        for (const [key, value] of Object.entries(matchedProd.rawColumns)) {
+          const normalizedKey = key.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().replace(/[_-]+/g, ' ').trim();
+          const isSalePrice = salePriceKeys.some((candidate) =>
+            normalizedKey === candidate.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().replace(/[_-]+/g, ' ').trim()
+          );
+          if (isSalePrice) {
+            const parsed = parseNumericCost(value as any);
+            if (parsed !== null && parsed > 0) { savedSalePrice = parsed; break; }
+          }
+        }
+      }
+      const finalMarketPrice = savedSalePrice;
+      const hasProfitData = finalCost > 0 && finalMarketPrice > 0;
+      const unitProfit = hasProfitData ? finalMarketPrice - finalCost : 0;
       const totalBatchProfit = unitProfit * entry.quantity;
-      const marginPercent = finalMarketPrice > 0 ? (unitProfit / finalMarketPrice) * 100 : 0;
-      const markupPercent = finalCost > 0 ? (unitProfit / finalCost) * 100 : 0;
+      const marginPercent = hasProfitData ? (unitProfit / finalMarketPrice) * 100 : 0;
+      const markupPercent = hasProfitData ? (unitProfit / finalCost) * 100 : 0;
 
       const cleanName = matchedProd ? matchedProd.name : entry.displayName;
       const shortName = cleanName.length > 24 ? cleanName.slice(0, 22) + '...' : cleanName;
@@ -373,99 +386,9 @@ export const ProfitableProductsChart: React.FC<ProfitableProductsChartProps> = (
     return result;
   }, [labels, products, selectedPlatform]);
 
-  // Se o usuário ainda não enviou nenhum PDF, monta uma amostra realista baseada nos dados do relatório UpSeller
-  const demoPdfProducts: PdfProductProfitItem[] = useMemo(() => {
-    return [
-      {
-        id: 'demo-1',
-        name: 'Manteigueira Em Vidro Redonda Round 10cm Mimo',
-        shortName: 'Manteigueira Vidro Round',
-        sku: 'MANT-01',
-        quantityShipped: 7, // 1 unidade no pedido SHEIN + 6 unidades no Mercado Livre
-        orderCount: 2,
-        platforms: ['SHEIN', 'Mercado Livre'],
-        cost: 12.5,
-        marketPrice: 38.9,
-        unitProfit: 26.4,
-        totalBatchProfit: 26.4 * 7, // R$ 184,80 no lote
-        marginPercent: 67.9,
-        markupPercent: 211.2,
-        researchCount: 4,
-        hasCatalogMatch: true,
-      },
-      {
-        id: 'demo-2',
-        name: 'Conjunto 6 Xícaras Porcelana Café 90ml',
-        shortName: 'Xícaras Porcelana 90ml',
-        sku: 'XIC-06',
-        quantityShipped: 3,
-        orderCount: 3,
-        platforms: ['Shopee', 'TikTok Shop'],
-        cost: 24.0,
-        marketPrice: 59.9,
-        unitProfit: 35.9,
-        totalBatchProfit: 35.9 * 3, // R$ 107,70
-        marginPercent: 59.9,
-        markupPercent: 149.6,
-        researchCount: 3,
-        hasCatalogMatch: true,
-      },
-      {
-        id: 'demo-3',
-        name: 'Garrafa Térmica Aço Inox 500ml Vacuum',
-        shortName: 'Garrafa Térmica 500ml',
-        sku: 'GAR-500',
-        quantityShipped: 4,
-        orderCount: 4,
-        platforms: ['Mercado Livre', 'Shopee'],
-        cost: 18.0,
-        marketPrice: 44.5,
-        unitProfit: 26.5,
-        totalBatchProfit: 26.5 * 4, // R$ 106,00
-        marginPercent: 59.6,
-        markupPercent: 147.2,
-        researchCount: 5,
-        hasCatalogMatch: true,
-      },
-      {
-        id: 'demo-4',
-        name: 'Porta Condimentos Giratório Inox 12 Potes',
-        shortName: 'Porta Condimentos Inox',
-        sku: 'COND-12',
-        quantityShipped: 1,
-        orderCount: 1,
-        platforms: ['Mercado Livre'],
-        cost: 45.0,
-        marketPrice: 98.0,
-        unitProfit: 53.0,
-        totalBatchProfit: 53.0,
-        marginPercent: 54.1,
-        markupPercent: 117.8,
-        researchCount: 3,
-        hasCatalogMatch: true,
-      },
-      {
-        id: 'demo-5',
-        name: 'Tábua de Corte Bambu Ecológica 30x20',
-        shortName: 'Tábua Bambu 30x20',
-        sku: 'TAB-3020',
-        quantityShipped: 2,
-        orderCount: 2,
-        platforms: ['TikTok Shop'],
-        cost: 14.2,
-        marketPrice: 32.9,
-        unitProfit: 18.7,
-        totalBatchProfit: 18.7 * 2, // R$ 37,40
-        marginPercent: 56.8,
-        markupPercent: 131.7,
-        researchCount: 4,
-        hasCatalogMatch: true,
-      },
-    ];
-  }, []);
-
+  // Exibir somente produtos reais com lucro calculável, sem dados demonstrativos.
   const hasRealPdfData = pdfProducts.length > 0;
-  const activeItems = hasRealPdfData ? pdfProducts : demoPdfProducts;
+  const activeItems = pdfProducts.filter((item) => item.profitCalculated);
 
   // Ordenação de acordo com a métrica escolhida
   const sortedItems = useMemo(() => {
@@ -527,22 +450,20 @@ export const ProfitableProductsChart: React.FC<ProfitableProductsChartProps> = (
               <TrendingUp className="h-4 w-4" />
             </div>
             <h2 className="text-base font-bold text-white tracking-tight">
-              Produtos Mais Lucrativos do PDF de Expedição
+              Produtos Mais Lucrativos — Histórico de Pedidos
             </h2>
             {hasRealPdfData ? (
               <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-600/40 text-emerald-300">
-                PDF Ativo ({labels.length} etiquetas)
+                Histórico ({labels.length} etiquetas)
               </span>
             ) : (
               <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-600/40 text-cyan-300">
-                Amostra Demonstrativa
+                Sem dados reais
               </span>
             )}
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Itens extraídos das etiquetas de envio em PDF, comparando o{' '}
-            <span className="text-cyan-300 font-medium">Custo Atual</span> com o{' '}
-            <span className="text-emerald-300 font-medium">Preço Médio de Mercado</span> das pesquisas.
+            Itens dos pedidos salvos, usando valores cadastrados no catálogo. Preços pesquisados de concorrentes não são tratados como venda realizada.
           </p>
         </div>
 
@@ -716,7 +637,7 @@ export const ProfitableProductsChart: React.FC<ProfitableProductsChartProps> = (
           {/* Card 2: Lucro Total Projetado no Lote */}
           <div className="rounded-xl border border-cyan-500/25 bg-cyan-950/20 p-3.5">
             <div className="text-[11px] font-medium text-cyan-400/90 uppercase tracking-wider">
-              Lucro Total Estimado (Top {sortedItems.length} Itens)
+              Lucro calculável (Top {sortedItems.length} Itens)
             </div>
             <div className="mt-1 text-xl font-extrabold text-white font-mono tabular-nums">
               +{formatCurrency(stats.totalBatchProfitSum)}
@@ -821,7 +742,7 @@ export const ProfitableProductsChart: React.FC<ProfitableProductsChartProps> = (
                 Azul: <strong className="text-cyan-300 font-mono">Custo Atual</strong>
               </span>
               <span className="text-slate-400">
-                Verde: <strong className="text-emerald-300 font-mono">Preço Médio de Mercado</strong>
+                Verde: <strong className="text-emerald-300 font-mono">Preço de venda cadastrado</strong>
               </span>
             </div>
           </div>
