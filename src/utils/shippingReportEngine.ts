@@ -292,14 +292,19 @@ export function detectPlatform(text: string, fileName = ''): Platform | '' {
   // Layout característico Mercado Envios:
   // - Presença de "Pack ID" (ou Pacote ID) ou Venda (20000...)
   // - E obrigatoriamente roteamento Mercado Envios (XPR, XSP, SSP, SDF, SMN, SRS, etc.) ou seller hash #1476198771 com Pack ID/Venda
+  // UpSeller/PDF OCR may insert spaces inside Mercado Livre IDs, e.g. "Pack ID: 20000 15529015941".
+  const spacedMeliId = String.raw`20000[\s.\-]*\d{9,12}`;
   const hasPackId =
-    /pack\s*id\s*[:#]?\s*\d+/i.test(raw) ||
-    /pacote\s*id\s*[:#]?\s*\d+/i.test(raw) ||
-    /\b20000\d{10,12}\b/.test(raw);
+    new RegExp(String.raw`pack\s*id\s*[:#]?\s*${spacedMeliId}`, 'i').test(raw) ||
+    new RegExp(String.raw`pacote\s*id\s*[:#]?\s*${spacedMeliId}`, 'i').test(raw) ||
+    new RegExp(String.raw`\b${spacedMeliId}\b`, 'i').test(raw);
   const hasMeliRoute = /\b(xpr\d?|xsp\d?|spr\d?|ssp\d?|sdf\d?|smn\d?|srs\d?|xsc\d?|xmg\d?|xba\d?|xrs\d?|cpt\d?|rpr\d?|vpr\d?|bsb\d?|xgo\d?)\b/i.test(
     raw
   );
-  const hasVenda = /(?:venda|id\s*(?:da\s*)?venda)\s*[:#\-]?\s*20000\d{9,12}/i.test(raw);
+  const hasVenda = new RegExp(
+    String.raw`(?:venda|id\s*(?:da\s*)?venda)\s*[:#\-]?\s*${spacedMeliId}`,
+    'i'
+  ).test(raw);
   const hasSellerHashId = /#\d{7,12}\b/.test(raw);
 
   if ((hasPackId || hasVenda) && (hasMeliRoute || hasSellerHashId)) {
@@ -471,27 +476,20 @@ export function extractOrderNumber(text: string, platform?: Platform | ''): stri
   // Importante: NÃO confundir com NF (ex: 141), nem com Loja (#1476198771), nem com rota (XPR2)
   if (platform === 'Mercado Livre') {
     // 1. Campo explícito "Pedido:" ou "Venda:" ou "ID da Venda:"
+    // IDs de venda/Pack ID podem conter espaços, pontos ou hífens inseridos pelo OCR.
+    const spacedMeliId = String.raw`(20000[\s.\-]*\d{9,12})`;
     const mVenda =
-      raw.match(/(?:venda|id\s*(?:da\s*)?venda|pedido)\s*[:#\-]?\s*(\d{10,20})/i) ||
-      raw.match(/(?:venda|pedido)\s*#?\s*(\d{10,20})/i);
-    if (mVenda) {
-      return mVenda[1].trim();
-    }
+      raw.match(new RegExp(String.raw`(?:venda|id\s*(?:da\s*)?venda|pedido)\s*[:#\-]?\s*${spacedMeliId}`, 'i')) ||
+      raw.match(new RegExp(String.raw`(?:venda|pedido)\s*#?\s*${spacedMeliId}`, 'i'));
+    if (mVenda) return mVenda[1].replace(/\D/g, '');
 
-    // 2. Campo Pack ID: 2000015425355765
-    // No Mercado Envios, o Pack ID é o identificador único do pacote/pedido da etiqueta.
     const mPack =
-      raw.match(/pack\s*id\s*[:#\-]?\s*(\d{10,20})/i) ||
-      raw.match(/pacote\s*id\s*[:#\-]?\s*(\d{10,20})/i);
-    if (mPack) {
-      return mPack[1].trim();
-    }
+      raw.match(new RegExp(String.raw`pack\s*id\s*[:#\-]?\s*${spacedMeliId}`, 'i')) ||
+      raw.match(new RegExp(String.raw`pacote\s*id\s*[:#\-]?\s*${spacedMeliId}`, 'i'));
+    if (mPack) return mPack[1].replace(/\D/g, '');
 
-    // 3. Padrão numérico 20000... típico de Pack ID ou Venda
-    const mPackDirect = raw.match(/\b(20000\d{10,12})\b/);
-    if (mPackDirect) {
-      return mPackDirect[1];
-    }
+    const mPackDirect = raw.match(/\b(20000[\s.\-]*\d{9,12})\b/);
+    if (mPackDirect) return mPackDirect[1].replace(/\D/g, '');
   }
 
   // D) SHOPEE:
