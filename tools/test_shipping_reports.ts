@@ -778,6 +778,57 @@ assert(
   `34. ProcessLabelBlock embute os produtos extraídos garantindo dados para o gráfico de produtos mais lucrativos`
 );
 
+// =========================================================================
+// TESTE 35: Mercado Livre com Pack ID separado por espaço pelo extrator do PDF
+// =========================================================================
+const meliSpacedPack = processLabelBlock(`
+REMETENTE: MEGA FEIRAO DAS LOUCAS LT #1476198771
+Pack ID: 20000 15529015941
+ROTA: XPR2 > XSP14_2 > SRJ17
+NF: 554
+DESTINATARIO: CLIENTE MERCADO LIVRE
+`, '16-10,1.pdf', 1, 0);
+assert(
+  meliSpacedPack.platform === 'Mercado Livre' &&
+    meliSpacedPack.orderNumber === '2000015529015941' &&
+    meliSpacedPack.confidence === 'Detectado',
+  '35. Mercado Livre: Pack ID com espaço interno é normalizado e reconhecido como um único pedido'
+);
+
+// =========================================================================
+// TESTE 36: Mercado Livre com Venda separada por espaço
+// =========================================================================
+const meliSpacedSale = processLabelBlock(`
+REMETENTE: MEGA FEIRAO DAS LOUCAS LT #1476198771
+Venda: 20000 18944594260
+ROTA: XPR2 > XSP14_1 > SSP26
+NF: 538
+`, '14-10-1.pdf', 1, 0);
+assert(
+  meliSpacedSale.platform === 'Mercado Livre' &&
+    meliSpacedSale.orderNumber === '2000018944594260' &&
+    meliSpacedSale.confidence === 'Detectado',
+  '36. Mercado Livre: Venda com espaço interno é normalizada sem confundir NF ou código da loja'
+);
+
+// =========================================================================
+// TESTE 37: TikTok Shop real com pedido 999... e chave fiscal longa na mesma etiqueta
+// =========================================================================
+const tiktokPdfLabel = processLabelBlock(`
+VDC 940-00 300
+Pedido: 999882506783685
+DESTINATARIO: NEILA SANTOS
+999882506783685
+41261063662008000133550020000005561716825160
+REMETENTE: L**a X**i
+`, '16-10,1.pdf', 4, 0);
+assert(
+  tiktokPdfLabel.platform === 'TikTok Shop' &&
+    tiktokPdfLabel.orderNumber === '999882506783685' &&
+    tiktokPdfLabel.confidence === 'Detectado',
+  '37. TikTok Shop: prioriza Pedido 999... e não confunde a chave fiscal de 44 dígitos'
+);
+
 console.log(`\n======================================================`);
 console.log(`RESULTADO FINAL: ${passedTests} de ${totalTests} TESTES APROVADOS!`);
 console.log(`======================================================\n`);
