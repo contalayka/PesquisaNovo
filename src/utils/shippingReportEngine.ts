@@ -15,6 +15,12 @@ export type Platform = 'Shopee' | 'Mercado Livre' | 'TikTok Shop' | 'SHEIN';
 
 export const PLATFORMS: Platform[] = ['Shopee', 'Mercado Livre', 'TikTok Shop', 'SHEIN'];
 
+export interface ExtractedLabelItem {
+  name: string;
+  sku?: string;
+  qty: number;
+}
+
 export interface ProcessedLabel {
   id: string;
   file: string;
@@ -33,6 +39,8 @@ export interface ProcessedLabel {
   duplicateScope?: 'mesma_etiqueta' | 'mesmo_arquivo' | 'historico_anterior';
   include: boolean;
   rawSnippet?: string;
+  rawText?: string;
+  extractedProducts?: ExtractedLabelItem[];
 }
 
 export interface ShippingReportSummary {
@@ -644,6 +652,53 @@ export function segmentPageIntoLabels(pageText: string): string[] {
 }
 
 /**
+ * Extrai itens e produtos vendidos descritos no texto da etiqueta de envio (UpSeller, ERPs e marketplaces)
+ */
+export function extractProductsFromLabel(rawText: string): ExtractedLabelItem[] {
+  if (!rawText) return [];
+  const items: ExtractedLabelItem[] = [];
+  const lines = rawText.split('\n');
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    // Padrão 1: UpSeller / ERP / Marketplaces item numerado: "1. Manteigueira Vidro *1" ou "1. Copo (*6)" ou "x2"
+    const mItem = trimmed.match(
+      /^(?:\d+[\.\)\-:]|\*)\s*(.+?)(?:\s*(?:\(\s*\*\s*(\d+)\s*\)|\*\s*(\d+)|\(\s*x\s*(\d+)\s*\)|x\s*(\d+)))?$/i
+    );
+    if (mItem) {
+      const candidateName = mItem[1].trim();
+      if (
+        candidateName.length >= 4 &&
+        !/^(?:avenida|rua|alameda|travessa|rodovia|cep|destinatario|destinat[aá]rio|remetente|pedido|pack\s*id|xpr|srs|total\s*items|deadline|peso\s*bruto|sku:\s*\d+|etiqueta|data|declaracao|declara[cç][aã]o|peso)/i.test(
+          candidateName
+        )
+      ) {
+        const qty = parseInt(mItem[2] || mItem[3] || mItem[4] || mItem[5] || '1', 10);
+        items.push({ name: candidateName, qty: isNaN(qty) || qty <= 0 ? 1 : qty });
+        continue;
+      }
+    }
+
+    // Padrão 2: "PRODUTO:" / "ITEM:" / "CONTEÚDO:"
+    const mExplicit = trimmed.match(
+      /(?:produto|descri[cç][aã]o|item|conte[uú]do)\s*[:\-]\s*(.+?)(?:\s*(?:qtd|quantidade|x|\*)\s*[:\-]?\s*(\d+))?$/i
+    );
+    if (mExplicit) {
+      const name = mExplicit[1].trim();
+      const qty = parseInt(mExplicit[2] || '1', 10);
+      if (name.length >= 4) {
+        items.push({ name, qty: isNaN(qty) || qty <= 0 ? 1 : qty });
+        continue;
+      }
+    }
+  }
+
+  return items;
+}
+
+/**
  * Processa um bloco individual de etiqueta e retorna o registro com classificação
  */
 export function processLabelBlock(
@@ -668,8 +723,12 @@ export function processLabelBlock(
       duplicate: false,
       include: false,
       rawSnippet: textClean.slice(0, 100),
+      rawText: textClean,
+      extractedProducts: [],
     };
   }
+
+  const extractedProducts = extractProductsFromLabel(textClean);
 
   let platform = detectPlatform(textClean, fileName);
   let orderNumber = extractOrderNumber(textClean, platform);
@@ -750,6 +809,8 @@ export function processLabelBlock(
     duplicate: false,
     include: confidence === 'Detectado',
     rawSnippet: textClean.slice(0, 120),
+    rawText: textClean,
+    extractedProducts,
   };
 }
 

@@ -2120,6 +2120,7 @@ export default function App() {
               }}
               onNavigateToImport={() => setCurrentSidebarSection('importar')}
               onNavigateToConversion={() => setCurrentSidebarSection('conversao')}
+              onNavigateToReports={() => setCurrentSidebarSection('relatorios')}
               onOpenResearch={(p) => setActiveResearchProduct(p)}
               onOpenSimulator={(p) => handleOpenSimulator(p)}
               onStartNextPending={handleStartNextPending}

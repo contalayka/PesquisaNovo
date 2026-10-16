@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Product, ProductStatus, getProductSku } from '../types';
 import { formatCurrency } from '../utils/excel';
+import { ProfitableProductsChart } from './ProfitableProductsChart';
 
 interface DashboardViewProps {
   products: Product[];
@@ -22,6 +23,7 @@ interface DashboardViewProps {
   onNavigateToImport: () => void;
   onNavigateToProducts: (filterStatus?: ProductStatus | 'all') => void;
   onNavigateToConversion: () => void;
+  onNavigateToReports?: () => void;
   onOpenResearch: (product: Product) => void;
   onOpenSimulator: (product: Product) => void;
   onStartNextPending?: () => void;
@@ -41,6 +43,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onNavigateToImport,
   onNavigateToProducts,
   onNavigateToConversion,
+  onNavigateToReports,
   onOpenResearch,
   onOpenSimulator,
   onStartNextPending,
@@ -215,6 +218,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Gráfico dos Produtos Mais Lucrativos (Recharts: Custo Atual vs Preço Médio de Mercado) */}
+          <ProfitableProductsChart
+            products={products}
+            onOpenResearch={onOpenResearch}
+            onOpenSimulator={onOpenSimulator}
+            onNavigateToProducts={() => onNavigateToProducts('all')}
+            onNavigateToReports={onNavigateToReports}
+          />
 
           {/* Recent Products Data Table */}
           <div className="mp-panel rounded-2xl overflow-hidden">
