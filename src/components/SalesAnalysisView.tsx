@@ -52,10 +52,38 @@ export const SalesAnalysisView: React.FC = () => {
   const [filter, setFilter] = useState<'todos' | Platform>('todos');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
+  const [mlItemIds, setMlItemIds] = useState('');
+  const [mlDateFrom, setMlDateFrom] = useState(() => new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10));
+  const [mlDateTo, setMlDateTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [mlBusy, setMlBusy] = useState(false);
   useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify(items)); } catch { setNotice('Armazenamento local cheio. Exporte um backup para não perder os dados.'); } }, [items]);
   const visible = useMemo(() => filter === 'todos' ? items : items.filter(x => x.platform === filter), [items, filter]);
   const totals = useMemo(() => visible.reduce((a, x) => ({ views: a.views + x.views, orders: a.orders + x.orders, units: a.units + x.units, revenue: a.revenue + x.revenue }), { views: 0, orders: 0, units: 0, revenue: 0 }), [visible]);
   const conversion = totals.views > 0 ? totals.orders / totals.views * 100 : 0;
+  const syncMercadoLivreVisits = async () => {
+    const ids = [...new Set(mlItemIds.split(/[\\s,;]+/).map(id => id.trim().toUpperCase()).filter(Boolean))];
+    if (!ids.length) { setNotice('Informe pelo menos um ID de anúncio do Mercado Livre (ex.: MLB123456789).'); return; }
+    setMlBusy(true); setNotice('');
+    try {
+      const response = await fetch('/api/marketplace/mercadolivre-visits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemIds: ids, dateFrom: mlDateFrom, dateTo: mlDateTo }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        setNotice(data.error || 'Não foi possível consultar as visitas.');
+        return;
+      }
+      const visitsById = new Map<string, number>((data.results || []).map((x: {itemId: string; visits: number}) => [x.itemId, x.visits]));
+      setItems(prev => prev.map(item => item.platform === 'Mercado Livre' && visitsById.has(item.listingId)
+        ? { ...item, views: visitsById.get(item.listingId) || 0, period: `${mlDateFrom} a ${mlDateTo}`, updatedAt: new Date().toISOString() }
+        : item));
+      setNotice(`Consulta concluída: ${visitsById.size} anúncio(s) retornaram dados de visitas no período selecionado.`);
+    } catch {
+      setNotice('Falha de conexão com a função do Cloudflare Pages. Verifique se a versão com a integração está publicada.');
+    } finally { setMlBusy(false); }
+  };
   const onUpload = async (file?: File) => {
     if (!file) return;
     setBusy(true); setNotice('');
@@ -139,11 +167,17 @@ export const SalesAnalysisView: React.FC = () => {
         {notice && <p className="mt-3 rounded-lg border border-slate-700 bg-slate-900/70 p-3 text-sm text-slate-300">{notice}</p>}
         <div className="mt-4 rounded-lg border border-slate-800 p-3 text-xs leading-5 text-slate-400"><Info className="mr-1 inline h-4 w-4 text-cyan-300"/> Colunas reconhecidas incluem produto/título, visitas/visualizações, pedidos, unidades vendidas, faturamento, preço, custo, taxa/comissão percentual, margem desejada e preço concorrente. Se um relatório usar nomes diferentes, complete ou corrija os dados na tabela.</div>
       </section>
-      <section className="rounded-xl border border-amber-900/40 bg-[#17150e] p-5">
-        <div className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-amber-300"/><h2 className="text-lg font-semibold">Conexão automática</h2></div>
-        <p className="mt-3 text-sm leading-6 text-slate-300">A verificação do código atual não encontrou autenticação nem sincronização de desempenho com as contas de Shopee, TikTok Shop ou Mercado Livre. Esta tela não finge estar conectada: por enquanto, os dados entram por relatório.</p>
-        <p className="mt-3 text-sm leading-6 text-slate-400">Para ativar sincronização real, será necessário configurar OAuth/API de cada plataforma e armazenar tokens com segurança no servidor. Não coloque senhas, tokens ou chaves secretas nesta tela.</p>
-        <div className="mt-4 flex items-center gap-2 text-xs text-amber-200"><Info className="h-4 w-4"/> Nenhuma alteração automática de preço é feita.</div>
+      <section className="rounded-xl border border-cyan-900/50 bg-[#061a25] p-5">
+        <div className="flex items-center gap-2"><RefreshCw className="h-5 w-5 text-cyan-300"/><h2 className="text-lg font-semibold">Consultar visitas — Mercado Livre</h2></div>
+        <p className="mt-2 text-sm leading-6 text-slate-400">Primeira integração real: consulta de visitas dos seus anúncios pela API oficial. Os IDs precisam estar importados como anúncios do Mercado Livre para atualizar as linhas correspondentes.</p>
+        <label className="mt-3 block text-xs text-slate-400">IDs dos anúncios (MLB...)</label>
+        <textarea value={mlItemIds} onChange={e=>setMlItemIds(e.target.value)} placeholder="MLB123456789, MLB987654321" rows={2} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2 text-sm text-slate-100"/>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <label className="text-xs text-slate-400">Data inicial<input type="date" value={mlDateFrom} max={mlDateTo} onChange={e=>setMlDateFrom(e.target.value)} className="mt-1 block w-full rounded border border-slate-700 bg-slate-950 p-2 text-sm text-slate-100"/></label>
+          <label className="text-xs text-slate-400">Data final<input type="date" value={mlDateTo} min={mlDateFrom} max={new Date().toISOString().slice(0,10)} onChange={e=>setMlDateTo(e.target.value)} className="mt-1 block w-full rounded border border-slate-700 bg-slate-950 p-2 text-sm text-slate-100"/></label>
+        </div>
+        <button disabled={mlBusy} onClick={()=>void syncMercadoLivreVisits()} className="mt-3 inline-flex items-center justify-center gap-2 rounded-lg bg-cyan-700 px-4 py-2 text-sm font-medium hover:bg-cyan-600 disabled:opacity-50">{mlBusy?<RefreshCw className="h-4 w-4 animate-spin"/>:<RefreshCw className="h-4 w-4"/>}{mlBusy?'Consultando API…':'Consultar visitas'}</button>
+        <p className="mt-3 text-xs leading-5 text-slate-500"><Info className="mr-1 inline h-3 w-3"/> Requer o Secret MERCADOLIVRE_ACCESS_TOKEN configurado no Cloudflare Pages. Tokens não são enviados ao navegador. Esta primeira etapa consulta visitas; pedidos, faturamento e renovação OAuth automática ainda não estão implementados. Shopee e TikTok Shop continuam via relatório por enquanto.</p>
       </section>
     </div>
     <section className="overflow-hidden rounded-xl border border-slate-800 bg-[#06141f]">
