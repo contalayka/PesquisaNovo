@@ -1,9 +1,16 @@
+export interface ShopeeKV {
+  get(key: string): Promise<string | null>;
+  get(key: string, type: "json"): Promise<any>;
+  put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
+  delete(key: string): Promise<void>;
+}
+
 export interface ShopeeEnv {
   SHOPEE_PARTNER_ID?: string;
   SHOPEE_PARTNER_KEY?: string;
   SHOPEE_REDIRECT_URL?: string;
   MARKETPLACE_ADMIN_KEY?: string;
-  MARKETPLACE_KV?: KVNamespace;
+  MARKETPLACE_KV?: ShopeeKV;
 }
 
 export const SHOPEE_API = "https://partner.shopeemobile.com";
