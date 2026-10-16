@@ -76,10 +76,22 @@ export const SalesAnalysisView: React.FC = () => {
         return;
       }
       const visitsById = new Map<string, number>((data.results || []).map((x: {itemId: string; visits: number}) => [x.itemId, x.visits]));
-      setItems(prev => prev.map(item => item.platform === 'Mercado Livre' && visitsById.has(item.listingId)
-        ? { ...item, views: visitsById.get(item.listingId) || 0, period: `${mlDateFrom} a ${mlDateTo}`, updatedAt: new Date().toISOString() }
-        : item));
-      setNotice(`Consulta concluída: ${visitsById.size} anúncio(s) retornaram dados de visitas no período selecionado.`);
+      setItems(prev => {
+        const updated = prev.map(item => item.platform === 'Mercado Livre' && visitsById.has(item.listingId)
+          ? { ...item, views: visitsById.get(item.listingId) || 0, period: `${mlDateFrom} a ${mlDateTo}`, updatedAt: new Date().toISOString() }
+          : item);
+        const knownIds = new Set(updated.filter(item => item.platform === 'Mercado Livre').map(item => item.listingId));
+        visitsById.forEach((views, itemId) => {
+          if (!knownIds.has(itemId)) updated.push({
+            id: itemId, platform: 'Mercado Livre', title: itemId, listingId: itemId,
+            views, orders: 0, units: 0, revenue: 0, price: 0, cost: 0,
+            competitorPrice: 0, feePercent: 0, targetMarginPercent: 20, url: `https://produto.mercadolivre.com.br/${itemId}`,
+            period: `${mlDateFrom} a ${mlDateTo}`, updatedAt: new Date().toISOString(),
+          });
+        });
+        return updated;
+      });
+      setNotice(`Consulta concluída: ${visitsById.size} anúncio(s) retornaram dados de visitas. Anúncios que ainda não estavam na lista foram adicionados para você completar preço e custo.`);
     } catch {
       setNotice('Falha de conexão com a função do Cloudflare Pages. Verifique se a versão com a integração está publicada.');
     } finally { setMlBusy(false); }
