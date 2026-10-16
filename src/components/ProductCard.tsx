@@ -61,29 +61,29 @@ export const ProductCard = React.memo<ProductCardProps>(
     switch (status) {
       case 'Encontrado':
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-extrabold tracking-wide bg-emerald-500 text-slate-950 border-2 border-emerald-200 shadow-[0_0_14px_rgba(16,185,129,0.55)]">
-            <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-semibold bg-emerald-700 text-white border-emerald-400 shadow-[0_0_5px_rgba(16,185,129,0.25)]">
+            <CheckCircle2 className="w-2.5 h-2.5 text-emerald-100" />
             <span>Encontrado</span>
           </span>
         );
       case 'Revisar':
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-extrabold tracking-wide bg-fuchsia-600 text-white border-2 border-fuchsia-200 shadow-[0_0_14px_rgba(217,70,239,0.55)]">
-            <AlertCircle className="w-3 h-3 text-purple-400" />
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-semibold bg-fuchsia-700 text-white border-fuchsia-400 shadow-[0_0_5px_rgba(217,70,239,0.25)]">
+            <AlertCircle className="w-2.5 h-2.5 text-fuchsia-100" />
             <span>Revisar</span>
           </span>
         );
       case 'Descartado':
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-extrabold tracking-wide bg-slate-600 text-white border-2 border-slate-300 shadow-md">
-            <Ban className="w-3 h-3 text-slate-400" />
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-semibold bg-slate-600 text-white border-slate-400">
+            <Ban className="w-2.5 h-2.5 text-slate-200" />
             <span>Descartado</span>
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-extrabold tracking-wide bg-amber-400 text-slate-950 border-2 border-amber-100 shadow-[0_0_14px_rgba(251,191,36,0.55)]">
-            <Clock className="w-3 h-3 text-amber-400" />
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-semibold bg-amber-400 text-slate-950 border-amber-200 shadow-[0_0_5px_rgba(251,191,36,0.25)]">
+            <Clock className="w-2.5 h-2.5 text-amber-950" />
             <span>Pendente</span>
           </span>
         );
@@ -102,14 +102,14 @@ export const ProductCard = React.memo<ProductCardProps>(
             onUpdateStatus(product.id, e.target.value as ProductStatus);
           }}
           title="Alterar status deste produto"
-          className={`appearance-none min-h-9 text-xs sm:text-sm font-extrabold tracking-wide pl-3 pr-8 py-2 rounded-lg border-2 shadow-lg cursor-pointer transition focus:outline-none focus:ring-2 focus:ring-white/80 focus:ring-offset-1 focus:ring-offset-slate-950 ${
+          className={`appearance-none text-[10px] font-semibold pl-2 pr-5 py-0.5 rounded border cursor-pointer transition focus:outline-none focus:ring-1 focus:ring-white/70 ${
             product.status === 'Encontrado'
-              ? 'bg-emerald-500 text-slate-950 border-emerald-100 hover:bg-emerald-400 shadow-[0_0_14px_rgba(16,185,129,0.45)]'
+              ? 'bg-emerald-700 text-white border-emerald-400 hover:bg-emerald-600 shadow-[0_0_5px_rgba(16,185,129,0.25)]'
               : product.status === 'Revisar'
-              ? 'bg-fuchsia-600 text-white border-fuchsia-200 hover:bg-fuchsia-500 shadow-[0_0_14px_rgba(217,70,239,0.45)]'
+              ? 'bg-fuchsia-700 text-white border-fuchsia-400 hover:bg-fuchsia-600 shadow-[0_0_5px_rgba(217,70,239,0.25)]'
               : product.status === 'Descartado'
-              ? 'bg-slate-600 text-white border-slate-200 hover:bg-slate-500 shadow-md'
-              : 'bg-amber-400 text-slate-950 border-amber-100 hover:bg-amber-300 shadow-[0_0_14px_rgba(251,191,36,0.45)]'
+              ? 'bg-slate-600 text-white border-slate-400 hover:bg-slate-500'
+              : 'bg-amber-400 text-slate-950 border-amber-200 hover:bg-amber-300 shadow-[0_0_5px_rgba(251,191,36,0.25)]'
           }`}
         >
           <option value="Pendente" className="bg-[#121824] text-amber-300">Pendente</option>
@@ -117,7 +117,7 @@ export const ProductCard = React.memo<ProductCardProps>(
           <option value="Revisar" className="bg-[#121824] text-purple-300">Revisar</option>
           <option value="Descartado" className="bg-[#121824] text-slate-400">Descartado</option>
         </select>
-        <ChevronDown className="w-4 h-4 text-current absolute right-2 pointer-events-none" />
+        <ChevronDown className="w-2.5 h-2.5 text-current absolute right-1.5 pointer-events-none" />
       </div>
     );
   };
@@ -479,3 +479,4 @@ export const ProductCard = React.memo<ProductCardProps>(
 );
 
 ProductCard.displayName = 'ProductCard';
+
