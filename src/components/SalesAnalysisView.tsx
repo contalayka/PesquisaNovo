@@ -135,7 +135,7 @@ export const SalesAnalysisView: React.FC = () => {
       if (!response.ok || !data.success) { setNotice(data.error || 'Não foi possível sincronizar pedidos da Shopee.'); return; }
       const synced = Array.isArray(data.listings) ? data.listings as Array<{listingId:string;title:string;views:number;orders:number;units:number;revenue:number;url:string;period:string}> : [];
       setItems(prev => {
-        const map = new Map(prev.map(item => [`${item.platform}|${item.listingId}`, item]));
+        const map = new Map<string, Listing>(prev.map(item => [`${item.platform}|${item.listingId}`, item] as const));
         for (const row of synced) {
           const key = `Shopee|${row.listingId}`;
           const existing = map.get(key);
