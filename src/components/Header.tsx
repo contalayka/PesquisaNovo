@@ -1,6 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
 import {
-  Search,
   Bell,
   Plus,
   Calculator,
@@ -77,9 +76,6 @@ export const Header: React.FC<HeaderProps> = ({
   canUndoImport = false,
   onOpenMobileSidebar,
   onOpenSettings,
-  searchQuery = '',
-  onSearchChange,
-  onNavigateToProducts,
   onSyncSupabase,
   isSyncingSupabase = false,
   isGitHubConnected = false,
@@ -90,7 +86,6 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const device = useDevice();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const ghSyncInfo = githubConfig ? getGitHubSyncStatusInfo(githubConfig) : null;
 
@@ -98,33 +93,12 @@ export const Header: React.FC<HeaderProps> = ({
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
-  // Keyboard shortcut Ctrl+K / Cmd+K to focus top search bar
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       onFileSelect(file);
     }
     if (e.target) e.target.value = '';
-  };
-
-  const handleSearchInput = (val: string) => {
-    if (onSearchChange) {
-      onSearchChange(val);
-      if (val && currentSection !== 'produtos' && onNavigateToProducts) {
-        onNavigateToProducts();
-      }
-    }
   };
 
   const getSectionTitle = () => {
@@ -228,37 +202,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* =======================================================
-            2. SEARCH FIELD (Center Zone)
-           ======================================================= */}
-        <div className="flex-1 max-w-xl mx-auto">
-          <div className="relative w-full">
-            <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => handleSearchInput(e.target.value)}
-              placeholder="Buscar por produto, SKU ou EAN..."
-              className="w-full h-8.5 rounded-lg border border-slate-800 bg-[#041c2a] pl-8.5 pr-14 text-xs text-white placeholder:text-slate-400 focus:border-emerald-400 focus:bg-[#062331] focus:ring-1 focus:ring-emerald-400 focus:outline-none transition"
-            />
-            {searchQuery ? (
-              <button
-                type="button"
-                onClick={() => handleSearchInput('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 hover:text-white"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            ) : (
-              <kbd className="hidden sm:inline-flex absolute right-2.5 top-1/2 -translate-y-1/2 px-1.5 py-0.5 text-[10px] font-mono text-slate-400 bg-slate-900 border border-slate-800 rounded">
-                ⌘K
-              </kbd>
-            )}
-          </div>
-        </div>
-
-        {/* =======================================================
-            3. ACTIONS & PROFILE (Right Zone)
+            2. ACTIONS & PROFILE (Right Zone)
            ======================================================= */}
         <div className="flex items-center gap-2 shrink-0">
           <input
