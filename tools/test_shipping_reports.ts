@@ -627,6 +627,54 @@ assert(
 );
 
 // =========================================================================
+// TESTE 29B: Shopee UpSeller — códigos UP de etiqueta não são pedidos adicionais
+// =========================================================================
+const shopeeUpSellerPage1 = `
+UP8YXK010093 16/10/2026 10:40:49 1/3
+DESTINATÁRIO Simone Gimenez
+Pedido: 261016PW4N3U3C
+SOC SP2
+LSP-56
+BR2606369042232
+SKU: 1; Total Items: 1; #UP8YXK010093
+`;
+const shopeeUpSellerPage2 = `
+UP8YXK010097 16/10/2026 10:40:49 2/3
+DESTINATÁRIO Lisiane Pacheco Berwanger
+Pedido: 261016QP5QVUC2
+SOC SP2
+LSP-13
+BR260842105125V
+SKU: 1; Total Items: 1; #UP8YXK010097
+`;
+const shopeeUpSellerPage3 = `
+UP8YXK010098 16/10/2026 10:40:49 3/3
+DESTINATÁRIO Roberta Rodrigues De Oliveira
+Pedido: 261016RVY1BQ3F
+SOC SP2
+LSP-08
+BR269699345113Z
+SKU: 1; Total Items: 1; #UP8YXK010098
+`;
+const shopeeUpSellerSegments = [
+  ...segmentPageIntoLabels(shopeeUpSellerPage1),
+  ...segmentPageIntoLabels(shopeeUpSellerPage2),
+  ...segmentPageIntoLabels(shopeeUpSellerPage3),
+];
+const shopeeUpSellerItems = shopeeUpSellerSegments.map((segment, idx) =>
+  processLabelBlock(segment, '16-10.pdf', idx + 1, 0)
+);
+const shopeeUpSellerSummary = deduplicateAndSummarize(shopeeUpSellerItems);
+assert(
+  shopeeUpSellerSegments.length === 3 &&
+    shopeeUpSellerSummary.counts['Shopee'] === 3 &&
+    shopeeUpSellerSummary.totalUniqueOrders === 3 &&
+    shopeeUpSellerSummary.duplicateCount === 0,
+  '29B. Três etiquetas Shopee UpSeller são contadas como 3 pedidos; códigos UP e rastreios não criam pedidos extras'
+);
+
+// =========================================================================
+// =========================================================================
 // TESTE 30: Etiqueta real Mercado Livre UpSeller ERP (Screenshot enviado pelo usuário)
 // =========================================================================
 const realMeliScreenshotText = `
