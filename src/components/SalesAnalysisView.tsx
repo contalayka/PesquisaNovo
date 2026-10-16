@@ -66,7 +66,7 @@ export const SalesAnalysisView: React.FC = () => {
       const parsed = parseRows(rows, platform);
       if (!parsed.length) throw new Error('Não encontrei uma coluna de produto/título. Confira o relatório e tente novamente.');
       setItems(prev => {
-        const map = new Map(prev.map(x => [`${x.platform}|${x.listingId}`, x]));
+        const map = new Map<string, Listing>(prev.map(x => [`${x.platform}|${x.listingId}`, x] as const));
         parsed.forEach(x => map.set(`${x.platform}|${x.listingId}`, { ...map.get(`${x.platform}|${x.listingId}`), ...x }));
         return Array.from(map.values());
       });
