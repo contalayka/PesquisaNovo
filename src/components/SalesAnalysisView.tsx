@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
+import Tesseract from 'tesseract.js';
 import { BarChart3, Upload, Download, RefreshCw, TrendingDown, AlertTriangle, CheckCircle2, ExternalLink, Info } from 'lucide-react';
 
 type Platform = 'Shopee' | 'TikTok Shop' | 'Mercado Livre';
@@ -8,6 +9,7 @@ type Listing = {
   views: number; orders: number; units: number; revenue: number;
   price: number; cost: number; competitorPrice: number; feePercent: number; targetMarginPercent: number; url: string;
   period: string; updatedAt: string;
+  totalSales?: number; sales30Days?: number; impressions30Days?: number; stock?: number;
 };
 const KEY = 'marketpreco_sales_analysis_v1';
 const money = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -52,6 +54,7 @@ export const SalesAnalysisView: React.FC = () => {
   const [filter, setFilter] = useState<'todos' | Platform>('todos');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
+  const [imageBusy, setImageBusy] = useState(false);
   const [mlItemIds, setMlItemIds] = useState('');
   const [mlDateFrom, setMlDateFrom] = useState(() => new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10));
   const [mlDateTo, setMlDateTo] = useState(() => new Date().toISOString().slice(0, 10));
@@ -165,6 +168,40 @@ export const SalesAnalysisView: React.FC = () => {
       setNotice('Falha de conexão ao sincronizar a Shopee.');
     } finally { setShopeeBusy(false); }
   };
+  const onShopeeImageUpload = async (file?: File) => {
+    if (!file) return;
+    setImageBusy(true); setNotice('');
+    try {
+      const result = await Tesseract.recognize(file, 'por+eng');
+      const text = String(result.data.text || '');
+      const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
+      const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      const metric = (labels: string[]) => {
+        const line = lines.find(l => labels.some(label => norm(l).includes(norm(label))));
+        if (!line) return 0;
+        const label = labels.find(x => norm(line).includes(norm(x))) || '';
+        const tail = line.slice(norm(line).indexOf(norm(label)) + label.length);
+        const m = tail.match(/[\d][\d.,]*/); if (!m) return 0;
+        const raw = m[0]; const n = Number(raw.replace(/\./g, '').replace(',', '.')) || 0;
+        return /k/i.test(tail) ? n * 1000 : n;
+      };
+      const totalSales = metric(['Vendas']);
+      const sales30Days = metric(['Vendas (30 Dias)', 'Vendas 30 Dias']);
+      const impressions30Days = metric(['Impressões (30 Dias)', 'Impressoes (30 Dias)', 'Impressões 30 Dias', 'Impressoes 30 Dias']);
+      const stock = metric(['Estoque']);
+      const priceLine = lines.find(l => /R\$\s*\d/.test(l));
+      const pm = priceLine?.match(/R\$\s*([\d.,]+)/);
+      const price = pm ? num(pm[1]) : 0;
+      const title = lines.find(l => /produto|chaleira|infusor|organizador/i.test(l) && !/vendas|estoque|impress|preço|preco/i.test(l)) || lines[0] || 'Produto Shopee (revisar nome)';
+      if (!totalSales && !sales30Days && !impressions30Days && !stock && !price) throw new Error('Não consegui identificar as métricas. Envie uma captura mais nítida com a coluna Performance visível.');
+      const id = 'Shopee-IMG-' + norm(title).replace(/[^a-z0-9]/g, '').slice(0, 24);
+      const row: Listing = { id, platform: 'Shopee', title: title.slice(0,160), listingId: id, views: impressions30Days, orders: sales30Days, units: totalSales, revenue: 0, price, cost: 0, competitorPrice: 0, feePercent: 0, targetMarginPercent: 20, url: '', period: 'Captura Shopee; métricas de 30 dias quando indicadas', updatedAt: new Date().toISOString(), totalSales, sales30Days, impressions30Days, stock };
+      setItems(prev => { const i = prev.findIndex(x => x.platform === 'Shopee' && (x.title === row.title || x.id === id)); return i < 0 ? [...prev, row] : prev.map((x, j) => j === i ? { ...x, ...row, price: row.price || x.price, cost: x.cost, competitorPrice: x.competitorPrice, feePercent: x.feePercent, targetMarginPercent: x.targetMarginPercent } : x); });
+      setNotice('Imagem Shopee analisada. Vendas acumuladas: ' + (totalSales || 'não identificadas') + '; vendas (30 dias): ' + (sales30Days || 'não identificadas') + '; impressões (30 dias): ' + (impressions30Days.toLocaleString('pt-BR') || 'não identificadas') + '; estoque: ' + (stock || 'não identificado') + '. Confira os números: o OCR pode confundir caracteres.');
+    } catch (e) { setNotice(e instanceof Error ? e.message : 'Não foi possível analisar a imagem.'); }
+    finally { setImageBusy(false); }
+  };
+
   const onUpload = async (file?: File) => {
     if (!file) return;
     setBusy(true); setNotice('');
@@ -249,6 +286,17 @@ export const SalesAnalysisView: React.FC = () => {
         <div className="mt-4 rounded-lg border border-slate-800 p-3 text-xs leading-5 text-slate-400"><Info className="mr-1 inline h-4 w-4 text-cyan-300"/> Colunas reconhecidas incluem produto/título, visitas/visualizações, pedidos, unidades vendidas, faturamento, preço, custo, taxa/comissão percentual, margem desejada e preço concorrente. Se um relatório usar nomes diferentes, complete ou corrija os dados na tabela.</div>
       </section>
       <section className="rounded-xl border border-orange-900/50 bg-[#1a1309] p-5">
+        <div className="flex items-center gap-2"><Upload className="h-5 w-5 text-orange-300"/><h2 className="text-lg font-semibold">Analisar imagem de métricas — Shopee</h2></div>
+        <p className="mt-2 text-sm leading-6 text-slate-400">Envie uma captura da lista de produtos da Shopee. O OCR tenta ler vendas acumuladas, vendas dos últimos 30 dias, impressões dos últimos 30 dias, estoque e preço. Confira os dados extraídos, pois imagens pouco nítidas podem gerar erros.</p>
+        <label className="mt-4 flex cursor-pointer flex-col items-center rounded-xl border border-dashed border-orange-700 bg-orange-950/20 px-4 py-6 text-center hover:bg-orange-950/40">
+          {imageBusy ? <RefreshCw className="mb-2 h-6 w-6 animate-spin text-orange-300"/> : <Upload className="mb-2 h-6 w-6 text-orange-300"/>}
+          <span className="font-medium">{imageBusy ? 'Lendo imagem e métricas…' : 'Selecionar imagem da Shopee'}</span>
+          <span className="mt-1 text-xs text-slate-400">PNG, JPG ou WEBP • nome do produto e Performance visíveis</span>
+          <input className="hidden" type="file" accept="image/png,image/jpeg,image/webp" disabled={imageBusy} onChange={e=>{void onShopeeImageUpload(e.target.files?.[0]);e.currentTarget.value="";}}/>
+        </label>
+      </section>
+
+      <section className="rounded-xl border border-orange-900/50 bg-[#1a1309] p-5">
         <div className="flex items-center gap-2"><RefreshCw className="h-5 w-5 text-orange-300"/><h2 className="text-lg font-semibold">Conectar Shopee</h2></div>
         <p className="mt-2 text-sm leading-6 text-slate-400">Autorize sua loja pela página oficial da Shopee. Depois, sincronize pedidos e faturamento por produto, sem precisar importar planilha. A API padrão não traz visitas nesta consulta.</p>
         <div className={`mt-3 rounded-lg border p-3 text-sm ${shopeeStatus?.connected ? 'border-emerald-800 bg-emerald-950/30 text-emerald-200' : shopeeStatus?.configured ? 'border-amber-800 bg-amber-950/30 text-amber-200' : 'border-slate-700 bg-slate-950/70 text-slate-300'}`}>
@@ -286,7 +334,7 @@ export const SalesAnalysisView: React.FC = () => {
         <div className="flex flex-wrap gap-2">{(['todos','Shopee','TikTok Shop','Mercado Livre'] as const).map(f=><button key={f} onClick={()=>setFilter(f)} className={`rounded-md border px-2.5 py-1.5 text-xs ${filter===f?'border-cyan-500 bg-cyan-950/40 text-cyan-200':'border-slate-700 text-slate-400'}`}>{f==='todos'?'Todas':f}</button>)}<button onClick={()=>{setItems([]);setNotice('Dados removidos deste navegador.');}} className="rounded-md border border-red-900/60 px-2.5 py-1.5 text-xs text-red-300">Limpar</button></div>
       </div>
       {visible.length===0 ? <div className="p-10 text-center"><BarChart3 className="mx-auto h-8 w-8 text-slate-600"/><p className="mt-3 font-medium">Nenhum anúncio analisado ainda</p><p className="mt-1 text-sm text-slate-500">Importe um relatório de desempenho para começar.</p></div> :
-      <div className="overflow-x-auto"><table className="w-full min-w-[1100px] text-left text-sm"><thead className="bg-slate-900/70 text-xs uppercase text-slate-400"><tr>{['Plataforma / anúncio','Visitas','Pedidos','Conversão','Preço atual','Custo','Comissão %','Margem alvo %','Concorrente','Preço sugerido','Diagnóstico'].map(h=><th key={h} className="px-3 py-3 font-medium">{h}</th>)}</tr></thead><tbody className="divide-y divide-slate-800">{visible.map(x=>{const rec=recommendation(x);const rate=x.views>0?x.orders/x.views*100:0;return <tr key={x.platform+x.id} className="align-top hover:bg-slate-900/40"><td className="max-w-[250px] px-3 py-3"><div className="font-medium text-slate-200">{x.title}</div><div className="mt-1 text-xs text-slate-500">{x.platform} • {x.listingId}</div>{x.url&&<a href={x.url} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs text-cyan-300 hover:underline">Abrir anúncio <ExternalLink className="h-3 w-3"/></a>}</td><td className="px-3 py-3">{x.views.toLocaleString('pt-BR')}</td><td className="px-3 py-3">{x.orders.toLocaleString('pt-BR')}</td><td className="px-3 py-3">{rate.toLocaleString('pt-BR',{maximumFractionDigits:2})}%</td><td className="px-3 py-3"><input aria-label="Preço atual" className="w-24 rounded border border-slate-700 bg-slate-950 px-2 py-1" value={x.price||''} placeholder="R$" onChange={e=>update(x.id,'price',e.target.value)}/></td><td className="px-3 py-3"><input aria-label="Custo" className="w-24 rounded border border-slate-700 bg-slate-950 px-2 py-1" value={x.cost||''} placeholder="R$" onChange={e=>update(x.id,'cost',e.target.value)}/></td><td className="px-3 py-3"><input aria-label="Comissão da plataforma em porcentagem" className="w-20 rounded border border-slate-700 bg-slate-950 px-2 py-1" type="number" min="0" max="99" value={x.feePercent||''} placeholder="%" onChange={e=>update(x.id,'feePercent',e.target.value)}/></td><td className="px-3 py-3"><input aria-label="Margem desejada em porcentagem" className="w-20 rounded border border-slate-700 bg-slate-950 px-2 py-1" type="number" min="0" max="99" value={x.targetMarginPercent||''} placeholder="20%" onChange={e=>update(x.id,'targetMarginPercent',e.target.value)}/></td><td className="px-3 py-3"><input aria-label="Preço concorrente" className="w-24 rounded border border-slate-700 bg-slate-950 px-2 py-1" value={x.competitorPrice||''} placeholder="R$" onChange={e=>update(x.id,'competitorPrice',e.target.value)}/></td><td className="px-3 py-3">{rec ? <><div className="font-semibold text-emerald-300">{money(rec.target)}</div>{rec.margin!==null&&<div className="text-xs text-slate-500">Margem após comissão: {rec.margin.toLocaleString('pt-BR',{maximumFractionDigits:1})}%</div>}{rec.invalidRates&&<div className="text-xs text-red-300">Comissão + margem ≥ 100%</div>}</> : <span className="text-xs text-slate-500">Informe preço</span>}</td><td className="px-3 py-3">{rec?.belowCost ? <span className="inline-flex items-center gap-1 text-xs text-red-300"><AlertTriangle className="h-3 w-3"/>Preço competitivo abaixo do piso</span> : x.views>=100&&x.orders===0 ? <span className="inline-flex items-center gap-1 text-xs text-amber-300"><TrendingDown className="h-3 w-3"/>Muitas visitas, sem pedidos</span> : x.orders>0 ? <span className="inline-flex items-center gap-1 text-xs text-emerald-300"><CheckCircle2 className="h-3 w-3"/>Já converte</span> : <span className="text-xs text-slate-500">Precisa de mais dados</span>}</td></tr>})}</tbody></table></div>}
+      <div className="overflow-x-auto"><table className="w-full min-w-[1100px] text-left text-sm"><thead className="bg-slate-900/70 text-xs uppercase text-slate-400"><tr>{['Plataforma / anúncio','Impressões / visitas','Vendas (30 dias)','Vendas acumuladas','Estoque','Conversão','Preço atual','Custo','Comissão %','Margem alvo %','Concorrente','Preço sugerido','Diagnóstico'].map(h=><th key={h} className="px-3 py-3 font-medium">{h}</th>)}</tr></thead><tbody className="divide-y divide-slate-800">{visible.map(x=>{const rec=recommendation(x);const rate=x.views>0?x.orders/x.views*100:0;return <tr key={x.platform+x.id} className="align-top hover:bg-slate-900/40"><td className="max-w-[250px] px-3 py-3"><div className="font-medium text-slate-200">{x.title}</div><div className="mt-1 text-xs text-slate-500">{x.platform} • {x.listingId}</div>{x.url&&<a href={x.url} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs text-cyan-300 hover:underline">Abrir anúncio <ExternalLink className="h-3 w-3"/></a>}</td><td className="px-3 py-3">{(x.impressions30Days ?? x.views).toLocaleString('pt-BR')}</td><td className="px-3 py-3">{(x.sales30Days ?? x.orders).toLocaleString('pt-BR')}</td><td className="px-3 py-3">{(x.totalSales ?? x.units).toLocaleString('pt-BR')}</td><td className="px-3 py-3">{x.stock === undefined ? '—' : x.stock.toLocaleString('pt-BR')}</td><td className="px-3 py-3">{rate.toLocaleString('pt-BR',{maximumFractionDigits:2})}%</td><td className="px-3 py-3"><input aria-label="Preço atual" className="w-24 rounded border border-slate-700 bg-slate-950 px-2 py-1" value={x.price||''} placeholder="R$" onChange={e=>update(x.id,'price',e.target.value)}/></td><td className="px-3 py-3"><input aria-label="Custo" className="w-24 rounded border border-slate-700 bg-slate-950 px-2 py-1" value={x.cost||''} placeholder="R$" onChange={e=>update(x.id,'cost',e.target.value)}/></td><td className="px-3 py-3"><input aria-label="Comissão da plataforma em porcentagem" className="w-20 rounded border border-slate-700 bg-slate-950 px-2 py-1" type="number" min="0" max="99" value={x.feePercent||''} placeholder="%" onChange={e=>update(x.id,'feePercent',e.target.value)}/></td><td className="px-3 py-3"><input aria-label="Margem desejada em porcentagem" className="w-20 rounded border border-slate-700 bg-slate-950 px-2 py-1" type="number" min="0" max="99" value={x.targetMarginPercent||''} placeholder="20%" onChange={e=>update(x.id,'targetMarginPercent',e.target.value)}/></td><td className="px-3 py-3"><input aria-label="Preço concorrente" className="w-24 rounded border border-slate-700 bg-slate-950 px-2 py-1" value={x.competitorPrice||''} placeholder="R$" onChange={e=>update(x.id,'competitorPrice',e.target.value)}/></td><td className="px-3 py-3">{rec ? <><div className="font-semibold text-emerald-300">{money(rec.target)}</div>{rec.margin!==null&&<div className="text-xs text-slate-500">Margem após comissão: {rec.margin.toLocaleString('pt-BR',{maximumFractionDigits:1})}%</div>}{rec.invalidRates&&<div className="text-xs text-red-300">Comissão + margem ≥ 100%</div>}</> : <span className="text-xs text-slate-500">Informe preço</span>}</td><td className="px-3 py-3">{rec?.belowCost ? <span className="inline-flex items-center gap-1 text-xs text-red-300"><AlertTriangle className="h-3 w-3"/>Preço competitivo abaixo do piso</span> : x.views>=100&&x.orders===0 ? <span className="inline-flex items-center gap-1 text-xs text-amber-300"><TrendingDown className="h-3 w-3"/>Muitas visitas, sem pedidos</span> : x.orders>0 ? <span className="inline-flex items-center gap-1 text-xs text-emerald-300"><CheckCircle2 className="h-3 w-3"/>Já converte</span> : <span className="text-xs text-slate-500">Precisa de mais dados</span>}</td></tr>})}</tbody></table></div>}
     </section>
     <p className="text-xs leading-5 text-slate-500">Observação: o sistema compara o menor entre o preço concorrente informado e 5% abaixo do preço atual com o preço mínimo calculado a partir do custo, comissão informada e margem desejada (padrão 20%). Comissão zerada significa que você ainda não informou a taxa; frete, impostos, cupons e outros custos não entram no cálculo. Confirme todos os custos antes de usar a sugestão.</p>
   </div>;
