@@ -183,9 +183,12 @@ export const SalesAnalysisView: React.FC = () => {
         const tail = line.slice(norm(line).indexOf(norm(label)) + label.length);
         const m = tail.match(/[\d][\d.,]*/); if (!m) return 0;
         const raw = m[0]; const n = Number(raw.replace(/\./g, '').replace(',', '.')) || 0;
-        return /k/i.test(tail) ? n * 1000 : n;
+        return /k/i.test(tail) ? (Number(raw.replace(',', '.')) * 1000) : n;
       };
-      const totalSales = metric(['Vendas']);
+      const totalLine = lines.find(l => /^Vendas\\s+[\\d.,]+k?$/i.test(l.trim()));
+      const totalMatch = totalLine?.match(/^Vendas\\s+([\\d.,]+k?)$/i);
+      const totalRaw = totalMatch?.[1] || '';
+      const totalSales = totalRaw ? (/k/i.test(totalRaw) ? Number(totalRaw.replace(/k/i, '').replace(',', '.')) * 1000 : Number(totalRaw.replace(/\\./g, '').replace(',', '.')) || 0) : 0;
       const sales30Days = metric(['Vendas (30 Dias)', 'Vendas 30 Dias']);
       const impressions30Days = metric(['Impressões (30 Dias)', 'Impressoes (30 Dias)', 'Impressões 30 Dias', 'Impressoes 30 Dias']);
       const stock = metric(['Estoque']);
