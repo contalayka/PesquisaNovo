@@ -14,6 +14,7 @@ import {
   RefreshCw,
   Video,
   MessageCircle,
+  BarChart3,
 } from 'lucide-react';
 import { AppView } from '../types';
 import { MarketPrepLogo } from './MarketPrepLogo';
@@ -110,6 +111,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'relatorios',
       label: 'Relatórios de Pedidos',
       icon: MessageCircle,
+    },
+    {
+      id: 'analise_vendas',
+      label: 'Análise de Vendas',
+      icon: BarChart3,
     },
     {
       id: 'configuracoes',
