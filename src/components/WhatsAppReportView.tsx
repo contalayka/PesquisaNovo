@@ -61,6 +61,7 @@ const inputClass =
   'mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-500';
 const HISTORY_KEY = 'marketpreco_shipping_report_history_v1';
 const ORDER_KEY = 'marketpreco_shipping_report_orders_v1';
+const HISTORY_LABELS_KEY = 'marketpreco_shipping_report_history_labels_v1';
 
 function getTodayIsoDate(): string {
   const parts = new Intl.DateTimeFormat('en-CA', {
