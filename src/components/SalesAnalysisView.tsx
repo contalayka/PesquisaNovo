@@ -169,40 +169,28 @@ export const SalesAnalysisView: React.FC = () => {
     } finally { setShopeeBusy(false); }
   };
   const onShopeeImageUpload = async (file?: File) => {
-    if (!file) return;
-    setImageBusy(true); setNotice('');
+    if (!file) return; setImageBusy(true); setNotice('');
     try {
       const result = await Tesseract.recognize(file, 'por+eng');
-      const text = String(result.data.text || '');
-      const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
-      const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-      const metric = (labels: string[]) => {
-        const line = lines.find(l => labels.some(label => norm(l).includes(norm(label))));
-        if (!line) return 0;
-        const label = labels.find(x => norm(line).includes(norm(x))) || '';
-        const tail = line.slice(norm(line).indexOf(norm(label)) + label.length);
-        const m = tail.match(/[\d][\d.,]*/); if (!m) return 0;
-        const raw = m[0]; const n = Number(raw.replace(/\./g, '').replace(',', '.')) || 0;
-        return /k/i.test(tail) ? (Number(raw.replace(',', '.')) * 1000) : n;
-      };
-      const totalLine = lines.find(l => /^Vendas\\s+[\\d.,]+k?$/i.test(l.trim()));
-      const totalMatch = totalLine?.match(/^Vendas\\s+([\\d.,]+k?)$/i);
-      const totalRaw = totalMatch?.[1] || '';
-      const totalSales = totalRaw ? (/k/i.test(totalRaw) ? Number(totalRaw.replace(/k/i, '').replace(',', '.')) * 1000 : Number(totalRaw.replace(/\\./g, '').replace(',', '.')) || 0) : 0;
-      const sales30Days = metric(['Vendas (30 Dias)', 'Vendas 30 Dias']);
-      const impressions30Days = metric(['Impressões (30 Dias)', 'Impressoes (30 Dias)', 'Impressões 30 Dias', 'Impressoes 30 Dias']);
-      const stock = metric(['Estoque']);
-      const priceLine = lines.find(l => /R\$\s*\d/.test(l));
-      const pm = priceLine?.match(/R\$\s*([\d.,]+)/);
-      const price = pm ? num(pm[1]) : 0;
-      const title = lines.find(l => /produto|chaleira|infusor|organizador/i.test(l) && !/vendas|estoque|impress|preço|preco/i.test(l)) || lines[0] || 'Produto Shopee (revisar nome)';
-      if (!totalSales && !sales30Days && !impressions30Days && !stock && !price) throw new Error('Não consegui identificar as métricas. Envie uma captura mais nítida com a coluna Performance visível.');
-      const id = 'Shopee-IMG-' + norm(title).replace(/[^a-z0-9]/g, '').slice(0, 24);
-      const row: Listing = { id, platform: 'Shopee', title: title.slice(0,160), listingId: id, views: impressions30Days, orders: sales30Days, units: totalSales, revenue: 0, price, cost: 0, competitorPrice: 0, feePercent: 0, targetMarginPercent: 20, url: '', period: 'Captura Shopee; métricas de 30 dias quando indicadas', updatedAt: new Date().toISOString(), totalSales, sales30Days, impressions30Days, stock };
-      setItems(prev => { const i = prev.findIndex(x => x.platform === 'Shopee' && (x.title === row.title || x.id === id)); return i < 0 ? [...prev, row] : prev.map((x, j) => j === i ? { ...x, ...row, price: row.price || x.price, cost: x.cost, competitorPrice: x.competitorPrice, feePercent: x.feePercent, targetMarginPercent: x.targetMarginPercent } : x); });
-      setNotice('Imagem Shopee analisada. Vendas acumuladas: ' + (totalSales || 'não identificadas') + '; vendas (30 dias): ' + (sales30Days || 'não identificadas') + '; impressões (30 dias): ' + (impressions30Days.toLocaleString('pt-BR') || 'não identificadas') + '; estoque: ' + (stock || 'não identificado') + '. Confira os números: o OCR pode confundir caracteres.');
-    } catch (e) { setNotice(e instanceof Error ? e.message : 'Não foi possível analisar a imagem.'); }
-    finally { setImageBusy(false); }
+      const words = (result.data as any).words as Array<{text:string; bbox:{x0:number;y0:number;x1:number;y1:number}}> | undefined;
+      const norm = (s:string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+      const raw = (words||[]).filter(w=>w.text?.trim()).map(w=>({text:w.text.trim(),x:w.bbox.x0,y:(w.bbox.y0+w.bbox.y1)/2})).sort((a,b)=>a.y-b.y||a.x-b.x);
+      const bands:Array<{y:number;words:typeof raw}> = [];
+      for(const w of raw){let band=bands.find(x=>Math.abs(x.y-w.y)<=20);if(!band){band={y:w.y,words:[]};bands.push(band)}band.words.push(w);band.y=band.words.reduce((s,x)=>s+x.y,0)/band.words.length;}
+      const lines=bands.sort((a,b)=>a.y-b.y).map(b=>({y:b.y,text:b.words.sort((a,b)=>a.x-b.x).map(w=>w.text).join(' ')}));
+      const parseCount=(s:string)=>{const k=/k/i.test(s);const n=Number(s.replace(/k/i,'').replace(/,/g,'.').replace(/\.(?=\d{3}(\D|$))/g,''));return Number.isFinite(n)?n*(k?1000:1):0};
+      const metric=(text:string,labels:string[])=>{for(const label of labels){const i=norm(text).indexOf(norm(label));if(i>=0){const m=text.slice(i+label.length).match(/[\d][\d.,]*\s*k?/i);if(m)return parseCount(m[0]);}}return 0};
+      const anchors=lines.filter(l=>/vendas/i.test(l.text)&&!/30\s*dias/i.test(l.text));
+      const groups:Array<{y:number;lines:typeof lines}> = [];
+      for(const anchor of anchors){let g=groups.find(x=>Math.abs(x.y-anchor.y)<65);if(!g){g={y:anchor.y,lines:[]};groups.push(g)}g.lines.push(anchor);}
+      for(const line of lines){const g=groups.filter(x=>Math.abs(x.y-line.y)<65).sort((a,b)=>Math.abs(a.y-line.y)-Math.abs(b.y-line.y))[0];if(g&&!g.lines.includes(line))g.lines.push(line)}
+      if(!groups.length){for(const line of lines.filter(l=>/R\$\s*[\d.,]+/.test(l.text)))groups.push({y:line.y,lines:lines.filter(x=>Math.abs(x.y-line.y)<65)})}
+      const rows:Listing[]=[];
+      for(const g of groups){const text=g.lines.sort((a,b)=>a.y-b.y).map(l=>l.text).join(' | ');const tm=text.match(/Vendas\s*([\d.,]+\s*k?)/i);const totalSales=tm?parseCount(tm[1]):0;const sales30Days=metric(text,['Vendas (30 Dias)','Vendas 30 Dias']);const impressions30Days=metric(text,['Impressões (30 Dias)','Impressoes (30 Dias)','Impressões 30 Dias','Impressoes 30 Dias']);const sm=text.match(/Estoque\s*:?\s*([\d.,]+)/i);const stock=sm?parseCount(sm[1]):0;const pm=text.match(/R\$\s*([\d.,]+)/);const price=pm?num(pm[1]):0;const title=(g.lines.map(l=>l.text).find(t=>!/vendas|estoque|impress|performance|preço|preco/i.test(t)&&/[A-Za-zÀ-ÿ]{3}/.test(t))||g.lines.map(l=>l.text).join(' ')).replace(/\s+/g,' ').trim().slice(0,160);if(!title||(!totalSales&&!sales30Days&&!impressions30Days&&!stock&&!price))continue;const id='Shopee-IMG-'+norm(title).replace(/[^a-z0-9]/g,'').slice(0,24);rows.push({id,platform:'Shopee',title,listingId:id,views:impressions30Days,orders:sales30Days,units:totalSales,revenue:0,price,cost:0,competitorPrice:0,feePercent:0,targetMarginPercent:20,url:'',period:'Captura Shopee',updatedAt:new Date().toISOString(),totalSales,sales30Days,impressions30Days,stock});}
+      if(!rows.length)throw new Error('Não consegui separar os produtos nesta imagem. Envie uma captura nítida com as linhas completas e a coluna Performance visível.');
+      setItems(prev=>{const map=new Map<string,Listing>(prev.map(x=>[x.platform+'|'+x.listingId,x]));for(const row of rows){const key='Shopee|'+row.listingId;const old=map.get(key)||[...map.values()].find(x=>x.platform==='Shopee'&&x.title===row.title);map.set('Shopee|'+(old?.listingId||row.listingId),old?{...old,...row,id:old.id,listingId:old.listingId,price:row.price||old.price,cost:old.cost,competitorPrice:old.competitorPrice,feePercent:old.feePercent,targetMarginPercent:old.targetMarginPercent}:row)}return [...map.values()]});
+      setNotice('Imagem Shopee analisada: '+rows.length+' produto(s) reconhecido(s). Confira os nomes e métricas; OCR pode confundir linhas ou números.');
+    } catch(e){setNotice(e instanceof Error?e.message:'Não foi possível analisar a imagem da Shopee.')} finally{setImageBusy(false)}
   };
 
   const onUpload = async (file?: File) => {
