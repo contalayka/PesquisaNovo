@@ -69,7 +69,20 @@ export const SalesAnalysisView: React.FC = () => {
       if (!parsed.length) throw new Error('Não encontrei uma coluna de produto/título. Confira o relatório e tente novamente.');
       setItems(prev => {
         const map = new Map<string, Listing>(prev.map(x => [`${x.platform}|${x.listingId}`, x] as const));
-        parsed.forEach(x => map.set(`${x.platform}|${x.listingId}`, { ...map.get(`${x.platform}|${x.listingId}`), ...x }));
+        parsed.forEach(x => {
+          const key = `${x.platform}|${x.listingId}`;
+          const existing = map.get(key);
+          map.set(key, existing ? {
+            ...existing,
+            ...x,
+            // Relatórios sem esses campos não devem apagar valores preenchidos manualmente.
+            price: x.price || existing.price,
+            cost: x.cost || existing.cost,
+            competitorPrice: x.competitorPrice || existing.competitorPrice,
+            feePercent: x.feePercent || existing.feePercent,
+            targetMarginPercent: x.targetMarginPercent || existing.targetMarginPercent || 20,
+          } : x);
+        });
         return Array.from(map.values());
       });
       setNotice(`${parsed.length} anúncio(s) importado(s) de ${file.name}. Confira os campos antes de usar as recomendações.`);
