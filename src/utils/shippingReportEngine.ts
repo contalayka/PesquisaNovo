@@ -599,9 +599,13 @@ export function segmentPageIntoLabels(pageText: string): string[] {
     text.match(/\b(?:G\s*S\s*H|[6QCOG]\s*[S5\$]\s*H)[\s\-_:*]*[0-9A-Z]{7,25}\b/gi) || [];
   gshMatches.forEach((m) => ordersFound.add(m.replace(/[^0-9A-Z]/gi, '').toUpperCase()));
 
-  const sheinOtherMatches =
-    text.match(/\b(?:GC\d{8,22}|AJ\d{8,18}|UP[0-9A-Z]{8,16}|[A-Z]{2}\d{9}BR)\b/gi) || [];
-  sheinOtherMatches.forEach((m) => ordersFound.add(m.toUpperCase()));
+  // Códigos GSH são pedidos SHEIN. GC só serve como identificador substituto
+  // quando não existe GSH na etiqueta. AJ/rastreios e UP... são códigos de
+  // transporte/etiqueta, NÃO pedidos, e não podem provocar divisão falsa.
+  if (gshMatches.length === 0) {
+    const sheinReferenceMatches = text.match(/\bGC\d{8,22}\b/gi) || [];
+    sheinReferenceMatches.forEach((m) => ordersFound.add(m.toUpperCase()));
+  }
 
   const packMatches = text.match(/pack\s*id\s*[:#\-]?\s*(\d{10,20})/gi) || [];
   packMatches.forEach((m) => ordersFound.add(m.replace(/[^0-9]/g, '')));
