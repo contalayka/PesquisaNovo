@@ -148,6 +148,41 @@ create policy if not exists "Anon pesquisas delete" on research_records for dele
 alter publication supabase_realtime add table products;
 alter publication supabase_realtime add table research_records;
 
+-- 4b. Bucket compartilhado para vídeos enviados do computador.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'product-videos',
+  'product-videos',
+  true,
+  31457280,
+  array['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo']
+)
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "Public read product videos" on storage.objects;
+create policy "Public read product videos"
+  on storage.objects for select
+  using (bucket_id = 'product-videos');
+
+drop policy if exists "Anon upload product videos" on storage.objects;
+create policy "Anon upload product videos"
+  on storage.objects for insert
+  with check (bucket_id = 'product-videos');
+
+drop policy if exists "Anon update product videos" on storage.objects;
+create policy "Anon update product videos"
+  on storage.objects for update
+  using (bucket_id = 'product-videos')
+  with check (bucket_id = 'product-videos');
+
+drop policy if exists "Anon delete product videos" on storage.objects;
+create policy "Anon delete product videos"
+  on storage.objects for delete
+  using (bucket_id = 'product-videos');
+
 -- 5. Criar tabela de vídeos encontrados e persistidos dos marketplaces
 create table if not exists video_records (
   id text primary key,
