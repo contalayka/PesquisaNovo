@@ -63,6 +63,7 @@ import { SettingsView } from './components/SettingsView';
 import { InternalInventoryView, InternalItem } from './components/InternalInventoryView';
 import { VideoFinderView } from './components/VideoFinderView';
 import { WhatsAppReportView } from './components/WhatsAppReportView';
+import { SalesAnalysisView } from './components/SalesAnalysisView';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import { useDevice } from './utils/device';
 import {
@@ -2247,6 +2248,9 @@ export default function App() {
 
           {/* VIEW: BUSCA EM MASSA DE VÍDEOS */}
           {currentSidebarSection === 'videos' && <VideoFinderView products={products} />}
+
+          {/* VIEW: ANÁLISE DE VENDAS DOS MARKETPLACES */}
+          {currentSidebarSection === 'analise_vendas' && <SalesAnalysisView />}
 
           {/* VIEW: RELATÓRIOS DE PEDIDOS PARA WHATSAPP */}
           {currentSidebarSection === 'relatorios' && (
