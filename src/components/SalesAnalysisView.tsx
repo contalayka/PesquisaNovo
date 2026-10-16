@@ -56,7 +56,19 @@ export const SalesAnalysisView: React.FC = () => {
   const [mlDateFrom, setMlDateFrom] = useState(() => new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10));
   const [mlDateTo, setMlDateTo] = useState(() => new Date().toISOString().slice(0, 10));
   const [mlBusy, setMlBusy] = useState(false);
+  const [shopeeAdminKey, setShopeeAdminKey] = useState(() => {
+    try { return sessionStorage.getItem('marketpreco_marketplace_admin_key') || ''; } catch { return ''; }
+  });
+  const [shopeeBusy, setShopeeBusy] = useState(false);
+  const [shopeeDateFrom, setShopeeDateFrom] = useState(() => new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10));
+  const [shopeeDateTo, setShopeeDateTo] = useState(() => new Date().toISOString().slice(0, 10));
   useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify(items)); } catch { setNotice('Armazenamento local cheio. Exporte um backup para não perder os dados.'); } }, [items]);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('marketplace') === 'shopee-connected') {
+      setNotice('Shopee conectada com sucesso! Agora você pode sincronizar pedidos no painel Shopee.');
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
   const visible = useMemo(() => filter === 'todos' ? items : items.filter(x => x.platform === filter), [items, filter]);
   const totals = useMemo(() => visible.reduce((a, x) => ({ views: a.views + x.views, orders: a.orders + x.orders, units: a.units + x.units, revenue: a.revenue + x.revenue }), { views: 0, orders: 0, units: 0, revenue: 0 }), [visible]);
   const conversion = totals.views > 0 ? totals.orders / totals.views * 100 : 0;
@@ -95,6 +107,54 @@ export const SalesAnalysisView: React.FC = () => {
     } catch {
       setNotice('Falha de conexão com a função do Cloudflare Pages. Verifique se a versão com a integração está publicada.');
     } finally { setMlBusy(false); }
+  };
+  const connectShopee = async () => {
+    if (!shopeeAdminKey.trim()) { setNotice('Informe a chave administrativa configurada no Cloudflare para conectar a Shopee.'); return; }
+    setShopeeBusy(true); setNotice('');
+    try {
+      sessionStorage.setItem('marketpreco_marketplace_admin_key', shopeeAdminKey.trim());
+      const response = await fetch('/api/marketplace/shopee/connect', { headers: { 'X-Marketplace-Admin-Key': shopeeAdminKey.trim() } });
+      const data = await response.json();
+      if (!response.ok || !data.authorizationUrl) { setNotice(data.error || 'Não foi possível iniciar a conexão Shopee.'); return; }
+      window.location.assign(data.authorizationUrl);
+    } catch {
+      setNotice('Falha de conexão ao iniciar a autorização Shopee. Confira se a versão de teste está atualizada.');
+    } finally { setShopeeBusy(false); }
+  };
+  const syncShopeeOrders = async () => {
+    if (!shopeeAdminKey.trim()) { setNotice('Informe a chave administrativa configurada no Cloudflare.'); return; }
+    setShopeeBusy(true); setNotice('');
+    try {
+      sessionStorage.setItem('marketpreco_marketplace_admin_key', shopeeAdminKey.trim());
+      const response = await fetch('/api/marketplace/shopee/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Marketplace-Admin-Key': shopeeAdminKey.trim() },
+        body: JSON.stringify({ dateFrom: shopeeDateFrom, dateTo: shopeeDateTo }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) { setNotice(data.error || 'Não foi possível sincronizar pedidos da Shopee.'); return; }
+      const synced = Array.isArray(data.listings) ? data.listings as Array<{listingId:string;title:string;views:number;orders:number;units:number;revenue:number;url:string;period:string}> : [];
+      setItems(prev => {
+        const map = new Map(prev.map(item => [`${item.platform}|${item.listingId}`, item]));
+        for (const row of synced) {
+          const key = `Shopee|${row.listingId}`;
+          const existing = map.get(key);
+          map.set(key, existing ? {
+            ...existing, title: row.title || existing.title, orders: row.orders, units: row.units,
+            revenue: row.revenue, period: row.period, updatedAt: new Date().toISOString(),
+          } : {
+            id: `Shopee-${row.listingId}`, platform: 'Shopee', title: row.title, listingId: row.listingId,
+            views: row.views || 0, orders: row.orders, units: row.units, revenue: row.revenue,
+            price: 0, cost: 0, competitorPrice: 0, feePercent: 0, targetMarginPercent: 20,
+            url: row.url || '', period: row.period, updatedAt: new Date().toISOString(),
+          });
+        }
+        return Array.from(map.values());
+      });
+      setNotice(`Shopee sincronizada: ${data.orderCount} pedido(s) encontrados e ${synced.length} produto(s) com vendas no período. ${data.note || ''}`);
+    } catch {
+      setNotice('Falha de conexão ao sincronizar a Shopee.');
+    } finally { setShopeeBusy(false); }
   };
   const onUpload = async (file?: File) => {
     if (!file) return;
@@ -178,6 +238,21 @@ export const SalesAnalysisView: React.FC = () => {
         </label>
         {notice && <p className="mt-3 rounded-lg border border-slate-700 bg-slate-900/70 p-3 text-sm text-slate-300">{notice}</p>}
         <div className="mt-4 rounded-lg border border-slate-800 p-3 text-xs leading-5 text-slate-400"><Info className="mr-1 inline h-4 w-4 text-cyan-300"/> Colunas reconhecidas incluem produto/título, visitas/visualizações, pedidos, unidades vendidas, faturamento, preço, custo, taxa/comissão percentual, margem desejada e preço concorrente. Se um relatório usar nomes diferentes, complete ou corrija os dados na tabela.</div>
+      </section>
+      <section className="rounded-xl border border-orange-900/50 bg-[#1a1309] p-5">
+        <div className="flex items-center gap-2"><RefreshCw className="h-5 w-5 text-orange-300"/><h2 className="text-lg font-semibold">Conectar Shopee</h2></div>
+        <p className="mt-2 text-sm leading-6 text-slate-400">Autorize sua loja pela página oficial da Shopee. Depois, sincronize pedidos e faturamento por produto, sem precisar importar planilha. A API padrão não traz visitas nesta consulta.</p>
+        <label className="mt-3 block text-xs text-slate-400">Chave administrativa do MarketPreço (configurada no Cloudflare)</label>
+        <input type="password" autoComplete="current-password" value={shopeeAdminKey} onChange={e=>setShopeeAdminKey(e.target.value)} placeholder="Chave de acesso da integração" className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2 text-sm text-slate-100"/>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <label className="text-xs text-slate-400">Data inicial<input type="date" value={shopeeDateFrom} max={shopeeDateTo} onChange={e=>setShopeeDateFrom(e.target.value)} className="mt-1 block w-full rounded border border-slate-700 bg-slate-950 p-2 text-sm text-slate-100"/></label>
+          <label className="text-xs text-slate-400">Data final<input type="date" value={shopeeDateTo} min={shopeeDateFrom} max={new Date().toISOString().slice(0,10)} onChange={e=>setShopeeDateTo(e.target.value)} className="mt-1 block w-full rounded border border-slate-700 bg-slate-950 p-2 text-sm text-slate-100"/></label>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button disabled={shopeeBusy} onClick={()=>void connectShopee()} className="inline-flex items-center justify-center gap-2 rounded-lg bg-orange-700 px-4 py-2 text-sm font-medium hover:bg-orange-600 disabled:opacity-50">{shopeeBusy?<RefreshCw className="h-4 w-4 animate-spin"/>:<ExternalLink className="h-4 w-4"/>}Conectar minha loja</button>
+          <button disabled={shopeeBusy} onClick={()=>void syncShopeeOrders()} className="inline-flex items-center justify-center gap-2 rounded-lg border border-orange-700 px-4 py-2 text-sm font-medium hover:bg-orange-950/60 disabled:opacity-50"><RefreshCw className="h-4 w-4"/>Sincronizar pedidos</button>
+        </div>
+        <p className="mt-3 text-xs leading-5 text-slate-500">Requer app aprovado na Shopee Open Platform e configuração das credenciais e do KV no Cloudflare. A chave administrativa é mantida apenas nesta sessão do navegador. Pedidos sincronizados não incluem visitas nem garantem cálculo líquido de taxas.</p>
       </section>
       <section className="rounded-xl border border-cyan-900/50 bg-[#061a25] p-5">
         <div className="flex items-center gap-2"><RefreshCw className="h-5 w-5 text-cyan-300"/><h2 className="text-lg font-semibold">Consultar visitas — Mercado Livre</h2></div>
