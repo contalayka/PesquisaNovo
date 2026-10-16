@@ -102,6 +102,16 @@ export const ProductCard = React.memo<ProductCardProps>(
             onUpdateStatus(product.id, e.target.value as ProductStatus);
           }}
           title="Alterar status deste produto"
+          style={{
+            color:
+              product.status === 'Encontrado'
+                ? '#6ee7b7'
+                : product.status === 'Revisar'
+                ? '#f0abfc'
+                : product.status === 'Descartado'
+                ? '#cbd5e1'
+                : '#fcd34d',
+          }}
           className={`appearance-none text-[10px] font-semibold pl-2 pr-5 py-0.5 rounded border cursor-pointer transition focus:outline-none focus:ring-1 focus:ring-white/70 ${
             product.status === 'Encontrado'
               ? 'bg-emerald-950 text-emerald-200 border-emerald-400 hover:bg-emerald-900 shadow-[0_0_5px_rgba(16,185,129,0.25)]'
