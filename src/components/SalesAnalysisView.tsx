@@ -86,8 +86,10 @@ export const SalesAnalysisView: React.FC = () => {
     const candidates = [x.competitorPrice > 0 ? x.competitorPrice : 0, x.price > 0 ? x.price * 0.95 : 0].filter(v => v > 0);
     if (!candidates.length) return null;
     const target = Math.min(...candidates);
-    const feeRate = Math.min(Math.max(x.feePercent, 0), 99) / 100;
-    const marginRate = Math.min(Math.max(x.targetMarginPercent, 0), 99) / 100;
+    const feeValue = Number.isFinite(Number(x.feePercent)) ? Number(x.feePercent) : 0;
+    const marginValue = Number.isFinite(Number(x.targetMarginPercent)) ? Number(x.targetMarginPercent) : 20;
+    const feeRate = Math.min(Math.max(feeValue, 0), 99) / 100;
+    const marginRate = Math.min(Math.max(marginValue, 0), 99) / 100;
     const denominator = 1 - feeRate - marginRate;
     const floor = x.cost > 0 && denominator > 0 ? x.cost / denominator : 0;
     const suggested = Math.max(target, floor);
