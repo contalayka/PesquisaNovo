@@ -60,9 +60,18 @@ export const SalesAnalysisView: React.FC = () => {
     try { return sessionStorage.getItem('marketpreco_marketplace_admin_key') || ''; } catch { return ''; }
   });
   const [shopeeBusy, setShopeeBusy] = useState(false);
+  const [shopeeStatus, setShopeeStatus] = useState<{configured:boolean;connected:boolean;message:string} | null>(null);
   const [shopeeDateFrom, setShopeeDateFrom] = useState(() => new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10));
   const [shopeeDateTo, setShopeeDateTo] = useState(() => new Date().toISOString().slice(0, 10));
   useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify(items)); } catch { setNotice('Armazenamento local cheio. Exporte um backup para não perder os dados.'); } }, [items]);
+  useEffect(() => {
+    let active = true;
+    fetch('/api/marketplace/shopee/status')
+      .then(response => response.ok ? response.json() : null)
+      .then(data => { if (active && data) setShopeeStatus({ configured: Boolean(data.configured), connected: Boolean(data.connected), message: String(data.message || '') }); })
+      .catch(() => { if (active) setShopeeStatus(null); });
+    return () => { active = false; };
+  }, []);
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get('marketplace') === 'shopee-connected') {
       setNotice('Shopee conectada com sucesso! Agora você pode sincronizar pedidos no painel Shopee.');
@@ -242,6 +251,10 @@ export const SalesAnalysisView: React.FC = () => {
       <section className="rounded-xl border border-orange-900/50 bg-[#1a1309] p-5">
         <div className="flex items-center gap-2"><RefreshCw className="h-5 w-5 text-orange-300"/><h2 className="text-lg font-semibold">Conectar Shopee</h2></div>
         <p className="mt-2 text-sm leading-6 text-slate-400">Autorize sua loja pela página oficial da Shopee. Depois, sincronize pedidos e faturamento por produto, sem precisar importar planilha. A API padrão não traz visitas nesta consulta.</p>
+        <div className={`mt-3 rounded-lg border p-3 text-sm ${shopeeStatus?.connected ? 'border-emerald-800 bg-emerald-950/30 text-emerald-200' : shopeeStatus?.configured ? 'border-amber-800 bg-amber-950/30 text-amber-200' : 'border-slate-700 bg-slate-950/70 text-slate-300'}`}>
+          <div className="font-medium">{shopeeStatus?.connected ? 'Shopee conectada' : shopeeStatus?.configured ? 'Pronta para conectar' : 'Configuração pendente'}</div>
+          <div className="mt-1 text-xs leading-5">{shopeeStatus?.message || 'Verificando a configuração da integração…'}</div>
+        </div>
         <label className="mt-3 block text-xs text-slate-400">Chave administrativa do MarketPreço (configurada no Cloudflare)</label>
         <input type="password" autoComplete="current-password" value={shopeeAdminKey} onChange={e=>setShopeeAdminKey(e.target.value)} placeholder="Chave de acesso da integração" className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2 text-sm text-slate-100"/>
         <div className="mt-3 grid grid-cols-2 gap-2">
