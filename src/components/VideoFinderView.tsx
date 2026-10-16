@@ -86,10 +86,18 @@ const AsyncVideoPlayer: React.FC<{
     };
   }, [url]);
 
-  if (loading || !resolvedSrc) {
+  if (loading) {
     return (
       <div className="flex h-36 w-full max-w-lg items-center justify-center rounded-lg border border-slate-800 bg-black/70 text-xs text-slate-400">
         <Loader2 className="h-4 w-4 animate-spin text-emerald-400 mr-2" /> Carregando reprodutor...
+      </div>
+    );
+  }
+
+  if (!resolvedSrc) {
+    return (
+      <div className="flex h-36 w-full max-w-lg items-center justify-center rounded-lg border border-amber-800/60 bg-amber-950/20 p-4 text-xs text-amber-200">
+        Este vídeo antigo está salvo apenas no navegador que fez o envio. Envie o arquivo novamente para salvá-lo na nuvem e acessar em outros computadores.
       </div>
     );
   }
@@ -555,7 +563,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
 
         const { error } = await saveVideoRecord(record);
         if (error) {
-          console.warn('[VideoFinder] Aviso ao salvar no Supabase:', error);
+          throw new Error(`O arquivo foi enviado à nuvem, mas o registro não foi salvo no banco: ${error}`);
         }
 
         setSaved((prev) => {
