@@ -69,6 +69,7 @@ export interface PdfProductProfitItem {
   researchCount: number;
   matchedProduct?: Product;
   hasCatalogMatch: boolean;
+  profitCalculated?: boolean;
 }
 
 export const ProfitableProductsChart: React.FC<ProfitableProductsChartProps> = ({
@@ -365,6 +366,7 @@ export const ProfitableProductsChart: React.FC<ProfitableProductsChartProps> = (
         researchCount: validResearchCount,
         matchedProduct: matchedProd,
         hasCatalogMatch: Boolean(matchedProd),
+        profitCalculated: hasProfitData,
       });
     });
 
