@@ -507,18 +507,6 @@ export default function App() {
     }
   }, [products, addToast]);
 
-  // Keyboard shortcut Ctrl+K to search
-  useEffect(() => {
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        document.getElementById('search-product-input')?.focus();
-      }
-    };
-    window.addEventListener('keydown', handleGlobalKeyDown);
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, []);
-
   // Sync products to localStorage with debounce to maintain 60fps fluidity during rapid batch updates
   useEffect(() => {
     const timer = setTimeout(() => {
