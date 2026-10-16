@@ -61,28 +61,28 @@ export const ProductCard = React.memo<ProductCardProps>(
     switch (status) {
       case 'Encontrado':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-semibold bg-emerald-700 text-white border-emerald-400 shadow-[0_0_5px_rgba(16,185,129,0.25)]">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-semibold bg-emerald-950 text-emerald-200 border-emerald-400 shadow-[0_0_5px_rgba(16,185,129,0.25)]">
             <CheckCircle2 className="w-2.5 h-2.5 text-emerald-100" />
             <span>Encontrado</span>
           </span>
         );
       case 'Revisar':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-semibold bg-fuchsia-700 text-white border-fuchsia-400 shadow-[0_0_5px_rgba(217,70,239,0.25)]">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-semibold bg-fuchsia-950 text-fuchsia-200 border-fuchsia-400 shadow-[0_0_5px_rgba(217,70,239,0.25)]">
             <AlertCircle className="w-2.5 h-2.5 text-fuchsia-100" />
             <span>Revisar</span>
           </span>
         );
       case 'Descartado':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-semibold bg-slate-600 text-white border-slate-400">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-semibold bg-slate-800 text-slate-300 border-slate-500">
             <Ban className="w-2.5 h-2.5 text-slate-200" />
             <span>Descartado</span>
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-semibold bg-amber-400 text-slate-950 border-amber-200 shadow-[0_0_5px_rgba(251,191,36,0.25)]">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-semibold bg-amber-950 text-amber-200 border-amber-400 shadow-[0_0_5px_rgba(251,191,36,0.25)]">
             <Clock className="w-2.5 h-2.5 text-amber-950" />
             <span>Pendente</span>
           </span>
@@ -104,18 +104,18 @@ export const ProductCard = React.memo<ProductCardProps>(
           title="Alterar status deste produto"
           className={`appearance-none text-[10px] font-semibold pl-2 pr-5 py-0.5 rounded border cursor-pointer transition focus:outline-none focus:ring-1 focus:ring-white/70 ${
             product.status === 'Encontrado'
-              ? 'bg-emerald-700 text-white border-emerald-400 hover:bg-emerald-600 shadow-[0_0_5px_rgba(16,185,129,0.25)]'
+              ? 'bg-emerald-950 text-emerald-200 border-emerald-400 hover:bg-emerald-900 shadow-[0_0_5px_rgba(16,185,129,0.25)]'
               : product.status === 'Revisar'
-              ? 'bg-fuchsia-700 text-white border-fuchsia-400 hover:bg-fuchsia-600 shadow-[0_0_5px_rgba(217,70,239,0.25)]'
+              ? 'bg-fuchsia-950 text-fuchsia-200 border-fuchsia-400 hover:bg-fuchsia-900 shadow-[0_0_5px_rgba(217,70,239,0.25)]'
               : product.status === 'Descartado'
-              ? 'bg-slate-600 text-white border-slate-400 hover:bg-slate-500'
-              : 'bg-amber-400 text-slate-950 border-amber-200 hover:bg-amber-300 shadow-[0_0_5px_rgba(251,191,36,0.25)]'
+              ? 'bg-slate-800 text-slate-300 border-slate-500 hover:bg-slate-700'
+              : 'bg-amber-950 text-amber-200 border-amber-400 hover:bg-amber-900 shadow-[0_0_5px_rgba(251,191,36,0.25)]'
           }`}
         >
-          <option value="Pendente" className="bg-[#121824] text-amber-300">Pendente</option>
-          <option value="Encontrado" className="bg-[#121824] text-emerald-300">Encontrado</option>
-          <option value="Revisar" className="bg-[#121824] text-purple-300">Revisar</option>
-          <option value="Descartado" className="bg-[#121824] text-slate-400">Descartado</option>
+          <option value="Pendente" className="bg-[#121824] text-amber-300" style={{ color: '#fcd34d' }}>Pendente</option>
+          <option value="Encontrado" className="bg-[#121824] text-emerald-300" style={{ color: '#6ee7b7' }}>Encontrado</option>
+          <option value="Revisar" className="bg-[#121824] text-fuchsia-300" style={{ color: '#f0abfc' }}>Revisar</option>
+          <option value="Descartado" className="bg-[#121824] text-slate-400" style={{ color: '#cbd5e1' }}>Descartado</option>
         </select>
         <ChevronDown className="w-2.5 h-2.5 text-current absolute right-1.5 pointer-events-none" />
       </div>
