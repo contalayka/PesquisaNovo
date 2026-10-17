@@ -7,7 +7,7 @@ type Channel = 'Shopee' | 'Mercado Livre' | 'TikTok Shop' | 'SHEIN';
 type Rule = { rate: number; fixed: number };
 const INITIAL_RULES: Record<Channel, Rule> = {
   'Shopee': { rate: 20, fixed: 4.5 },
-  'Mercado Livre': { rate: 13, fixed: 0 },
+  'Mercado Livre': { rate: 36.56, fixed: 0 },
   'TikTok Shop': { rate: 16, fixed: 4 },
   'SHEIN': { rate: 18, fixed: 0 },
 };
