@@ -11,6 +11,7 @@ import {
   X,
   Calculator,
   BadgeDollarSign,
+  ShoppingBasket,
   Menu,
   RefreshCw,
   Video,
@@ -94,6 +95,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'precificacao',
       label: 'Precificação em Massa',
       icon: BadgeDollarSign,
+    },
+    {
+      id: 'catalogo_atacado',
+      label: 'Catálogo Atacado PDVMaster',
+      icon: ShoppingBasket,
     },
     {
       id: 'marketplaces',
