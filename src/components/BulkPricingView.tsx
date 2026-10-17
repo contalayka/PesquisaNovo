@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Product } from '../types';
-import { formatCurrency, parseNumericCost } from '../utils/excel';
+import { parseNumericCost } from '../utils/excel';
 import { Search, SlidersHorizontal, AlertTriangle, Calculator } from 'lucide-react';
 
 type Channel = 'Shopee' | 'Mercado Livre' | 'TikTok Shop' | 'SHEIN';
