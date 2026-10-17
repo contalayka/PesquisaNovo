@@ -58,6 +58,7 @@ import { DashboardView } from './components/DashboardView';
 import { CatalogImportView } from './components/CatalogImportView';
 import { ConversionView } from './components/ConversionView';
 import { MarketplacesView } from './components/MarketplacesView';
+import { BulkPricingView } from './components/BulkPricingView';
 import { GeneratedFilesView } from './components/GeneratedFilesView';
 import { SettingsView } from './components/SettingsView';
 import { InternalInventoryView, InternalItem } from './components/InternalInventoryView';
@@ -2226,6 +2227,9 @@ export default function App() {
               onNavigateToFiles={() => setCurrentSidebarSection('arquivos')}
             />
           )}
+
+          {/* VIEW: PRECIFICAÇÃO EM MASSA */}
+          {currentSidebarSection === 'precificacao' && <BulkPricingView products={products} />}
 
           {/* VIEW: MARKETPLACES */}
           {currentSidebarSection === 'marketplaces' && (
