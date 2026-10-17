@@ -58,6 +58,8 @@ import { DashboardView } from './components/DashboardView';
 import { CatalogImportView } from './components/CatalogImportView';
 import { ConversionView } from './components/ConversionView';
 import { MarketplacesView } from './components/MarketplacesView';
+import { BulkPricingView } from './components/BulkPricingView';
+import { WholesaleCatalogView } from './components/WholesaleCatalogView';
 import { GeneratedFilesView } from './components/GeneratedFilesView';
 import { SettingsView } from './components/SettingsView';
 import { InternalInventoryView, InternalItem } from './components/InternalInventoryView';
@@ -2225,6 +2227,12 @@ export default function App() {
               }}
               onNavigateToFiles={() => setCurrentSidebarSection('arquivos')}
             />
+          )}
+
+          {/* VIEW: PRECIFICAÇÃO EM MASSA */}
+          {currentSidebarSection === 'precificacao' && <BulkPricingView products={products} />}
+          {currentSidebarSection === 'catalogo_atacado' && (
+            <WholesaleCatalogView products={(bundledSyncJson as GitHubSyncPayload).products || products} />
           )}
 
           {/* VIEW: MARKETPLACES */}
