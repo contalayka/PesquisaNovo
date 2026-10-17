@@ -40,7 +40,7 @@ export const BulkPricingView: React.FC<{ products: Product[] }> = ({ products })
       return { product: p, basePrice, results };
     }), [products, query, rules, markup, margin, onlyAvailable]);
 
-  const shown = rows.flatMap(row => row.results.filter(r => channel === 'Todas' || r.name === channel).map(r => ({ ...r, product: row.product })));
+  const shown = rows.flatMap(row => row.results.filter(r => channel === 'Todas' || r.name === channel).map(r => ({ ...r, product: row.product, basePrice: row.basePrice })));
   const updateRule = (name: Channel, key: keyof Rule, value: number) =>
     setRules(prev => ({ ...prev, [name]: { ...prev[name], [key]: Math.max(0, value) } }));
 
@@ -73,8 +73,12 @@ export const BulkPricingView: React.FC<{ products: Product[] }> = ({ products })
         <tbody>{shown.map((r,i)=><tr key={r.product.id+'-'+r.name} className={`border-t border-slate-800 ${i%2?'bg-[#07131e]':'bg-[#061a27]'}`}>
           <td className="px-3 py-3 max-w-[260px]"><div className="truncate font-medium" title={r.product.name}>{r.product.name}</div><div className="text-[11px] text-slate-500">{r.product.sku || r.product.id}</div></td>
           <td className="px-3 py-3 whitespace-nowrap">{r.name}</td><td className="px-3 py-3">{r.cost && r.cost>0?money(r.cost):<span className="text-amber-300">Sem custo</span>}</td>
-          <td className="px-3 py-3 font-bold text-emerald-300">{r.valid?money(r.price):'—'}</td><td className="px-3 py-3">{r.valid?money(r.fee):'—'}</td>
-          <td className={`px-3 py-3 font-semibold ${r.profit>=0?'text-emerald-300':'text-rose-300'}`}>{r.valid?money(r.profit):'—'}</td><td className="px-3 py-3">{r.valid?r.actualMargin.toFixed(1)+'%':'—'}</td><td className="px-3 py-3">{money(r.shipping)}</td>
+          <td className="px-3 py-3 font-bold text-emerald-300">{r.basePrice > 0 ? money(r.basePrice) : '—'}</td>
+          <td className="px-3 py-3 font-semibold text-cyan-200">{r.valid ? money(r.price) : '—'}</td>
+          <td className="px-3 py-3">{r.valid ? money(r.fee) : '—'}</td>
+          <td className={`px-3 py-3 font-semibold ${r.profit>=0?'text-emerald-300':'text-rose-300'}`}>{r.valid?money(r.profit):'—'}</td>
+          <td className="px-3 py-3">{r.valid?r.actualMargin.toFixed(1)+'%':'—'}</td>
+          <td className="px-3 py-3">{money(r.shipping)}</td>
         </tr>)}</tbody>
       </table>
     </div>
