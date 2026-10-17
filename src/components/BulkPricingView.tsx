@@ -16,6 +16,7 @@ const money = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', curr
 export const BulkPricingView: React.FC<{ products: Product[] }> = ({ products }) => {
   const [channel, setChannel] = useState<'Todas' | Channel>('Todas');
   const [query, setQuery] = useState('');
+  const [markup, setMarkup] = useState(40);
   const [margin, setMargin] = useState(20);
   const [rules, setRules] = useState(DEFAULTS);
   const [showSettings, setShowSettings] = useState(false);
@@ -26,6 +27,7 @@ export const BulkPricingView: React.FC<{ products: Product[] }> = ({ products })
     .filter(p => p.name.toLowerCase().includes(query.toLowerCase()))
     .map(p => {
       const cost = parseNumericCost(p.cost);
+      const basePrice = cost !== null && cost > 0 ? Math.ceil(cost * (1 + markup / 100) * 100) / 100 : 0;
       const results = (Object.keys(rules) as Channel[]).map(name => {
         const r = rules[name];
         const valid = cost !== null && cost > 0 && (1 - r.rate / 100 - margin / 100) > 0;
@@ -35,8 +37,8 @@ export const BulkPricingView: React.FC<{ products: Product[] }> = ({ products })
         const actualMargin = price > 0 ? profit / price * 100 : 0;
         return { name, price: Math.ceil(price * 100) / 100, fee, profit, actualMargin, cost, valid, shipping: r.shipping };
       });
-      return { product: p, results };
-    }), [products, query, rules, margin, onlyAvailable]);
+      return { product: p, basePrice, results };
+    }), [products, query, rules, markup, margin, onlyAvailable]);
 
   const shown = rows.flatMap(row => row.results.filter(r => channel === 'Todas' || r.name === channel).map(r => ({ ...r, product: row.product })));
   const updateRule = (name: Channel, key: keyof Rule, value: number) =>
@@ -49,7 +51,7 @@ export const BulkPricingView: React.FC<{ products: Product[] }> = ({ products })
       <button onClick={() => setShowSettings(v => !v)} className="rounded-lg border border-cyan-800 bg-cyan-950/40 px-3 py-2 text-sm flex items-center gap-2"><SlidersHorizontal className="w-4 h-4"/> Ajustar taxas e margem</button>
     </div>
     {showSettings && <div className="rounded-xl border border-cyan-900 bg-[#071827] p-4 space-y-4">
-      <div className="max-w-xs"><label className="block text-xs text-slate-400 mb-1">Margem líquida desejada (%)</label><input type="number" min="0" max="80" value={margin} onChange={e => setMargin(Math.min(80, Math.max(0, Number(e.target.value))))} className="w-full rounded-lg bg-slate-950 border border-slate-700 p-2"/></div>
+      <div className="grid sm:grid-cols-2 gap-3 max-w-xl"><label className="block text-xs text-slate-400 mb-1">Acréscimo sobre o custo (%)<input type="number" min="0" max="500" value={markup} onChange={e => setMarkup(Math.min(500, Math.max(0, Number(e.target.value))))} className="mt-1 w-full rounded-lg bg-slate-950 border border-slate-700 p-2"/></label><label className="block text-xs text-slate-400 mb-1">Margem líquida desejada (%)<input type="number" min="0" max="80" value={margin} onChange={e => setMargin(Math.min(80, Math.max(0, Number(e.target.value))))} className="w-full rounded-lg bg-slate-950 border border-slate-700 p-2"/></div>
       <p className="text-xs text-amber-200">As taxas abaixo são premissas editáveis, não uma confirmação das tarifas atuais de cada marketplace. Impostos e embalagem não estão incluídos.</p>
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">{(Object.keys(rules) as Channel[]).map(name => <div key={name} className="rounded-lg border border-slate-800 p-3 space-y-2">
         <strong className="text-sm">{name}</strong>
@@ -67,7 +69,7 @@ export const BulkPricingView: React.FC<{ products: Product[] }> = ({ products })
     <div className="text-xs text-slate-400">{shown.length} combinações produto/canal • meta de margem: {margin}% • impostos excluídos</div>
     <div className="overflow-auto rounded-xl border border-slate-800">
       <table className="w-full min-w-[850px] text-sm">
-        <thead className="bg-[#0a2030] text-slate-300"><tr>{['Produto','Canal','Custo','Preço sugerido','Taxas estimadas','Lucro estimado','Margem','Frete informado'].map(x=><th key={x} className="px-3 py-3 text-left font-semibold whitespace-nowrap">{x}</th>)}</tr></thead>
+        <thead className="bg-[#0a2030] text-slate-300"><tr>{['Produto','Canal','Custo','Base +'+markup+'%','Preço sugerido','Taxas estimadas','Lucro estimado','Margem','Frete informado'].map(x=><th key={x} className="px-3 py-3 text-left font-semibold whitespace-nowrap">{x}</th>)}</tr></thead>
         <tbody>{shown.map((r,i)=><tr key={r.product.id+'-'+r.name} className={`border-t border-slate-800 ${i%2?'bg-[#07131e]':'bg-[#061a27]'}`}>
           <td className="px-3 py-3 max-w-[260px]"><div className="truncate font-medium" title={r.product.name}>{r.product.name}</div><div className="text-[11px] text-slate-500">{r.product.sku || r.product.id}</div></td>
           <td className="px-3 py-3 whitespace-nowrap">{r.name}</td><td className="px-3 py-3">{r.cost && r.cost>0?money(r.cost):<span className="text-amber-300">Sem custo</span>}</td>
