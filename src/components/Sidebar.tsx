@@ -10,6 +10,7 @@ import {
   Database,
   X,
   Calculator,
+  BadgeDollarSign,
   Menu,
   RefreshCw,
   Video,
@@ -88,6 +89,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: Layers,
       badge: foundCount > 0 ? `${foundCount}` : null,
       badgeClass: 'bg-emerald-950/50 text-emerald-300 border-emerald-800/40',
+    },
+    {
+      id: 'precificacao',
+      label: 'Precificação em Massa',
+      icon: BadgeDollarSign,
     },
     {
       id: 'marketplaces',
