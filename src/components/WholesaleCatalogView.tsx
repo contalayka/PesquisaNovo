@@ -21,6 +21,8 @@ export const WholesaleCatalogView: React.FC<{ products: Product[] }> = ({ produc
 
   const rows = useMemo(() => products
     .filter(product => product.name && product.name.toLowerCase().includes(query.toLowerCase()))
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base', numeric: true }))
     .map(product => {
       const cost = parseNumericCost(product.cost);
       const targetNet = cost !== null && cost > 0 ? cost * (1 + markup / 100) : 0;
