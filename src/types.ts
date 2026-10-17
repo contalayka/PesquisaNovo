@@ -12,7 +12,9 @@ export type AppView =
   | 'configuracoes'
   | 'estoque_interno'
   | 'videos'
-  | 'relatorios';
+  | 'relatorios'
+  | 'analise_vendas'
+  | 'precos_revenda';
 
 export interface ResearchRecord {
   id: string;
