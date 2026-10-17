@@ -59,6 +59,7 @@ import { CatalogImportView } from './components/CatalogImportView';
 import { ConversionView } from './components/ConversionView';
 import { MarketplacesView } from './components/MarketplacesView';
 import { BulkPricingView } from './components/BulkPricingView';
+import { WholesaleCatalogView } from './components/WholesaleCatalogView';
 import { GeneratedFilesView } from './components/GeneratedFilesView';
 import { SettingsView } from './components/SettingsView';
 import { InternalInventoryView, InternalItem } from './components/InternalInventoryView';
@@ -2231,15 +2232,7 @@ export default function App() {
           {/* VIEW: PRECIFICAÇÃO EM MASSA */}
           {currentSidebarSection === 'precificacao' && <BulkPricingView products={products} />}
           {currentSidebarSection === 'catalogo_atacado' && (
-            <section className="space-y-4 text-slate-100">
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold">Catálogo Atacado PDVMaster</h1>
-              </div>
-              <div className="rounded-xl border border-cyan-900 bg-[#071827] p-5">
-                <p className="text-sm text-slate-300">Área dedicada aos produtos do catálogo atacadista PDVMaster e aos preços sugeridos para anunciar em cada marketplace.</p>
-                <p className="mt-2 text-sm text-amber-300">O acesso lateral foi criado. A listagem automática do catálogo ainda precisa ser conectada à fonte de dados do fornecedor para exibir os produtos e calcular os preços corretamente.</p>
-              </div>
-            </section>
+            <WholesaleCatalogView products={(bundledSyncJson as GitHubSyncPayload).products || products} />
           )}
 
           {/* VIEW: MARKETPLACES */}
