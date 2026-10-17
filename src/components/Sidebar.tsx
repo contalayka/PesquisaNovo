@@ -15,6 +15,7 @@ import {
   Video,
   MessageCircle,
   BarChart3,
+  Calculator,
 } from 'lucide-react';
 import { AppView } from '../types';
 import { MarketPrepLogo } from './MarketPrepLogo';
@@ -116,6 +117,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'analise_vendas',
       label: 'Análise de Vendas',
       icon: BarChart3,
+    },
+    {
+      id: 'precos_revenda',
+      label: 'Preços para Revenda',
+      icon: Calculator,
     },
     {
       id: 'configuracoes',
