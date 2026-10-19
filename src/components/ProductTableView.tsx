@@ -6,7 +6,7 @@ import {
   getProductWeightDisplay,
   getProductDimensionsDisplay,
 } from '../types';
-import { formatCurrency } from '../utils/excel';
+import { formatCurrency, parseNumericCost } from '../utils/excel';
 import { ProductImage } from './ProductImage';
 import {
   Search,
@@ -91,6 +91,8 @@ const ProductTableRow = React.memo<ProductTableRowProps>(
 
     const hasRecords = product.research_records && product.research_records.length > 0;
     const bestRecord = hasRecords ? product.research_records[0] : null;
+    const costNum = parseNumericCost(product.cost);
+    const discountedCost = costNum !== null && costNum > 0 ? costNum * 0.9 : null;
 
     const handleCopy = (id: string, text: string) => {
       navigator.clipboard.writeText(text);
@@ -165,10 +167,22 @@ const ProductTableRow = React.memo<ProductTableRowProps>(
 
         {/* 5. Custo */}
         <td className="py-2.5 px-3 whitespace-nowrap">
-          <div className="inline-flex items-center gap-1.5">
-            <span className="font-mono tabular-nums font-bold text-xs text-emerald-400 bg-emerald-950/30 px-2 py-0.5 rounded border border-emerald-800/40 inline-block">
+          <div className="inline-flex items-center gap-1.5 flex-wrap">
+            <span
+              className="font-mono tabular-nums font-bold text-xs text-emerald-400 bg-emerald-950/30 px-2 py-0.5 rounded border border-emerald-800/40 inline-block"
+              title="Custo original do fornecedor"
+            >
               {formatCurrency(product.cost)}
             </span>
+            {discountedCost !== null && (
+              <span
+                className="font-mono tabular-nums font-bold text-xs text-teal-300 bg-teal-950/60 px-1.5 py-0.5 rounded border border-teal-700/60 inline-flex items-center gap-1 shadow-xs"
+                title={`Valor com -10% de desconto no custo: ${formatCurrency(discountedCost)} (${formatCurrency(product.cost)} - 10%)`}
+              >
+                <span className="text-[10px] text-teal-400/80 font-normal">-10%:</span>
+                <span>{formatCurrency(discountedCost)}</span>
+              </span>
+            )}
             {product.price_history && product.price_history.length > 0 && (
               product.price_history[0].type === 'subiu' ? (
                 <span
@@ -497,6 +511,8 @@ export const ProductTableView = React.memo<ProductTableViewProps>(
                 product.research_records && product.research_records.length > 0
                   ? product.research_records[0]
                   : null;
+              const costNum = parseNumericCost(product.cost);
+              const discountedCost = costNum !== null && costNum > 0 ? costNum * 0.9 : null;
 
               return (
                 <div
@@ -567,6 +583,14 @@ export const ProductTableView = React.memo<ProductTableViewProps>(
                           <span className="font-mono tabular-nums font-bold text-emerald-400 truncate">
                             {formatCurrency(product.cost)}
                           </span>
+                          {discountedCost !== null && (
+                            <span
+                              className="text-[8px] font-mono font-bold text-teal-300 bg-teal-950/70 px-1 py-0.2 rounded border border-teal-800/50"
+                              title={`Custo com -10%: ${formatCurrency(discountedCost)}`}
+                            >
+                              -10%: {formatCurrency(discountedCost)}
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center justify-between gap-1 pt-0.5 border-t border-slate-800/80">
@@ -636,6 +660,8 @@ export const ProductTableView = React.memo<ProductTableViewProps>(
                 product.research_records && product.research_records.length > 0
                   ? product.research_records[0]
                   : null;
+              const costNum = parseNumericCost(product.cost);
+              const discountedCost = costNum !== null && costNum > 0 ? costNum * 0.9 : null;
 
               return (
                 <div
@@ -694,9 +720,19 @@ export const ProductTableView = React.memo<ProductTableViewProps>(
                           <span className="text-[9px] uppercase font-medium text-slate-400 block">
                             Custo
                           </span>
-                          <span className="font-mono tabular-nums font-bold text-emerald-400">
-                            {formatCurrency(product.cost)}
-                          </span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-mono tabular-nums font-bold text-emerald-400">
+                              {formatCurrency(product.cost)}
+                            </span>
+                            {discountedCost !== null && (
+                              <span
+                                className="text-[10px] font-mono font-bold text-teal-300 bg-teal-950/70 px-1.5 py-0.5 rounded border border-teal-800/50"
+                                title={`Custo com -10%: ${formatCurrency(discountedCost)}`}
+                              >
+                                -10%: {formatCurrency(discountedCost)}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className="text-right">
                           <span className="text-[9px] uppercase font-medium text-slate-400 block">
@@ -811,7 +847,7 @@ export const ProductTableView = React.memo<ProductTableViewProps>(
                   <th className="py-3 px-3 w-28">SKU</th>
 
                   {/* 5. Custo */}
-                  <th className="py-3 px-3 w-28">
+                  <th className="py-3 px-3 min-w-[130px]">
                     <button
                       type="button"
                       onClick={() =>
@@ -821,7 +857,7 @@ export const ProductTableView = React.memo<ProductTableViewProps>(
                       className="inline-flex items-center gap-1 hover:text-slate-200 transition"
                       title="Ordenar por Custo"
                     >
-                      <span>Custo</span>
+                      <span>Custo / -10%</span>
                       {sortBy === 'lowest_cost' ? (
                         <ArrowUp className="w-3 h-3 text-blue-400" />
                       ) : sortBy === 'highest_cost' ? (

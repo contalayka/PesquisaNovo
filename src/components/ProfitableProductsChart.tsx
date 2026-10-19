@@ -23,6 +23,7 @@ import {
   ArrowUpRight,
   LoaderCircle,
   Store,
+  Calculator,
 } from 'lucide-react';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { Product, getProductSku } from '../types';
@@ -62,8 +63,10 @@ export interface PdfProductProfitItem {
   orderCount: number;
   platforms: Platform[];
   cost: number;
+  discountedCost: number;
   marketPrice: number;
   unitProfit: number;
+  unitProfitWithDiscount: number;
   totalBatchProfit: number;
   marginPercent: number;
   markupPercent: number;
@@ -379,6 +382,11 @@ export const ProfitableProductsChart: React.FC<ProfitableProductsChartProps> = (
       const cleanName = matchedProd ? matchedProd.name : entry.displayName;
       const shortName = cleanName.length > 24 ? cleanName.slice(0, 22) + '...' : cleanName;
 
+      const discountedCost = Number((finalCost * 0.9).toFixed(2));
+      const unitProfitWithDiscount = hasProfitData
+        ? Number((finalMarketPrice - discountedCost).toFixed(2))
+        : 0;
+
       result.push({
         id: matchedProd ? matchedProd.id : `pdf-prod-${normKey.slice(0, 10)}`,
         name: cleanName,
@@ -388,8 +396,10 @@ export const ProfitableProductsChart: React.FC<ProfitableProductsChartProps> = (
         orderCount: entry.orderCount,
         platforms: Array.from(entry.platforms),
         cost: Number(finalCost.toFixed(2)),
+        discountedCost,
         marketPrice: Number(finalMarketPrice.toFixed(2)),
         unitProfit: Number(unitProfit.toFixed(2)),
+        unitProfitWithDiscount,
         totalBatchProfit: Number(totalBatchProfit.toFixed(2)),
         marginPercent: Number(marginPercent.toFixed(1)),
         markupPercent: Number(markupPercent.toFixed(1)),
@@ -763,6 +773,103 @@ export const ProfitableProductsChart: React.FC<ProfitableProductsChartProps> = (
               </span>
             </div>
           </div>
+
+          {/* Tabela Detalhada com Produtos do PDF e Valor de Custo com -10% */}
+          <div className="mt-3 rounded-xl border border-slate-800 bg-[#081522] overflow-hidden">
+            <div className="p-3 bg-[#0a1b2b] border-b border-slate-800 flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <PackageCheck className="w-4 h-4 text-emerald-400" />
+                <span className="text-xs font-bold text-white uppercase tracking-wider">
+                  Detalhamento dos Produtos Encontrados no PDF
+                </span>
+                <span className="text-[11px] text-teal-300 bg-teal-950/70 border border-teal-700/60 px-2 py-0.5 rounded font-mono font-semibold">
+                  Custo -10% calculado para cada item
+                </span>
+              </div>
+              <span className="text-[11px] text-slate-400 font-mono">
+                {sortedItems.length} {sortedItems.length === 1 ? 'produto exibido' : 'produtos exibidos'}
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-800 bg-[#061421] text-[10px] uppercase font-semibold text-slate-400 tracking-wider">
+                    <th className="py-2.5 px-3">Produto / SKU</th>
+                    <th className="py-2.5 px-3 text-center">Qtd no PDF</th>
+                    <th className="py-2.5 px-3">Custo Atual</th>
+                    <th className="py-2.5 px-3 text-teal-300 font-bold">Custo -10%</th>
+                    <th className="py-2.5 px-3">Preço Médio Venda</th>
+                    <th className="py-2.5 px-3">Lucro Unitário</th>
+                    <th className="py-2.5 px-3">Lucro c/ Custo -10%</th>
+                    <th className="py-2.5 px-3 text-right">Lucro Total Lote</th>
+                    <th className="py-2.5 px-3 text-right">Ação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {sortedItems.map((item) => (
+                    <tr key={item.id} className="hover:bg-slate-900/40 transition">
+                      <td className="py-2.5 px-3">
+                        <div className="font-semibold text-slate-200 line-clamp-1" title={item.name}>
+                          {item.name}
+                        </div>
+                        <div className="text-[10px] font-mono text-slate-500">
+                          SKU: {item.sku} {item.platforms.length > 0 && `• ${item.platforms.join(', ')}`}
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-mono font-bold text-white">
+                        {item.quantityShipped} un.
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-cyan-300 font-semibold tabular-nums">
+                        {formatCurrency(item.cost)}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono tabular-nums">
+                        <span className="font-bold text-teal-300 bg-teal-950/70 border border-teal-700/60 px-1.5 py-0.5 rounded inline-block shadow-xs">
+                          {formatCurrency(item.discountedCost)}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-emerald-300 font-semibold tabular-nums">
+                        {formatCurrency(item.marketPrice)}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono font-bold tabular-nums text-slate-200">
+                        +{formatCurrency(item.unitProfit)}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono font-extrabold tabular-nums text-teal-300">
+                        +{formatCurrency(item.unitProfitWithDiscount)}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono font-bold tabular-nums text-right text-emerald-400">
+                        +{formatCurrency(item.totalBatchProfit)}
+                      </td>
+                      <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1">
+                          {item.matchedProduct && onOpenSimulator && (
+                            <button
+                              type="button"
+                              onClick={() => onOpenSimulator(item.matchedProduct!)}
+                              title="Simular Lucro & Margem"
+                              className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-teal-300 border border-slate-700 transition"
+                            >
+                              <Calculator className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {item.matchedProduct && onOpenResearch && (
+                            <button
+                              type="button"
+                              onClick={() => onOpenResearch(item.matchedProduct!)}
+                              title="Pesquisar Preço Concorrentes"
+                              className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 transition"
+                            >
+                              <Search className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       ) : (
         /* 5. Estado Vazio Orientado com Ação */
@@ -840,7 +947,17 @@ const CustomTooltip = ({ active, payload, metricMode }: any) => {
               <span className="w-2 h-2 rounded-full bg-cyan-500 inline-block" />
               Custo Atual:
             </span>
-            <span className="font-semibold text-cyan-200">{formatCurrency(data.cost)}</span>
+            <div className="flex items-center gap-1.5">
+              <span className="font-semibold text-cyan-200">{formatCurrency(data.cost)}</span>
+              {data.discountedCost > 0 && (
+                <span
+                  className="font-mono tabular-nums font-bold text-[10px] text-teal-300 bg-teal-950/70 border border-teal-700/60 px-1 rounded shadow-xs"
+                  title={`Custo com -10%: ${formatCurrency(data.discountedCost)}`}
+                >
+                  -10%: {formatCurrency(data.discountedCost)}
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="flex justify-between items-center text-slate-300">

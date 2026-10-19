@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Product, ProductStatus, getProductSku } from '../types';
-import { formatCurrency } from '../utils/excel';
+import { formatCurrency, parseNumericCost } from '../utils/excel';
 import { ProductImage } from './ProductImage';
 import {
   ExternalLink,
@@ -45,6 +45,9 @@ export const ProductCard = React.memo<ProductCardProps>(
   const [copiedName, setCopiedName] = useState(false);
   const [copiedCost, setCopiedCost] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+
+  const costNum = parseNumericCost(product.cost);
+  const discountedCost = costNum !== null && costNum > 0 ? costNum * 0.9 : null;
 
   const hasRecords = product.research_records && product.research_records.length > 0;
   const bestRecord = hasRecords
@@ -268,11 +271,11 @@ export const ProductCard = React.memo<ProductCardProps>(
 
             {/* Highlighted Values Box */}
             <div className="mt-2.5 p-2.5 rounded-lg bg-[#0b0f17] border border-slate-800 space-y-1.5">
-              <div className="flex items-center justify-between gap-1">
+              <div className="flex items-center justify-between gap-1 flex-wrap">
                 <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">
                   Custo
                 </span>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   {product.price_history && product.price_history.length > 0 && (
                     product.price_history[0].type === 'subiu' ? (
                       <span
@@ -295,6 +298,15 @@ export const ProductCard = React.memo<ProductCardProps>(
                   <span className="text-xs sm:text-sm font-mono font-bold text-emerald-400 tabular-nums">
                     {formatCurrency(product.cost)}
                   </span>
+                  {discountedCost !== null && (
+                    <span
+                      className="font-mono tabular-nums font-bold text-[10px] sm:text-xs text-teal-300 bg-teal-950/70 px-1.5 py-0.5 rounded border border-teal-700/60 inline-flex items-center gap-0.5 shadow-xs shrink-0"
+                      title={`Custo com -10%: ${formatCurrency(discountedCost)} (${formatCurrency(product.cost)} - 10%)`}
+                    >
+                      <span className="text-[9px] text-teal-400/80 font-normal">-10%:</span>
+                      <span>{formatCurrency(discountedCost)}</span>
+                    </span>
+                  )}
                 </div>
               </div>
 

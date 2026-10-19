@@ -1989,6 +1989,15 @@ export default function App() {
 
   // Sidebar navigation handler
   const handleSelectSidebarSection = (section: SidebarSection) => {
+    if (section === 'produtos_encontrados') {
+      setCurrentSidebarSection('produtos');
+      setAdvancedFilters((prev) => ({ ...prev, status: 'Encontrado', onlyNew: false }));
+      setIsMobileSidebarOpen(false);
+      try {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch {}
+      return;
+    }
     setCurrentSidebarSection(section);
     setIsMobileSidebarOpen(false);
     try {
@@ -2019,6 +2028,7 @@ export default function App() {
         onOpenAddProduct={() => setShowAddProductModal(true)}
         onSyncSupabase={() => loadFromSupabase(false)}
         isSyncingSupabase={isSyncingSupabase}
+        activeFilterStatus={advancedFilters.status}
       />
 
       {/* Main App Container — premium dark workspace, with stable 72px compact sidebar rail space on desktop */}
@@ -2615,6 +2625,35 @@ export default function App() {
                           Limpar
                         </button>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Banner de Identificação Clara: Produtos Encontrados */}
+                  {advancedFilters.status === 'Encontrado' && (
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-950/40 border border-emerald-800/60 text-xs flex-wrap gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-emerald-900/80 text-emerald-300 border border-emerald-600/50 shrink-0">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                        </span>
+                        <div>
+                          <div className="font-bold text-emerald-300 flex items-center gap-2 flex-wrap">
+                            <span>Produtos Marcados como "Encontrado"</span>
+                            <span className="text-[11px] font-mono font-normal text-emerald-300 bg-emerald-900/50 px-2 py-0.2 rounded border border-emerald-700/50">
+                              {statusCounts.Encontrado} produto(s)
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            Exibindo todos os produtos já pesquisados e confirmados. Ao lado do valor de custo, você vê o valor com -10% de desconto.
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setAdvancedFilters((prev) => ({ ...prev, status: 'all' }))}
+                        className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs border border-slate-700 transition shrink-0"
+                      >
+                        Ver todos ({totalCount})
+                      </button>
                     </div>
                   )}
 

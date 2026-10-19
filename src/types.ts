@@ -5,6 +5,7 @@ export type ConfidenceLevel = 'Alta' | 'Média' | 'Baixa';
 export type AppView =
   | 'inicio'
   | 'produtos'
+  | 'produtos_encontrados'
   | 'importar'
   | 'conversao'
   | 'marketplaces'

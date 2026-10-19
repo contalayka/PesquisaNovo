@@ -13,7 +13,7 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 import { Product, ProductStatus, getProductSku } from '../types';
-import { formatCurrency } from '../utils/excel';
+import { formatCurrency, parseNumericCost } from '../utils/excel';
 import { ProfitableProductsChart } from './ProfitableProductsChart';
 
 interface DashboardViewProps {
@@ -298,7 +298,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           {getProductSku(p)}
                         </td>
                         <td className="py-2.5 px-3 font-mono tabular-nums text-slate-300 font-semibold whitespace-nowrap">
-                          {formatCurrency(p.cost)}
+                          {(() => {
+                            const costNum = parseNumericCost(p.cost);
+                            const disc = costNum !== null && costNum > 0 ? costNum * 0.9 : null;
+                            return (
+                              <div className="inline-flex items-center gap-1.5 flex-wrap">
+                                <span className="text-emerald-400">{formatCurrency(p.cost)}</span>
+                                {disc !== null && (
+                                  <span
+                                    className="font-mono tabular-nums font-bold text-[10px] text-teal-300 bg-teal-950/60 px-1.5 py-0.5 rounded border border-teal-700/60 inline-flex items-center gap-0.5 shadow-xs"
+                                    title={`Custo com -10%: ${formatCurrency(disc)} (${formatCurrency(p.cost)} - 10%)`}
+                                  >
+                                    <span className="text-[9px] text-teal-400/80 font-normal">-10%:</span>
+                                    <span>{formatCurrency(disc)}</span>
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="py-2.5 px-3 whitespace-nowrap">
                           <span

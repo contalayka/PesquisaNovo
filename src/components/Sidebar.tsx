@@ -16,6 +16,7 @@ import {
   RefreshCw,
   Video,
   MessageCircle,
+  CheckCircle2,
 } from 'lucide-react';
 import { AppView } from '../types';
 import { MarketPrepLogo } from './MarketPrepLogo';
@@ -38,6 +39,7 @@ interface SidebarProps {
   onOpenSimulator?: () => void;
   onSyncSupabase?: () => void;
   isSyncingSupabase?: boolean;
+  activeFilterStatus?: string;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -56,6 +58,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenSimulator,
   onSyncSupabase,
   isSyncingSupabase = false,
+  activeFilterStatus,
 }) => {
   const [isHovered, setIsHovered] = React.useState(false);
   const isCollapsed = !isHovered;
@@ -78,6 +81,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: Package,
       badge: totalCount > 0 ? totalCount : null,
       badgeClass: 'bg-slate-800 text-slate-300 border-slate-700',
+    },
+    {
+      id: 'produtos_encontrados',
+      label: 'Encontrados',
+      icon: CheckCircle2,
+      badge: foundCount > 0 ? `${foundCount}` : null,
+      badgeClass: 'bg-emerald-950/70 text-emerald-300 border-emerald-600/50',
     },
     {
       id: 'importar',
@@ -193,8 +203,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Navigation List */}
       <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto overflow-x-hidden">
         {navItems.map((item) => {
+          const isActive =
+            item.id === 'produtos_encontrados'
+              ? currentSection === 'produtos' && activeFilterStatus === 'Encontrado'
+              : item.id === 'produtos'
+              ? currentSection === 'produtos' && activeFilterStatus !== 'Encontrado'
+              : currentSection === item.id;
+
           const Icon = item.icon;
-          const isActive = currentSection === item.id;
 
           return (
             <div key={item.id} className="relative group">

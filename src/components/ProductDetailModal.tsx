@@ -298,6 +298,19 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                           className="w-full rounded-lg bg-[#121824] border border-emerald-800/50 pl-8 pr-3 py-2 text-xs text-emerald-300 font-bold placeholder-slate-500 focus:border-emerald-500 focus:outline-none font-mono tabular-nums"
                         />
                       </div>
+                      {(() => {
+                        const parsed = parseNumericCost(cost);
+                        const disc = parsed !== null && parsed > 0 ? parsed * 0.9 : null;
+                        if (disc === null) return null;
+                        return (
+                          <div className="mt-1.5 flex items-center justify-between text-xs bg-teal-950/40 border border-teal-800/50 rounded-md px-2.5 py-1">
+                            <span className="text-teal-300/90 text-[11px] font-medium">Custo com -10% de desconto:</span>
+                            <span className="font-mono font-bold text-teal-300 tabular-nums">
+                              {formatCurrency(disc)}
+                            </span>
+                          </div>
+                        );
+                      })()}
                       {product.price_history && product.price_history.length > 0 && (
                         <div className="mt-1.5 flex items-center gap-1.5">
                           {product.price_history[0].type === 'subiu' ? (
@@ -701,9 +714,25 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="p-3 rounded-lg bg-[#121824] border border-slate-800">
                   <span className="text-[11px] text-slate-400 block">Preço de Custo Atual</span>
-                  <span className="text-base font-bold font-mono text-emerald-400 tabular-nums">
-                    {formatCurrency(product.cost)}
-                  </span>
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    <span className="text-base font-bold font-mono text-emerald-400 tabular-nums">
+                      {formatCurrency(product.cost)}
+                    </span>
+                    {(() => {
+                      const costNum = parseNumericCost(product.cost);
+                      const disc = costNum !== null && costNum > 0 ? costNum * 0.9 : null;
+                      if (!disc) return null;
+                      return (
+                        <span
+                          className="font-mono tabular-nums font-bold text-xs text-teal-300 bg-teal-950/60 px-1.5 py-0.5 rounded border border-teal-700/60 inline-flex items-center gap-1 shadow-xs"
+                          title={`Valor com -10% de desconto no custo: ${formatCurrency(disc)}`}
+                        >
+                          <span className="text-[10px] text-teal-400/80 font-normal">-10%:</span>
+                          <span>{formatCurrency(disc)}</span>
+                        </span>
+                      );
+                    })()}
+                  </div>
                 </div>
 
                 <div className="p-3 rounded-lg bg-[#121824] border border-slate-800">
