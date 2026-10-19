@@ -145,180 +145,188 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onCloseMobile();
   };
 
-  const sidebarContent = (
-    <div
-      className={`flex flex-col h-full bg-[#03131e] border-r border-cyan-900/40 text-slate-300 select-none overflow-hidden transition-[width] duration-200 ease-out ${
-        isCollapsed ? 'w-[68px]' : 'w-[236px]'
-      }`}
-    >
-      {/* Brand area */}
+  const renderSidebarContent = (isMobileDrawer = false) => {
+    const collapsed = isMobileDrawer ? false : isCollapsed;
+
+    return (
       <div
-        className={`h-14 px-3.5 flex items-center border-b border-slate-800 shrink-0 bg-[#02101a] ${
-          isCollapsed ? 'justify-center' : 'justify-between'
+        className={`flex flex-col h-full bg-[#03131e] border-r border-cyan-900/40 text-slate-300 select-none overflow-hidden transition-[width] duration-200 ease-out ${
+          isMobileDrawer ? 'w-full' : (collapsed ? 'w-[68px]' : 'w-[236px]')
         }`}
       >
-        <button
-          type="button"
-          onClick={() => handleNavClick('inicio')}
-          className="cursor-pointer overflow-hidden flex items-center gap-2.5 text-left border-none bg-transparent p-0"
-          title="MarketPreço — Página Inicial"
-          aria-label="MarketPreço — Página Inicial"
-        >
-          {isCollapsed ? (
-            <MarketPrepLogo variant="icon" size="sm" />
-          ) : (
-            <MarketPrepLogo variant="compact" size="md" showSubtitle={true} />
-          )}
-        </button>
-
-        {/* Mobile Close Button */}
-        <button
-          type="button"
-          onClick={onCloseMobile}
-          className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
-          aria-label="Fechar menu"
-        >
-          <X className="w-5 h-5" />
-        </button>
-      </div>
-
-      {/* Primary Action CTA */}
-      <div className="p-2.5 border-b border-slate-800 shrink-0">
-        <button
-          type="button"
-          onClick={() => {
-            onOpenAddProduct();
-            onCloseMobile();
-          }}
-          className={`w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-400 to-emerald-300 hover:brightness-110 text-[#032019] text-white font-semibold text-xs py-2 transition shadow-xs ${
-            isCollapsed ? 'px-0' : 'px-3'
+        {/* Brand area */}
+        <div
+          className={`h-14 px-3.5 flex items-center border-b border-slate-800 shrink-0 bg-[#02101a] ${
+            collapsed ? 'justify-center' : 'justify-between'
           }`}
-          title={isCollapsed ? 'Adicionar Novo Produto' : undefined}
         >
-          <Plus className="w-4 h-4 shrink-0" />
-          {!isCollapsed && <span className="truncate">Novo Produto</span>}
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={() => handleNavClick('inicio')}
+            className="cursor-pointer overflow-hidden flex items-center gap-2.5 text-left border-none bg-transparent p-0"
+            title="MarketPreço — Página Inicial"
+            aria-label="MarketPreço — Página Inicial"
+          >
+            {collapsed ? (
+              <MarketPrepLogo variant="icon" size="sm" />
+            ) : (
+              <MarketPrepLogo variant="compact" size="md" showSubtitle={true} />
+            )}
+          </button>
 
-      {/* Navigation List */}
-      <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto overflow-x-hidden">
-        {navItems.map((item) => {
-          const isActive =
-            item.id === 'produtos_encontrados'
-              ? currentSection === 'produtos' && activeFilterStatus === 'Encontrado'
-              : item.id === 'produtos'
-              ? currentSection === 'produtos' && activeFilterStatus !== 'Encontrado'
-              : currentSection === item.id;
+          {/* Mobile Close Button */}
+          {isMobileDrawer && (
+            <button
+              type="button"
+              onClick={onCloseMobile}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              aria-label="Fechar menu"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
+        </div>
 
-          const Icon = item.icon;
-
-          return (
-            <div key={item.id} className="relative group">
-              <button
-                type="button"
-                onClick={() => handleNavClick(item.id)}
-                title={isCollapsed ? `${item.label}${item.badge ? ` (${item.badge})` : ''}` : undefined}
-                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${
-                  isActive
-                    ? 'bg-emerald-400/15 text-emerald-300 font-semibold shadow-[inset_3px_0_0_#00f5a0]'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-                } ${isCollapsed ? 'justify-center' : 'justify-between'}`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <Icon
-                    className={`w-4 h-4 shrink-0 transition-colors ${
-                      isActive ? 'text-emerald-300' : 'text-slate-400 group-hover:text-slate-300'
-                    }`}
-                  />
-                  {!isCollapsed && <span className="truncate">{item.label}</span>}
-                </div>
-
-                {!isCollapsed && item.badge && (
-                  <span
-                    className={`px-1.5 py-0.2 rounded text-[10px] font-mono tabular-nums border ${
-                      item.badgeClass || 'bg-slate-800 text-slate-300 border-slate-700'
-                    }`}
-                  >
-                    {item.badge}
-                  </span>
-                )}
-              </button>
-
-              {/* Tooltip for Collapsed Sidebar */}
-              {isCollapsed && (
-                <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2.5 py-1 rounded-md bg-slate-900 border border-slate-700 text-white text-xs font-medium shadow-lg whitespace-nowrap z-50 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
-                  <span>{item.label}</span>
-                  {item.badge && (
-                    <span className="px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 text-[10px] font-mono">
-                      {item.badge}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </nav>
-
-      {/* Footer Tools & Database Status */}
-      <div className="p-2.5 border-t border-slate-800 shrink-0 bg-[#0b0f1a] space-y-1.5">
-        {onOpenSimulator && (
+        {/* Primary Action CTA */}
+        <div className="p-2.5 border-b border-slate-800 shrink-0">
           <button
             type="button"
             onClick={() => {
-              onOpenSimulator();
+              onOpenAddProduct();
               onCloseMobile();
             }}
-            className={`w-full flex items-center gap-2 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/70 text-xs transition ${
-              isCollapsed ? 'justify-center' : 'justify-start'
+            className={`w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-400 to-emerald-300 hover:brightness-110 text-[#032019] text-white font-semibold text-xs py-2 transition shadow-xs ${
+              collapsed ? 'px-0' : 'px-3'
             }`}
-            title="Simulador de Preços & Margens"
+            title={collapsed ? 'Adicionar Novo Produto' : undefined}
           >
-            <Calculator className="w-4 h-4 shrink-0 text-slate-400" />
-            {!isCollapsed && (
-              <span className="font-medium truncate text-xs">Simulador de Margem</span>
+            <Plus className="w-4 h-4 shrink-0" />
+            {!collapsed && <span className="truncate">Novo Produto</span>}
+          </button>
+        </div>
+
+        {/* Navigation List */}
+        <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto overflow-x-hidden">
+          {navItems.map((item) => {
+            const isActive =
+              item.id === 'produtos_encontrados'
+                ? currentSection === 'produtos' && activeFilterStatus === 'Encontrado'
+                : item.id === 'produtos'
+                ? currentSection === 'produtos' && activeFilterStatus !== 'Encontrado'
+                : currentSection === item.id;
+
+            const Icon = item.icon;
+
+            return (
+              <div key={item.id} className="relative group">
+                <button
+                  type="button"
+                  onClick={() => handleNavClick(item.id)}
+                  title={collapsed ? `${item.label}${item.badge ? ` (${item.badge})` : ''}` : undefined}
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-xs font-medium transition-colors ${
+                    isActive
+                      ? 'bg-emerald-400/15 text-emerald-300 font-semibold shadow-[inset_3px_0_0_#00f5a0]'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                  } ${collapsed ? 'justify-center' : 'justify-between'}`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Icon
+                      className={`w-4 h-4 shrink-0 transition-colors ${
+                        isActive ? 'text-emerald-300' : 'text-slate-400 group-hover:text-slate-300'
+                      }`}
+                    />
+                    {!collapsed && (
+                      <span className="truncate font-medium text-slate-200">{item.label}</span>
+                    )}
+                  </div>
+
+                  {!collapsed && item.badge && (
+                    <span
+                      className={`px-1.5 py-0.2 rounded text-[10px] font-mono tabular-nums border ${
+                        item.badgeClass || 'bg-slate-800 text-slate-300 border-slate-700'
+                      }`}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+
+                {/* Tooltip for Collapsed Desktop Sidebar */}
+                {collapsed && !isMobileDrawer && (
+                  <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2.5 py-1 rounded-md bg-slate-900 border border-slate-700 text-white text-xs font-medium shadow-lg whitespace-nowrap z-50 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
+                    <span>{item.label}</span>
+                    {item.badge && (
+                      <span className="px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 text-[10px] font-mono">
+                        {item.badge}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </nav>
+
+        {/* Footer Tools & Database Status */}
+        <div className="p-2.5 border-t border-slate-800 shrink-0 bg-[#0b0f1a] space-y-1.5">
+          {onOpenSimulator && (
+            <button
+              type="button"
+              onClick={() => {
+                onOpenSimulator();
+                onCloseMobile();
+              }}
+              className={`w-full flex items-center gap-2 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/70 text-xs transition ${
+                collapsed ? 'justify-center' : 'justify-start'
+              }`}
+              title="Simulador de Preços & Margens"
+            >
+              <Calculator className="w-4 h-4 shrink-0 text-slate-400" />
+              {!collapsed && (
+                <span className="font-medium truncate text-xs">Simulador de Margem</span>
+              )}
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => {
+              onOpenSupabaseConfig();
+              onCloseMobile();
+            }}
+            className={`w-full flex items-center gap-2 p-1.5 rounded-lg border text-xs transition ${
+              isSupabaseConnected
+                ? 'bg-emerald-950/20 border-emerald-800/40 text-emerald-300 hover:bg-emerald-950/30'
+                : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:bg-slate-800'
+            } ${collapsed ? 'justify-center' : 'justify-start'}`}
+            title="Status do Armazenamento"
+          >
+            <Database className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+            {!collapsed && (
+              <div className="flex-1 text-left min-w-0">
+                <p className="font-semibold truncate text-[11px] text-slate-200">
+                  {isSupabaseConnected ? 'Nuvem Conectada' : 'Armazenamento Local'}
+                </p>
+              </div>
+            )}
+            {!collapsed && (
+              <span
+                className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                  isSupabaseConnected ? 'bg-emerald-400' : 'bg-amber-400'
+                }`}
+              />
             )}
           </button>
-        )}
 
-        <button
-          type="button"
-          onClick={() => {
-            onOpenSupabaseConfig();
-            onCloseMobile();
-          }}
-          className={`w-full flex items-center gap-2 p-1.5 rounded-lg border text-xs transition ${
-            isSupabaseConnected
-              ? 'bg-emerald-950/20 border-emerald-800/40 text-emerald-300 hover:bg-emerald-950/30'
-              : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:bg-slate-800'
-          } ${isCollapsed ? 'justify-center' : 'justify-start'}`}
-          title="Status do Armazenamento"
-        >
-          <Database className="w-3.5 h-3.5 shrink-0 text-slate-400" />
-          {!isCollapsed && (
-            <div className="flex-1 text-left min-w-0">
-              <p className="font-semibold truncate text-[11px] text-slate-200">
-                {isSupabaseConnected ? 'Nuvem Conectada' : 'Armazenamento Local'}
-              </p>
+          {!collapsed && (
+            <div className="px-2 pt-1.5 text-[10px] text-slate-500 font-mono text-center truncate">
+              v2.4.1 • Zoom 80px Ativo
             </div>
           )}
-          {!isCollapsed && (
-            <span
-              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                isSupabaseConnected ? 'bg-emerald-400' : 'bg-amber-400'
-              }`}
-            />
-          )}
-        </button>
-
-        {!isCollapsed && (
-          <div className="px-2 pt-1.5 text-[10px] text-slate-500 font-mono text-center truncate">
-            v2.4.1 • Zoom 80px Ativo
-          </div>
-        )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <>
@@ -331,7 +339,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         }`}
         aria-label="Barra lateral"
       >
-        {sidebarContent}
+        {renderSidebarContent(false)}
       </aside>
 
       {/* Mobile Drawer */}
@@ -341,8 +349,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             className="fixed inset-0 bg-black/70 backdrop-blur-xs transition-opacity"
             onClick={onCloseMobile}
           />
-          <div className="relative w-68 max-w-[85vw] h-full shadow-2xl z-10">
-            {sidebarContent}
+          <div className="relative w-72 max-w-[85vw] h-full shadow-2xl z-10 animate-in slide-in-from-left duration-200">
+            {renderSidebarContent(true)}
           </div>
         </div>
       )}
