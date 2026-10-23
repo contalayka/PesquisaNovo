@@ -663,42 +663,52 @@ export function extractProductsFromLabel(rawText: string): ExtractedLabelItem[] 
   const items: ExtractedLabelItem[] = [];
   const lines = rawText.split('\n');
 
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
+  // Termos logísticos e fiscais a ignorar como nome de produto
+  const nonProductPattern =
+    /^(?:avenida|rua|alameda|travessa|rodovia|cep|destinatario|destinat[aá]rio|remetente|pedido|pack\s*id|xpr|srs|total\s*items|deadline|peso\s*bruto|etiqueta|data|declaracao|declara[cç][aã]o|peso|valor|chave\s*de\s*acesso|serie|nfe|conforme|declarado|anexo|cpf|cnpj|bairro|cidade|uf|estado|documento|telefone|fone|transporte|transportadora|volume|volumes|dimens[oõ]es|obs|observa[cç][aã]o|entrega|coleta|loggi|jadlog|correios|total\s*express|anjun|pegaki|spx|shopee|shein|tiktok|mercado\s*livre)/i;
 
-    // Padrão 1: UpSeller / ERP / Marketplaces item numerado: "1. Manteigueira Vidro *1" ou "1. Copo (*6)" ou "x2"
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (!trimmed || trimmed.length < 3) continue;
+
+    // Padrão 0: Linha de tabela da Declaração de Conteúdo dos Correios / Mercado Envios / Shopee
+    // Formato: "1 MANTEIGUEIRA VIDRO 250G 2 35,00" ou "1 Garrafa Térmica 1 25.00"
+    const mDecTable = trimmed.match(
+      /^(?:[1-9]\d?)\s+([A-Za-zÀ-ÿ0-9\s\-_/,\.]{4,80}?)\s+(\d{1,3})\s+(?:R\$\s*)?\d+(?:[,\.]\d{2})?$/i
+    );
+    if (mDecTable) {
+      let candidate = mDecTable[1].trim();
+      candidate = candidate.replace(/^\[[^\]]+\]\s*/, '').replace(/^\([^\)]+\)\s*/, '');
+      if (candidate.length >= 3 && !nonProductPattern.test(candidate)) {
+        const qty = parseInt(mDecTable[2] || '1', 10);
+        items.push({ name: candidate, qty: isNaN(qty) || qty <= 0 ? 1 : qty });
+        continue;
+      }
+    }
+
+    // Padrão 1: UpSeller / ERP / Marketplaces item numerado: "1. Manteigueira Vidro *1" ou "1. Copo (*6)" ou "x2" ou "1) Produto - Qtd: 2"
     const mItem = trimmed.match(
-      /^(?:\d+[\.\)\-:]|\*)\s*(.+?)(?:\s*(?:\(\s*\*\s*(\d+)\s*\)|\*\s*(\d+)|\(\s*x\s*(\d+)\s*\)|x\s*(\d+)))?$/i
+      /^(?:\d+[\.\)\-:]|\*)\s*(.+?)(?:\s*(?:\(\s*\*\s*(\d+)\s*\)|\*\s*(\d+)|\(\s*x\s*(\d+)\s*\)|x\s*(\d+)|\(\s*(?:qtd|qty)[:\s]*(\d+)\s*\)|[-:]\s*(?:qtd|qty)[:\s]*(\d+)))?$/i
     );
     if (mItem) {
       let candidateName = mItem[1].trim();
-      // Remove prefixos como [SKU-123] ou (COD) se houver
       candidateName = candidateName.replace(/^\[[^\]]+\]\s*/, '').replace(/^\([^\)]+\)\s*/, '');
-      if (
-        candidateName.length >= 4 &&
-        !/^(?:avenida|rua|alameda|travessa|rodovia|cep|destinatario|destinat[aá]rio|remetente|pedido|pack\s*id|xpr|srs|total\s*items|deadline|peso\s*bruto|sku:\s*\d+|etiqueta|data|declaracao|declara[cç][aã]o|peso|valor|chave\s*de\s*acesso|serie|nfe)/i.test(
-          candidateName
-        )
-      ) {
-        const qty = parseInt(mItem[2] || mItem[3] || mItem[4] || mItem[5] || '1', 10);
+      if (candidateName.length >= 3 && !nonProductPattern.test(candidateName)) {
+        const qty = parseInt(mItem[2] || mItem[3] || mItem[4] || mItem[5] || mItem[6] || mItem[7] || '1', 10);
         items.push({ name: candidateName, qty: isNaN(qty) || qty <= 0 ? 1 : qty });
         continue;
       }
     }
 
-    // Padrão 2: "PRODUTO:" / "ITEM:" / "CONTEÚDO:" / "DESCRIÇÃO:" / "MERCADORIA:"
+    // Padrão 2: "PRODUTO:" / "ITEM:" / "CONTEÚDO:" / "DESCRIÇÃO:" / "MERCADORIA:" / "[PRODUTO]" / "[ITEM]"
     const mExplicit = trimmed.match(
-      /(?:produto|descri[cç][aã]o(?:\s*dos?\s*bens)?|item|conte[uú]do|mercadoria)\s*[:\-]\s*(.+?)(?:\s*(?:qtd|quantidade|quant\.|unidades?|x|\*)\s*[:\-]?\s*(\d+))?$/i
+      /(?:\[?(?:produto|descri[cç][aã]o(?:\s*dos?\s*bens)?|item|conte[uú]do|mercadoria)\]?)\s*[:\-]?\s*(.+?)(?:\s*(?:qtd|qty|quantidade|quant\.|unidades?|un|x|\*)\s*[:\-]?\s*(\d+))?$/i
     );
     if (mExplicit) {
       let name = mExplicit[1].trim();
       name = name.replace(/^\[[^\]]+\]\s*/, '').replace(/^\([^\)]+\)\s*/, '');
       const qty = parseInt(mExplicit[2] || '1', 10);
-      if (
-        name.length >= 4 &&
-        !/^(?:avenida|rua|destinatario|remetente|conforme|declaracao|declarado|anexo)/i.test(name)
-      ) {
+      if (name.length >= 3 && !nonProductPattern.test(name)) {
         items.push({ name, qty: isNaN(qty) || qty <= 0 ? 1 : qty });
         continue;
       }
@@ -707,13 +717,40 @@ export function extractProductsFromLabel(rawText: string): ExtractedLabelItem[] 
     // Padrão 3: Declaração de Conteúdo dos Correios / Mercado Envios / Shopee
     // "Discriminação do Conteúdo: Manteigueira Vidro ... Quantidade: 1"
     const mDeclaracao = trimmed.match(
-      /(?:discrimina[cç][aã]o\s*(?:do\s*conte[uú]do)?|declara[cç][aã]o\s*de\s*conte[uú]do)\s*[:\-]\s*(.+?)(?:\s*(?:qtd|quantidade|quant\.|unidades?|x|\*)\s*[:\-]?\s*(\d+))?$/i
+      /(?:discrimina[cç][aã]o\s*(?:do\s*conte[uú]do)?|declara[cç][aã]o\s*de\s*conte[uú]do)\s*[:\-]\s*(.+?)(?:\s*(?:qtd|qty|quantidade|quant\.|unidades?|un|x|\*)\s*[:\-]?\s*(\d+))?$/i
     );
     if (mDeclaracao) {
       const name = mDeclaracao[1].trim();
       const qty = parseInt(mDeclaracao[2] || '1', 10);
-      if (name.length >= 4) {
+      if (name.length >= 3 && !nonProductPattern.test(name)) {
         items.push({ name, qty: isNaN(qty) || qty <= 0 ? 1 : qty });
+        continue;
+      }
+    }
+
+    // Padrão 4: Quantidade na frente: "2x Manteigueira Francesa Vidro" ou "1 UN - Garrafa Térmica 500ml"
+    const mQtyFirst = trimmed.match(/^(\d{1,3})\s*(?:x|un|unidades?|p[cç]s?)\s*[-:]?\s*(.+)$/i);
+    if (mQtyFirst) {
+      const qty = parseInt(mQtyFirst[1], 10);
+      let name = mQtyFirst[2].trim();
+      name = name.replace(/^\[[^\]]+\]\s*/, '').replace(/^\([^\)]+\)\s*/, '');
+      if (name.length >= 3 && !nonProductPattern.test(name)) {
+        items.push({ name, qty: isNaN(qty) || qty <= 0 ? 1 : qty });
+        continue;
+      }
+    }
+
+    // Padrão 5: SKU estruturado com nome: "SKU: ABC-123 - Manteigueira Vidro * 1" ou "SKU: 12345 (Nome do Produto)"
+    const mSkuLine = trimmed.match(
+      /(?:sku|c[oó]d(?:igo)?(?:\s*interno)?)\s*[:\-]?\s*([A-Za-z0-9_\-\.]+)\s*[-:]\s*(.+?)(?:\s*(?:\*\s*(\d+)|\(\s*x\s*(\d+)\s*\)|x\s*(\d+)|(?:qtd|qty)[:\s]*(\d+)))?$/i
+    );
+    if (mSkuLine) {
+      const sku = mSkuLine[1].trim();
+      let name = mSkuLine[2].trim();
+      name = name.replace(/^\[[^\]]+\]\s*/, '').replace(/^\([^\)]+\)\s*/, '');
+      const qty = parseInt(mSkuLine[3] || mSkuLine[4] || mSkuLine[5] || mSkuLine[6] || '1', 10);
+      if (name.length >= 3 && !nonProductPattern.test(name)) {
+        items.push({ name, sku, qty: isNaN(qty) || qty <= 0 ? 1 : qty });
         continue;
       }
     }

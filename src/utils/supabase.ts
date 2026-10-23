@@ -53,7 +53,67 @@ begin
   end if;
 end $$;
 
--- 8. Recarregar o cache de schema do PostgREST imediatamente
+-- 8. Bucket de vídeos e permissões de storage
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'product-videos',
+  'product-videos',
+  true,
+  52428800,
+  array['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo']
+)
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "Public read product videos" on storage.objects;
+create policy "Public read product videos"
+  on storage.objects for select
+  using (bucket_id = 'product-videos');
+
+drop policy if exists "Anon upload product videos" on storage.objects;
+create policy "Anon upload product videos"
+  on storage.objects for insert
+  with check (bucket_id = 'product-videos');
+
+drop policy if exists "Anon update product videos" on storage.objects;
+create policy "Anon update product videos"
+  on storage.objects for update
+  using (bucket_id = 'product-videos')
+  with check (bucket_id = 'product-videos');
+
+drop policy if exists "Anon delete product videos" on storage.objects;
+create policy "Anon delete product videos"
+  on storage.objects for delete
+  using (bucket_id = 'product-videos');
+
+-- 9. Tabela de vídeos
+create table if not exists video_records (
+  id text primary key,
+  product_key text not null,
+  product_id text,
+  product_name text,
+  product_sku text,
+  product_barcode text,
+  product_image text,
+  ad_url text,
+  video_url text,
+  platform text not null default 'Shopee',
+  duration text default '10 segundos',
+  notes text,
+  downloaded boolean default false,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table video_records enable row level security;
+create policy if not exists "Anon video_records select" on video_records for select using (true);
+create policy if not exists "Anon video_records insert" on video_records for insert with check (true);
+create policy if not exists "Anon video_records update" on video_records for update using (true);
+create policy if not exists "Anon video_records delete" on video_records for delete using (true);
+
+-- 10. Recarregar o cache de schema do PostgREST imediatamente
 notify pgrst, 'reload schema';
 `;
 
@@ -154,7 +214,7 @@ values (
   'product-videos',
   'product-videos',
   true,
-  31457280,
+  52428800,
   array['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo']
 )
 on conflict (id) do update set

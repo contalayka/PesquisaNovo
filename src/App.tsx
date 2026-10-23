@@ -56,8 +56,6 @@ import { AddProductModal } from './components/AddProductModal';
 import { ProductDetailModal } from './components/ProductDetailModal';
 import { DashboardView } from './components/DashboardView';
 import { CatalogImportView } from './components/CatalogImportView';
-import { ConversionView } from './components/ConversionView';
-import { MarketplacesView } from './components/MarketplacesView';
 import { BulkPricingView } from './components/BulkPricingView';
 import { WholesaleCatalogView } from './components/WholesaleCatalogView';
 import { GeneratedFilesView } from './components/GeneratedFilesView';
@@ -2131,7 +2129,6 @@ export default function App() {
                 setCurrentSidebarSection('produtos');
               }}
               onNavigateToImport={() => setCurrentSidebarSection('importar')}
-              onNavigateToConversion={() => setCurrentSidebarSection('conversao')}
               onNavigateToReports={() => setCurrentSidebarSection('relatorios')}
               onOpenResearch={(p) => setActiveResearchProduct(p)}
               onOpenSimulator={(p) => handleOpenSimulator(p)}
@@ -2227,31 +2224,12 @@ export default function App() {
             />
           )}
 
-          {/* VIEW: CONVERSÃO DE ARQUIVOS */}
-          {currentSidebarSection === 'conversao' && (
-            <ConversionView
-              products={products}
-              onAddGeneratedFiles={(files) => {
-                handleAddGeneratedFiles(files);
-                addToast('Arquivo Gerado', `${files.length} arquivo(s) gerado(s) com sucesso.`, 'success');
-              }}
-              onNavigateToFiles={() => setCurrentSidebarSection('arquivos')}
-            />
-          )}
-
           {/* VIEW: PRECIFICAÇÃO EM MASSA */}
           {currentSidebarSection === 'precificacao' && <BulkPricingView products={products} />}
           {currentSidebarSection === 'catalogo_atacado' && (
             <WholesaleCatalogView products={(bundledSyncJson as GitHubSyncPayload).products || products} />
           )}
 
-          {/* VIEW: MARKETPLACES */}
-          {currentSidebarSection === 'marketplaces' && (
-            <MarketplacesView
-              products={products}
-              onNavigateToConversion={() => setCurrentSidebarSection('conversao')}
-            />
-          )}
 
           {/* VIEW: ARQUIVOS GERADOS */}
           {currentSidebarSection === 'arquivos' && (
@@ -2259,7 +2237,6 @@ export default function App() {
               files={generatedFiles}
               products={products}
               onClearFiles={handleClearGeneratedFiles}
-              onNavigateToConversion={() => setCurrentSidebarSection('conversao')}
             />
           )}
 
@@ -2560,16 +2537,6 @@ export default function App() {
                           <span>Excel</span>
                         </button>
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCurrentSidebarSection('conversao');
-                          }}
-                          className="px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white font-medium transition flex items-center gap-1"
-                        >
-                          <Layers className="w-3.5 h-3.5" />
-                          <span>Exportar Canais</span>
-                        </button>
 
                         {/* Batch Action: Marcar como Revisar */}
                         <button

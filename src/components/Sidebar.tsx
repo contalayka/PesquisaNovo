@@ -3,8 +3,6 @@ import {
   LayoutDashboard,
   Package,
   UploadCloud,
-  Layers,
-  Store,
   Settings,
   Plus,
   Database,
@@ -95,13 +93,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: UploadCloud,
     },
     {
-      id: 'conversao',
-      label: 'Conversão',
-      icon: Layers,
-      badge: foundCount > 0 ? `${foundCount}` : null,
-      badgeClass: 'bg-emerald-950/50 text-emerald-300 border-emerald-800/40',
-    },
-    {
       id: 'precificacao',
       label: 'Precificação em Massa',
       icon: BadgeDollarSign,
@@ -110,11 +101,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'catalogo_atacado',
       label: 'Catálogo Atacado PDVMaster',
       icon: ShoppingBasket,
-    },
-    {
-      id: 'marketplaces',
-      label: 'Marketplaces & ERP',
-      icon: Store,
     },
     {
       id: 'estoque_interno',
@@ -404,23 +390,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <span className="text-[10px]">Importar</span>
         </button>
 
-        <button
-          type="button"
-          onClick={() => handleNavClick('conversao')}
-          className={`flex-1 relative flex flex-col items-center justify-center py-1 px-1 rounded-md transition ${
-            currentSection === 'conversao'
-              ? 'text-blue-400 font-semibold'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Layers className="w-4 h-4 mb-0.5" />
-          <span className="text-[10px]">Conversão</span>
-          {foundCount > 0 && (
-            <span className="absolute top-0 right-2 px-1 min-w-3.5 h-3.5 rounded-full bg-emerald-600 text-white text-[9px] font-bold flex items-center justify-center leading-none">
-              {foundCount > 99 ? '99+' : foundCount}
-            </span>
-          )}
-        </button>
 
         <button
           type="button"

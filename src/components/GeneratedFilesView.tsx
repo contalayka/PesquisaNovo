@@ -5,7 +5,6 @@ import {
   FileSpreadsheet,
   FileText,
   Clock,
-  Layers,
   ArrowRight,
   Package,
   Store,
@@ -18,14 +17,12 @@ interface GeneratedFilesViewProps {
   files: GeneratedFile[];
   products: Product[];
   onClearFiles: () => void;
-  onNavigateToConversion: () => void;
 }
 
 export const GeneratedFilesView: React.FC<GeneratedFilesViewProps> = ({
   files,
   products,
   onClearFiles,
-  onNavigateToConversion,
 }) => {
   const readyCount = products.filter(
     (p) => p.status === 'Encontrado' || (p.research_records && p.research_records.length > 0)
@@ -103,16 +100,6 @@ export const GeneratedFilesView: React.FC<GeneratedFilesViewProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
-          <button
-            type="button"
-            onClick={onNavigateToConversion}
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition"
-          >
-            <Layers className="w-4 h-4" />
-            <span>Ajustar Regras & Nova Conversão</span>
-          </button>
-        </div>
       </div>
 
       {/* 1. Quick Instant Downloads Section */}

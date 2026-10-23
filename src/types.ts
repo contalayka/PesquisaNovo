@@ -7,8 +7,6 @@ export type AppView =
   | 'produtos'
   | 'produtos_encontrados'
   | 'importar'
-  | 'conversao'
-  | 'marketplaces'
   | 'arquivos'
   | 'configuracoes'
   | 'estoque_interno'

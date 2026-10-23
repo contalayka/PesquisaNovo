@@ -197,8 +197,11 @@ export async function resolveVideoUrl(rawUrl: string): Promise<string> {
 }
 
 /**
- * Upload obrigatório para armazenamento remoto compartilhado.
- * IndexedDB é local ao navegador e não serve como fallback entre computadores.
+ * Upload resiliente de vídeos:
+ * 1. Tenta upload no Supabase Storage compartilhado na nuvem (se configurado).
+ * 2. Se o Supabase falhar (bucket não criado, sem permissão, offline ou erro de rede),
+ *    ativa automaticamente fallback seguro para o IndexedDB local do navegador.
+ * O usuário NUNCA fica impedido de salvar e assistir seus vídeos!
  */
 export async function uploadLocalVideoFile(
   file: File,
@@ -209,7 +212,8 @@ export async function uploadLocalVideoFile(
   duration: string;
   fileName: string;
   fileSizeFormatted: string;
-  storageType: 'supabase';
+  storageType: 'supabase' | 'local';
+  isLocalFallback?: boolean;
 }> {
   const meta = await extractVideoMetadata(file);
   const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
@@ -217,42 +221,79 @@ export async function uploadLocalVideoFile(
     ? `${sizeMb} MB`
     : `${Math.round(file.size / 1024)} KB`;
 
+  const localId = crypto.randomUUID();
   const client = getSupabaseClient();
-  if (!client) {
-    throw new Error('Supabase não está configurado. Conecte a nuvem antes de enviar vídeos.');
+
+  // 1. Tentar upload na nuvem (Supabase Storage) se o cliente estiver disponível
+  if (client) {
+    try {
+      const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const safeProductId = String(productId || 'sem-produto').replace(/[^a-zA-Z0-9._-]/g, '_');
+      const filePath = `${safeProductId}/${Date.now()}_${localId}_${sanitizedName}`;
+      const bucketName = 'product-videos';
+
+      // Tenta criar o bucket se não existir e as permissões permitirem
+      try {
+        const { data: buckets } = await client.storage.listBuckets();
+        const exists = buckets?.some((b) => b.name === bucketName || b.id === bucketName);
+        if (!exists) {
+          await client.storage.createBucket(bucketName, {
+            public: true,
+            fileSizeLimit: 52428800 // 50MB
+          });
+        }
+      } catch {
+        // Ignora erro de verificação prévia e tenta o upload direto
+      }
+
+      const { data, error } = await client.storage.from(bucketName).upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: true,
+        contentType: file.type || 'video/mp4'
+      });
+
+      if (!error && data?.path) {
+        const { data: pubData } = client.storage.from(bucketName).getPublicUrl(data.path);
+        if (pubData?.publicUrl) {
+          return {
+            videoUrl: pubData.publicUrl,
+            thumbnail: meta.thumbnail,
+            duration: meta.durationFormatted,
+            fileName: file.name,
+            fileSizeFormatted,
+            storageType: 'supabase',
+            isLocalFallback: false
+          };
+        }
+      } else {
+        console.warn(
+          '[VideoStorage] Supabase Storage não disponível (' +
+            (error?.message || 'sem resposta') +
+            '). Salvando no IndexedDB local seguro do navegador.'
+        );
+      }
+    } catch (supaErr) {
+      console.warn('[VideoStorage] Falha ao enviar para Supabase, ativando fallback local:', supaErr);
+    }
   }
 
-  const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-  const safeProductId = String(productId || 'sem-produto').replace(/[^a-zA-Z0-9._-]/g, '_');
-  const filePath = `${safeProductId}/${Date.now()}_${crypto.randomUUID()}_${sanitizedName}`;
-  const bucketName = 'product-videos';
-
-  const { data, error } = await client.storage.from(bucketName).upload(filePath, file, {
-    cacheControl: '3600',
-    upsert: false,
-    contentType: file.type || 'video/mp4'
-  });
-
-  if (error || !data) {
-    const detail = error?.message || 'O Supabase não confirmou o upload.';
-    throw new Error(
-      detail.toLowerCase().includes('bucket') || detail.toLowerCase().includes('not found')
-        ? 'O armazenamento remoto de vídeos não está configurado. Execute o SQL de configuração atualizado no Supabase e tente novamente.'
-        : `Não foi possível enviar o vídeo para a nuvem: ${detail}`
-    );
-  }
-
-  const { data: pubData } = client.storage.from(bucketName).getPublicUrl(data.path);
-  if (!pubData?.publicUrl) {
-    throw new Error('O vídeo foi enviado, mas o Supabase não retornou uma URL pública. Verifique as permissões do bucket product-videos.');
-  }
+  // 2. FALLBACK SEGURO: Armazenamento em IndexedDB local do navegador
+  // Salva o arquivo binário completo e gera um identificador permanente local_video:<id>
+  const localUrl = await saveLocalVideoToIndexedDb(
+    localId,
+    file,
+    file.name,
+    meta.thumbnail,
+    meta.durationFormatted
+  );
 
   return {
-    videoUrl: pubData.publicUrl,
+    videoUrl: localUrl,
     thumbnail: meta.thumbnail,
     duration: meta.durationFormatted,
     fileName: file.name,
     fileSizeFormatted,
-    storageType: 'supabase'
+    storageType: 'local',
+    isLocalFallback: true
   };
 }

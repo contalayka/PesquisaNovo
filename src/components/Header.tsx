@@ -109,10 +109,6 @@ export const Header: React.FC<HeaderProps> = ({
         return 'Catálogo de Produtos';
       case 'importar':
         return 'Importar Planilha';
-      case 'conversao':
-        return 'Conversão para Marketplaces';
-      case 'marketplaces':
-        return 'Canais & Regras';
       case 'estoque_interno':
         return 'Estoque & Custo Interno';
       case 'configuracoes':

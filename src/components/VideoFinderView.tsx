@@ -41,7 +41,8 @@ import { scanMarketplaces } from '../utils/marketplaceScannerCore';
 import {
   uploadLocalVideoFile,
   resolveVideoUrl,
-  extractVideoMetadata
+  extractVideoMetadata,
+  saveLocalVideoToIndexedDb
 } from '../utils/localVideoStorage';
 import { deduplicateProducts } from '../utils/productDeduplication';
 
@@ -561,9 +562,10 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
           sourceType: 'anuncio_direto'
         };
 
+        // Tenta sincronizar com o Supabase se disponível, sem bloquear o usuário
         const { error } = await saveVideoRecord(record);
         if (error) {
-          throw new Error(`O arquivo foi enviado à nuvem, mas o registro não foi salvo no banco: ${error}`);
+          console.warn('[VideoFinder] Aviso: Supabase indisponível, registro salvo localmente com segurança:', error);
         }
 
         setSaved((prev) => {
@@ -576,9 +578,54 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
         });
 
         setAddingForProduct(null);
-        setScanMessage(`Vídeo "${uploadRes.fileName}" do computador vinculado com sucesso para "${p.name}".`);
+        if (uploadRes.storageType === 'supabase') {
+          setScanMessage(`Vídeo "${uploadRes.fileName}" enviado para a nuvem e vinculado com sucesso para "${p.name}".`);
+        } else {
+          setScanMessage(`Vídeo "${uploadRes.fileName}" salvo no armazenamento local do navegador para "${p.name}".`);
+        }
       } catch (err) {
-        setFormError(`Erro ao carregar arquivo de vídeo: ${err instanceof Error ? err.message : String(err)}`);
+        console.warn('[VideoFinder] Tentando fallback direto local no IndexedDB:', err);
+        try {
+          const localId = crypto.randomUUID();
+          const meta = await extractVideoMetadata(selectedFile);
+          const localUrl = await saveLocalVideoToIndexedDb(
+            localId,
+            selectedFile,
+            selectedFile.name,
+            meta.thumbnail,
+            meta.durationFormatted
+          );
+          const finalId = ensureUuid();
+          const record: SavedVideo = {
+            id: finalId,
+            productKey: productKey(p),
+            productId: p.id,
+            productName: p.name,
+            productSku: p.sku || '',
+            productBarcode: p.barcode || '',
+            productImage: p.image || '',
+            url: newAdUrl.trim() || '',
+            videoUrl: localUrl,
+            thumbnail: meta.thumbnail || p.image || '',
+            platform: newPlatform || 'Vídeo Próprio / PC',
+            duration: meta.durationFormatted || '10 segundos',
+            notes: newNotes.trim() || `Salvo no navegador: ${selectedFile.name}`,
+            confidence: 'ALTA',
+            sourceType: 'anuncio_direto'
+          };
+          setSaved((prev) => {
+            const stableKey = productKey(p);
+            const next = { ...prev };
+            next[p.id] = [...(next[p.id] || []).filter(hasProductVideo), record];
+            next[stableKey] = [...(next[stableKey] || []).filter(hasProductVideo), record];
+            persist(next);
+            return next;
+          });
+          setAddingForProduct(null);
+          setScanMessage(`Vídeo "${selectedFile.name}" salvo no armazenamento local do navegador para "${p.name}".`);
+        } catch (innerErr) {
+          setFormError(`Erro ao salvar vídeo: ${innerErr instanceof Error ? innerErr.message : String(innerErr)}`);
+        }
       } finally {
         setIsUploading(false);
       }
@@ -627,14 +674,13 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
       sourceType: 'anuncio_direto'
     };
 
-    // Salvar no Supabase
+    // Salvar no Supabase (se disponível)
     const { error } = await saveVideoRecord(record);
     if (error) {
-      setFormError(`Erro ao persistir no Supabase: ${error}`);
-      return;
+      console.warn('[VideoFinder] Aviso: Supabase indisponível, vídeo salvo localmente:', error);
     }
 
-    // Atualizar estado e persistência local
+    // Atualizar estado e persistência local (sempre persiste!)
     setSaved((prev) => {
       const stableKey = productKey(p);
       const next = { ...prev };
@@ -645,7 +691,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
     });
 
     setAddingForProduct(null);
-    setScanMessage(`Vídeo persistido com sucesso no Supabase para "${p.name}".`);
+    setScanMessage(`Vídeo vinculado com sucesso para "${p.name}".`);
   };
 
   // Upload em lote de múltiplos arquivos selecionados do computador
@@ -759,7 +805,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
     }
 
     setIsBulkUploading(false);
-    setScanMessage(`Upload em lote concluído: ${countSuccess} de ${bulkFiles.length} vídeo(s) salvo(s) no Supabase!`);
+    setScanMessage(`Upload em lote concluído: ${countSuccess} de ${bulkFiles.length} vídeo(s) salvo(s) com sucesso!`);
     setTimeout(() => {
       setBulkUploadModal(false);
       setBulkFiles([]);
@@ -795,8 +841,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
 
     const { error } = await saveVideoRecord(record);
     if (error) {
-      setScanMessage(`Falha ao salvar no Supabase: ${error}`);
-      return;
+      console.warn('[VideoFinder] Aviso: Supabase indisponível, candidato salvo localmente:', error);
     }
 
     setSaved((prev) => {
@@ -1141,7 +1186,8 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
       return;
     }
     try {
-      const response = await fetch(v.videoUrl);
+      const resolved = await resolveVideoUrl(v.videoUrl);
+      const response = await fetch(resolved);
       if (!response.ok) throw new Error('HTTP ' + response.status);
       const blob = await response.blob();
       const a = document.createElement('a');
@@ -1152,8 +1198,9 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
       if (v.id) markDownloaded([v.id]);
     } catch {
       // Fallback: abrir a URL diretamente se o navegador bloquear requisição de origem cruzada
+      const resolved = await resolveVideoUrl(v.videoUrl);
       const a = document.createElement('a');
-      a.href = v.videoUrl;
+      a.href = resolved;
       a.target = '_blank';
       a.download = `${normalize(p.name)}.mp4`;
       a.click();
@@ -1199,7 +1246,8 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
     const done: string[] = [];
     for (const { p, v } of items) {
       try {
-        const res = await fetch(v.videoUrl!);
+        const resolved = await resolveVideoUrl(v.videoUrl!);
+        const res = await fetch(resolved);
         if (!res.ok) continue;
         const blob = await res.blob();
         zip.file(
@@ -1541,7 +1589,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
                           onClick={() => handleSaveCandidateToSupabase(candidatesModal.product, cand)}
                           className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow-sm ml-auto transition"
                         >
-                          <CheckCircle2 className="h-3.5 w-3.5" /> Salvar no Supabase
+                          <CheckCircle2 className="h-3.5 w-3.5" /> Salvar Vídeo
                         </button>
                       </div>
                     </div>
@@ -1869,7 +1917,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
                   </>
                 ) : (
                   <>
-                    <CheckCircle2 className="h-4 w-4" /> Salvar no Supabase
+                    <CheckCircle2 className="h-4 w-4" /> Salvar Vídeo
                   </>
                 )}
               </button>

@@ -38,7 +38,6 @@ import {
   normalizeOrderCode,
 } from '../utils/shippingReportEngine';
 import { Product } from '../types';
-import { ProfitableProductsChart } from './ProfitableProductsChart';
 
 type Batch = {
   id: string;
@@ -48,6 +47,7 @@ type Batch = {
   total_orders: number;
   counts: Record<string, number>;
   pending_count: number;
+  labels?: ProcessedLabel[];
 };
 
 export interface WhatsAppReportViewProps {
@@ -102,7 +102,20 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
       const savedHistory = localStorage.getItem(HISTORY_KEY);
       if (savedHistory) setHistory(JSON.parse(savedHistory));
       const savedLabels = localStorage.getItem(ORDER_KEY);
-      if (savedLabels) setLabels(JSON.parse(savedLabels));
+      if (savedLabels) {
+        setLabels(JSON.parse(savedLabels));
+      } else {
+        const histBatches = JSON.parse(localStorage.getItem(HISTORY_LABELS_KEY) || '[]');
+        if (Array.isArray(histBatches) && histBatches.length > 0 && Array.isArray(histBatches[0]?.labels) && histBatches[0].labels.length > 0) {
+          setLabels(histBatches[0].labels);
+        } else if (savedHistory) {
+          const parsedBatches: Batch[] = JSON.parse(savedHistory);
+          const firstWithLabels = parsedBatches.find((b) => Array.isArray(b.labels) && b.labels.length > 0);
+          if (firstWithLabels && firstWithLabels.labels) {
+            setLabels(firstWithLabels.labels);
+          }
+        }
+      }
     } catch (e) {
       console.warn('Falha ao ler cache local de relatórios:', e);
     }
@@ -341,6 +354,12 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
       setLabels(calculated.items);
       try {
         localStorage.setItem(ORDER_KEY, JSON.stringify(calculated.items));
+        const prevHistBatches = JSON.parse(localStorage.getItem(HISTORY_LABELS_KEY) || '[]');
+        const updatedHistBatches = [
+          { batchId: 'session_active', date, labels: calculated.items, savedAt: new Date().toISOString() },
+          ...(Array.isArray(prevHistBatches) ? prevHistBatches.filter((b: any) => b.batchId !== 'session_active') : []),
+        ].slice(0, 50);
+        localStorage.setItem(HISTORY_LABELS_KEY, JSON.stringify(updatedHistBatches));
         window.dispatchEvent(new Event('marketpreco_labels_updated'));
       } catch (e) {
         console.warn('Erro ao salvar no localStorage:', e);
@@ -405,6 +424,7 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
         total_orders: summary.totalUniqueOrders,
         counts: summary.counts,
         pending_count: summary.realPendingCount,
+        labels: summary.items,
       };
 
       if (client) {
@@ -444,6 +464,13 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
       setHistory(nextHistory);
       try {
         localStorage.setItem(HISTORY_KEY, JSON.stringify(nextHistory));
+        const prevHistBatches = JSON.parse(localStorage.getItem(HISTORY_LABELS_KEY) || '[]');
+        const updatedHistBatches = [
+          { batchId, date, labels: summary.items, savedAt: new Date().toISOString() },
+          ...(Array.isArray(prevHistBatches) ? prevHistBatches.filter((b: any) => b.batchId !== batchId && b.batchId !== 'session_active') : []),
+        ].slice(0, 50);
+        localStorage.setItem(HISTORY_LABELS_KEY, JSON.stringify(updatedHistBatches));
+        window.dispatchEvent(new Event('marketpreco_labels_updated'));
       } catch (e) {
         console.warn('Erro ao salvar histórico local:', e);
       }
@@ -1002,16 +1029,6 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
             </section>
           )}
 
-          {/* Gráfico dos Produtos Mais Lucrativos do PDF de Expedição (Recharts) */}
-          <div className="pt-2">
-            <ProfitableProductsChart
-              products={products}
-              labels={labels}
-              onOpenResearch={onOpenResearch}
-              onOpenSimulator={onOpenSimulator}
-              onNavigateToProducts={onNavigateToProducts}
-            />
-          </div>
         </>
       ) : (
         /* Seção Histórico de Lotes Salvos */
