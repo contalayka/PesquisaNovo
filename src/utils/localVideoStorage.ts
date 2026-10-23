@@ -297,3 +297,141 @@ export async function uploadLocalVideoFile(
     isLocalFallback: true
   };
 }
+
+export const SUPABASE_VIDEO_BUCKET_SQL = `-- Script para criar e liberar o bucket de vídeos no Supabase
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'product-videos',
+  'product-videos',
+  true,
+  52428800,
+  array['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo']
+)
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "Public read product videos" on storage.objects;
+create policy "Public read product videos"
+  on storage.objects for select
+  using (bucket_id = 'product-videos');
+
+drop policy if exists "Anon upload product videos" on storage.objects;
+create policy "Anon upload product videos"
+  on storage.objects for insert
+  with check (bucket_id = 'product-videos');
+
+drop policy if exists "Anon update product videos" on storage.objects;
+create policy "Anon update product videos"
+  on storage.objects for update
+  using (bucket_id = 'product-videos')
+  with check (bucket_id = 'product-videos');
+
+drop policy if exists "Anon delete product videos" on storage.objects;
+create policy "Anon delete product videos"
+  on storage.objects for delete
+  using (bucket_id = 'product-videos');
+`;
+
+export async function checkSupabaseVideoBucket(): Promise<{ ok: boolean; message: string }> {
+  const client = getSupabaseClient();
+  if (!client) {
+    return { ok: false, message: 'Supabase não está configurado.' };
+  }
+  try {
+    const probePath = `_probe_${Date.now()}.txt`;
+    const probeBlob = new Blob(['probe'], { type: 'text/plain' });
+    const { data, error } = await client.storage
+      .from('product-videos')
+      .upload(probePath, probeBlob, { upsert: true });
+
+    if (error) {
+      const msg = error.message || '';
+      if (
+        msg.toLowerCase().includes('bucket') ||
+        msg.toLowerCase().includes('not found') ||
+        (error as any).code === 'NoSuchBucket'
+      ) {
+        return {
+          ok: false,
+          message:
+            'O bucket "product-videos" não existe no Supabase. Crie o bucket como público ou execute o SQL no editor.'
+        };
+      }
+      return { ok: false, message: `Aviso no bucket: ${msg}` };
+    }
+
+    if (data?.path) {
+      void client.storage.from('product-videos').remove([data.path]);
+    }
+
+    return { ok: true, message: 'Bucket "product-videos" ativo e pronto para salvar na nuvem!' };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : 'Falha ao testar bucket' };
+  }
+}
+
+export async function getLocalVideoBlob(
+  rawUrlOrId: string
+): Promise<{ blob: Blob; fileName: string; type: string } | null> {
+  const id = rawUrlOrId.replace('local_video:', '').trim();
+  try {
+    const db = await openDb();
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.get(id);
+      req.onsuccess = () => {
+        const res = req.result as LocalVideoEntry | undefined;
+        if (res?.blob) {
+          resolve({
+            blob: res.blob,
+            fileName: res.name || 'video.mp4',
+            type: res.type || 'video/mp4'
+          });
+        } else {
+          resolve(null);
+        }
+      };
+      req.onerror = () => resolve(null);
+    });
+  } catch {
+    return null;
+  }
+}
+
+export async function uploadLocalVideoBlobToSupabase(
+  blob: Blob,
+  fileName: string,
+  productId?: string
+): Promise<{ success: boolean; publicUrl?: string; error?: string }> {
+  const client = getSupabaseClient();
+  if (!client) return { success: false, error: 'Supabase não configurado' };
+
+  try {
+    const sanitizedName = (fileName || 'video.mp4').replace(/[^a-zA-Z0-9._-]/g, '_');
+    const safeProductId = String(productId || 'sem-produto').replace(/[^a-zA-Z0-9._-]/g, '_');
+    const filePath = `${safeProductId}/${Date.now()}_${crypto.randomUUID()}_${sanitizedName}`;
+    const bucketName = 'product-videos';
+
+    const { data, error } = await client.storage.from(bucketName).upload(filePath, blob, {
+      cacheControl: '3600',
+      upsert: true,
+      contentType: blob.type || 'video/mp4'
+    });
+
+    if (error || !data?.path) {
+      return { success: false, error: error?.message || 'Falha no upload' };
+    }
+
+    const { data: pubData } = client.storage.from(bucketName).getPublicUrl(data.path);
+    if (!pubData?.publicUrl) {
+      return { success: false, error: 'Supabase não retornou URL pública' };
+    }
+
+    return { success: true, publicUrl: pubData.publicUrl };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
