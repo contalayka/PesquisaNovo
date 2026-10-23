@@ -47,10 +47,13 @@ import {
   resolveVideoUrl,
   extractVideoMetadata,
   saveLocalVideoToIndexedDb,
-  SUPABASE_VIDEO_BUCKET_SQL,
-  checkSupabaseVideoBucket,
   getLocalVideoBlob,
-  uploadLocalVideoBlobToSupabase
+  uploadLocalVideoBlobToCloudflare,
+  checkCloudflareStorage,
+  isCloudflareVideoUrl,
+  getCloudflareConfig,
+  saveCloudflareConfig,
+  CloudflareStorageConfig
 } from '../utils/localVideoStorage';
 import { deduplicateProducts } from '../utils/productDeduplication';
 
@@ -331,11 +334,12 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
   const [isBulkUploading, setIsBulkUploading] = useState(false);
   const bulkInputRef = useRef<HTMLInputElement>(null);
 
-  // Cloud Storage Setup & Sync state
+  // Cloudflare Storage Setup & Sync state
   const [cloudModalOpen, setCloudModalOpen] = useState(false);
-  const [cloudCheckStatus, setCloudCheckStatus] = useState<{ ok: boolean; message: string } | null>(null);
+  const [cloudCheckStatus, setCloudCheckStatus] = useState<{ ok: boolean; message: string; details?: string } | null>(null);
   const [isCheckingCloud, setIsCheckingCloud] = useState(false);
-  const [copiedBucketSql, setCopiedBucketSql] = useState(false);
+  const [cfConfig, setCfConfig] = useState<CloudflareStorageConfig>(getCloudflareConfig);
+  const [cfSavedMsg, setCfSavedMsg] = useState(false);
   const [syncingVideoId, setSyncingVideoId] = useState<string | null>(null);
   const [isSyncingAll, setIsSyncingAll] = useState(false);
 
@@ -607,8 +611,8 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
         });
 
         setAddingForProduct(null);
-        if (uploadRes.storageType === 'supabase') {
-          setScanMessage(`Vídeo "${uploadRes.fileName}" enviado para a nuvem e vinculado com sucesso para "${p.name}".`);
+        if (uploadRes.storageType === 'cloudflare') {
+          setScanMessage(`Vídeo "${uploadRes.fileName}" enviado para o Cloudflare R2 e vinculado com sucesso para "${p.name}".`);
         } else {
           setScanMessage(`Vídeo "${uploadRes.fileName}" salvo no armazenamento local do navegador para "${p.name}".`);
         }
@@ -895,14 +899,14 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
     setScanMessage(`Vídeo salvo e persistido com sucesso!`);
   };
 
-  // Testa conectividade e existência do bucket product-videos no Supabase
+  // Testa conectividade com o Cloudflare R2
   const handleCheckCloudBucket = async () => {
     setIsCheckingCloud(true);
     try {
-      const res = await checkSupabaseVideoBucket();
+      const res = await checkCloudflareStorage();
       setCloudCheckStatus(res);
       if (res.ok) {
-        setScanMessage('✅ Bucket "product-videos" ativo no Supabase! Pronto para salvar na nuvem.');
+        setScanMessage(`✅ ${res.message}`);
       } else {
         setScanMessage(res.message);
       }
@@ -912,40 +916,39 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
     }
   };
 
-  // Sincroniza um vídeo gravado localmente para o Supabase Storage
+  // Salva configurações do Cloudflare
+  const handleSaveCfConfig = () => {
+    saveCloudflareConfig(cfConfig);
+    setCfSavedMsg(true);
+    setTimeout(() => setCfSavedMsg(false), 2500);
+    setScanMessage('Configurações do Cloudflare R2 salvas com sucesso!');
+  };
+
+  // Sincroniza um vídeo gravado localmente para o Cloudflare R2
   const handleSyncVideoToCloud = async (p: Product, v: SavedVideo) => {
     if (!v.videoUrl?.startsWith('local_video:')) return;
     setSyncingVideoId(v.id || 'sync');
-    setScanMessage('Testando bucket de vídeos no Supabase...');
+    setScanMessage('Lendo arquivo do armazenamento local...');
 
     try {
-      const bucketCheck = await checkSupabaseVideoBucket();
-      setCloudCheckStatus(bucketCheck);
-      if (!bucketCheck.ok) {
-        setCloudModalOpen(true);
-        setScanMessage('O bucket "product-videos" não foi encontrado no Supabase. Crie o bucket para salvar na nuvem.');
-        return;
-      }
-
-      setScanMessage('Lendo arquivo do armazenamento local...');
       const localData = await getLocalVideoBlob(v.videoUrl);
       if (!localData?.blob) {
         alert('O arquivo deste vídeo não foi encontrado no banco de dados local deste computador.');
         return;
       }
 
-      setScanMessage(`Enviando "${localData.fileName}" para a nuvem Supabase...`);
-      const uploadRes = await uploadLocalVideoBlobToSupabase(localData.blob, localData.fileName, p.id);
+      setScanMessage(`Enviando "${localData.fileName}" para o Cloudflare R2...`);
+      const uploadRes = await uploadLocalVideoBlobToCloudflare(localData.blob, localData.fileName, p.id);
       if (!uploadRes.success || !uploadRes.publicUrl) {
-        throw new Error(uploadRes.error || 'Falha no upload para a nuvem.');
+        throw new Error(uploadRes.error || 'Falha no upload para o Cloudflare.');
       }
 
       const updatedRecord: SavedVideo = {
         ...v,
         videoUrl: uploadRes.publicUrl,
         notes: (v.notes || '')
-          .replace(/^Salvo no navegador:/, 'Salvo na nuvem Supabase:')
-          .replace(/Arquivo enviado do computador:/, 'Enviado para nuvem Supabase:')
+          .replace(/^Salvo no navegador:/, 'Salvo no Cloudflare R2:')
+          .replace(/Arquivo enviado do computador:/, 'Enviado para Cloudflare R2:')
       };
 
       await saveVideoRecord(updatedRecord);
@@ -959,44 +962,36 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
         return next;
       });
 
-      setScanMessage(`Vídeo "${localData.fileName}" salvo na nuvem Supabase com sucesso!`);
+      setScanMessage(`Vídeo "${localData.fileName}" salvo no Cloudflare R2 com sucesso!`);
     } catch (err) {
-      console.error('[VideoFinder] Erro ao sincronizar vídeo com a nuvem:', err);
-      alert(`Não foi possível enviar o vídeo para a nuvem: ${err instanceof Error ? err.message : String(err)}`);
+      console.error('[VideoFinder] Erro ao sincronizar vídeo com o Cloudflare:', err);
+      alert(`Não foi possível enviar o vídeo para o Cloudflare: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setSyncingVideoId(null);
     }
   };
 
-  // Sincroniza todos os vídeos locais existentes para o Supabase Storage
+  // Sincroniza todos os vídeos locais existentes para o Cloudflare R2
   const handleSyncAllToCloud = async () => {
     if (!localVideosList.length) return;
     setIsSyncingAll(true);
-    setScanMessage('Testando bucket de vídeos no Supabase...');
-
-    const bucketCheck = await checkSupabaseVideoBucket();
-    setCloudCheckStatus(bucketCheck);
-    if (!bucketCheck.ok) {
-      setIsSyncingAll(false);
-      setCloudModalOpen(true);
-      return;
-    }
+    setScanMessage('Iniciando envio para o Cloudflare R2...');
 
     let successCount = 0;
     for (let i = 0; i < localVideosList.length; i++) {
       const item = localVideosList[i];
       try {
-        setScanMessage(`Enviando para nuvem (${i + 1}/${localVideosList.length}): "${item.p.name}"...`);
+        setScanMessage(`Enviando para Cloudflare (${i + 1}/${localVideosList.length}): "${item.p.name}"...`);
         const localData = await getLocalVideoBlob(item.v.videoUrl || '');
         if (!localData?.blob) continue;
-        const uploadRes = await uploadLocalVideoBlobToSupabase(localData.blob, localData.fileName, item.p.id);
+        const uploadRes = await uploadLocalVideoBlobToCloudflare(localData.blob, localData.fileName, item.p.id);
         if (uploadRes.success && uploadRes.publicUrl) {
           const updatedRecord: SavedVideo = {
             ...item.v,
             videoUrl: uploadRes.publicUrl,
             notes: (item.v.notes || '')
-              .replace(/^Salvo no navegador:/, 'Salvo na nuvem Supabase:')
-              .replace(/Arquivo enviado do computador:/, 'Enviado para nuvem Supabase:')
+              .replace(/^Salvo no navegador:/, 'Salvo no Cloudflare R2:')
+              .replace(/Arquivo enviado do computador:/, 'Enviado para Cloudflare R2:')
           };
           await saveVideoRecord(updatedRecord);
           setSaved((prev) => {
@@ -1010,11 +1005,11 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
           successCount++;
         }
       } catch (e) {
-        console.warn('Erro ao sincronizar item em lote:', e);
+        console.warn('Erro ao sincronizar item em lote com Cloudflare:', e);
       }
     }
     setIsSyncingAll(false);
-    setScanMessage(`Sincronização concluída: ${successCount} de ${localVideosList.length} vídeo(s) enviados para a nuvem!`);
+    setScanMessage(`Sincronização concluída: ${successCount} de ${localVideosList.length} vídeo(s) enviados para o Cloudflare R2!`);
   };
 
   // State for search progress bar & cancellation
@@ -1496,10 +1491,10 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
                 setCloudModalOpen(true);
                 handleCheckCloudBucket();
               }}
-              className="relative inline-flex items-center gap-2 rounded-xl border border-sky-500/40 bg-sky-950/50 hover:bg-sky-900/60 px-4 py-3 text-sm font-semibold text-sky-200 transition cursor-pointer"
-              title="Configurar e gerenciar armazenamento de vídeos no Supabase"
+              className="relative inline-flex items-center gap-2 rounded-xl border border-orange-500/40 bg-orange-950/40 hover:bg-orange-900/60 px-4 py-3 text-sm font-semibold text-orange-200 transition cursor-pointer"
+              title="Configurar e gerenciar armazenamento de vídeos no Cloudflare R2"
             >
-              <Cloud className="h-4 w-4 text-sky-400" /> Nuvem Supabase
+              <Cloud className="h-4 w-4 text-orange-400" /> Nuvem Cloudflare
               {localVideosList.length > 0 && (
                 <span className="flex h-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-slate-950 shadow-sm animate-pulse">
                   {localVideosList.length} local
@@ -1594,23 +1589,23 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
         )}
       </section>
 
-      {/* Banner de Sincronização de Vídeos Locais para a Nuvem Supabase */}
+      {/* Banner de Sincronização de Vídeos Locais para a Nuvem Cloudflare R2 */}
       {localVideosList.length > 0 && (
-        <section className="rounded-2xl border border-amber-500/40 bg-gradient-to-r from-amber-950/50 via-slate-900 to-slate-900 p-4 sm:p-5 shadow-lg">
+        <section className="rounded-2xl border border-orange-500/40 bg-gradient-to-r from-orange-950/50 via-slate-900 to-slate-900 p-4 sm:p-5 shadow-lg">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex items-start gap-3">
-              <div className="rounded-xl bg-amber-500/20 p-2.5 border border-amber-500/30 text-amber-400 shrink-0">
+              <div className="rounded-xl bg-orange-500/20 p-2.5 border border-orange-500/30 text-orange-400 shrink-0">
                 <CloudUpload className="h-6 w-6" />
               </div>
               <div>
                 <h4 className="text-sm font-bold text-white flex items-center gap-2">
                   <span>{localVideosList.length} vídeo(s) salvo(s) localmente no navegador</span>
-                  <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[11px] font-semibold text-amber-300 border border-amber-500/30">
-                    Aguardando Nuvem Supabase
+                  <span className="rounded-full bg-orange-500/20 px-2 py-0.5 text-[11px] font-semibold text-orange-300 border border-orange-500/30">
+                    Aguardando Cloudflare R2
                   </span>
                 </h4>
                 <p className="mt-1 text-xs text-slate-300 max-w-2xl leading-relaxed">
-                  Os arquivos de vídeo do seu computador estão salvos com segurança no armazenamento interno deste navegador. Para que fiquem acessíveis em qualquer dispositivo ou aba anônima, configure o bucket <code className="rounded bg-black/40 px-1 py-0.5 font-mono text-amber-200">product-videos</code> no Supabase Storage.
+                  Os arquivos de vídeo do seu computador estão salvos com segurança no armazenamento interno deste navegador. Para que fiquem acessíveis em qualquer dispositivo e marketplace, envie-os para a nuvem <strong>Cloudflare R2</strong>.
                 </p>
               </div>
             </div>
@@ -1621,15 +1616,15 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
                   setCloudModalOpen(true);
                   handleCheckCloudBucket();
                 }}
-                className="flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 px-4 py-2.5 text-xs font-bold text-amber-200 transition cursor-pointer"
+                className="flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 rounded-xl border border-orange-500/40 bg-orange-500/10 hover:bg-orange-500/20 px-4 py-2.5 text-xs font-bold text-orange-200 transition cursor-pointer"
               >
-                <Cloud className="h-4 w-4" /> Configurar / Testar Nuvem (SQL)
+                <Cloud className="h-4 w-4" /> Configurar Cloudflare (R2)
               </button>
               <button
                 type="button"
                 disabled={isSyncingAll}
                 onClick={handleSyncAllToCloud}
-                className="flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-60 px-4 py-2.5 text-xs font-bold text-white shadow-md transition cursor-pointer"
+                className="flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 disabled:opacity-60 px-4 py-2.5 text-xs font-bold text-white shadow-md transition cursor-pointer"
               >
                 {isSyncingAll ? (
                   <>
@@ -1637,7 +1632,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
                   </>
                 ) : (
                   <>
-                    <CloudUpload className="h-4 w-4" /> Enviar Todos para a Nuvem
+                    <CloudUpload className="h-4 w-4" /> Enviar Todos para Cloudflare
                   </>
                 )}
               </button>
@@ -2483,9 +2478,9 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
                             <span className="rounded bg-amber-950/80 px-2 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-800/60 inline-flex items-center gap-1">
                               <HardDrive className="h-3 w-3" /> Salvo Localmente (PC)
                             </span>
-                          ) : v.videoUrl?.includes('supabase.co') ? (
-                            <span className="rounded bg-emerald-950/80 px-2 py-0.5 text-[10px] font-bold text-emerald-300 border border-emerald-800/60 inline-flex items-center gap-1">
-                              <Cloud className="h-3 w-3" /> Salvo na Nuvem (Supabase)
+                          ) : isCloudflareVideoUrl(v.videoUrl) ? (
+                            <span className="rounded bg-orange-950/80 px-2 py-0.5 text-[10px] font-bold text-orange-300 border border-orange-800/60 inline-flex items-center gap-1">
+                              <Cloud className="h-3 w-3" /> Salvo na Nuvem (Cloudflare R2)
                             </span>
                           ) : (
                             <span className="text-slate-400">• LINK DIRETO DO MARKETPLACE</span>
@@ -2497,8 +2492,8 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
                               type="button"
                               disabled={syncingVideoId === v.id || isSyncingAll}
                               onClick={() => handleSyncVideoToCloud(p, v)}
-                              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition disabled:opacity-50 cursor-pointer"
-                              title="Enviar o arquivo deste vídeo para o Supabase Storage na nuvem"
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition disabled:opacity-50 cursor-pointer"
+                              title="Enviar o arquivo deste vídeo para o Cloudflare R2 na nuvem"
                             >
                               {syncingVideoId === v.id ? (
                                 <>
@@ -2506,7 +2501,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
                                 </>
                               ) : (
                                 <>
-                                  <CloudUpload className="h-3.5 w-3.5" /> Enviar para a Nuvem
+                                  <CloudUpload className="h-3.5 w-3.5" /> Enviar para Cloudflare
                                 </>
                               )}
                             </button>
@@ -2797,25 +2792,25 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
         document.body
       )}
 
-      {/* Modal de Configuração e Sincronização do Supabase Storage */}
+      {/* Modal de Configuração e Sincronização do Cloudflare R2 */}
       {cloudModalOpen && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
           <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4">
               <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-sky-500/20 p-2 text-sky-400 border border-sky-500/30">
+                <div className="rounded-xl bg-orange-500/20 p-2 text-orange-400 border border-orange-500/30">
                   <Cloud className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white">Armazenamento de Vídeos na Nuvem (Supabase Storage)</h3>
-                  <p className="text-xs text-slate-400">Configure o bucket público para salvar vídeos do PC na nuvem</p>
+                  <h3 className="text-base font-bold text-white">Armazenamento de Vídeos Cloudflare (Cloudflare R2)</h3>
+                  <p className="text-xs text-slate-400">Armazenamento em nuvem ultra-rápido, sem taxas de egress e com CDN global</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setCloudModalOpen(false)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition"
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -2823,13 +2818,13 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
 
             {/* Body */}
             <div className="flex-1 overflow-y-auto p-6 space-y-5 text-sm">
-              {/* Status do Bucket */}
+              {/* Status da Conexão Cloudflare */}
               <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-slate-400">Status do Bucket:</span>
+                    <span className="text-xs font-semibold text-slate-400">Status do Cloudflare:</span>
                     {isCheckingCloud ? (
-                      <span className="inline-flex items-center gap-1.5 text-xs text-sky-300 font-medium">
+                      <span className="inline-flex items-center gap-1.5 text-xs text-orange-300 font-medium">
                         <Loader2 className="h-3.5 w-3.5 animate-spin" /> Verificando...
                       </span>
                     ) : cloudCheckStatus?.ok ? (
@@ -2837,8 +2832,8 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
                         <Check className="h-3.5 w-3.5" /> Conectado e Ativo
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/20 border border-rose-500/30 px-2.5 py-0.5 text-xs font-bold text-rose-300">
-                        <AlertCircle className="h-3.5 w-3.5" /> Não Configurado (Bucket Ausente)
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/20 border border-amber-500/30 px-2.5 py-0.5 text-xs font-bold text-amber-300">
+                        <AlertCircle className="h-3.5 w-3.5" /> {cloudCheckStatus ? 'Aguardando Configuração' : 'Pronto para Testar'}
                       </span>
                     )}
                   </div>
@@ -2849,31 +2844,34 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
                     onClick={handleCheckCloudBucket}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white transition disabled:opacity-50 cursor-pointer"
                   >
-                    {isCheckingCloud ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 text-sky-400" />}
-                    Testar Conexão
+                    {isCheckingCloud ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 text-orange-400" />}
+                    Testar Conexão Cloudflare
                   </button>
                 </div>
 
                 {cloudCheckStatus && (
-                  <p className="mt-2 text-xs text-slate-300 border-t border-slate-800/80 pt-2">
-                    {cloudCheckStatus.message}
-                  </p>
+                  <div className="mt-2 text-xs text-slate-300 border-t border-slate-800/80 pt-2 space-y-1">
+                    <p>{cloudCheckStatus.message}</p>
+                    {cloudCheckStatus.details && (
+                      <p className="text-[11px] text-slate-400">{cloudCheckStatus.details}</p>
+                    )}
+                  </div>
                 )}
               </div>
 
               {/* Status de Vídeos Locais Pendentes */}
               {localVideosList.length > 0 && (
-                <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-4 flex items-center justify-between gap-3">
+                <div className="rounded-xl border border-orange-500/30 bg-orange-950/20 p-4 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-amber-500/20 p-2 text-amber-400">
+                    <div className="rounded-lg bg-orange-500/20 p-2 text-orange-400">
                       <HardDrive className="h-5 w-5" />
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-amber-200">
-                        {localVideosList.length} vídeo(s) salvos no navegador prontos para sincronizar
+                      <h4 className="text-xs font-bold text-orange-200">
+                        {localVideosList.length} vídeo(s) salvos no computador prontos para sincronizar
                       </h4>
                       <p className="text-[11px] text-slate-300">
-                        Assim que o bucket estiver ativo, você pode enviar todos com 1 clique.
+                        Envie os vídeos locais do seu PC para o Cloudflare R2 com 1 clique.
                       </p>
                     </div>
                   </div>
@@ -2881,7 +2879,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
                     type="button"
                     disabled={isSyncingAll}
                     onClick={handleSyncAllToCloud}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3.5 py-2 text-xs font-bold text-white transition shadow-sm disabled:opacity-60 cursor-pointer shrink-0"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 px-3.5 py-2 text-xs font-bold text-white transition shadow-sm disabled:opacity-60 cursor-pointer shrink-0"
                   >
                     {isSyncingAll ? (
                       <>
@@ -2889,75 +2887,72 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
                       </>
                     ) : (
                       <>
-                        <CloudUpload className="h-3.5 w-3.5" /> Enviar Agora
+                        <CloudUpload className="h-3.5 w-3.5" /> Enviar Agora para Cloudflare
                       </>
                     )}
                   </button>
                 </div>
               )}
 
-              {/* Opção 1: Executar SQL (Recomendado) */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-sky-500/20 text-sky-400 text-[11px]">1</span>
-                    Opção 1: Ativar no Supabase via SQL (Recomendado - 30 segundos)
-                  </h4>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(SUPABASE_VIDEO_BUCKET_SQL);
-                      setCopiedBucketSql(true);
-                      setTimeout(() => setCopiedBucketSql(false), 2500);
-                    }}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-sky-500/40 bg-sky-950/60 hover:bg-sky-900/80 px-2.5 py-1 text-xs font-bold text-sky-200 transition cursor-pointer"
-                  >
-                    {copiedBucketSql ? (
-                      <>
-                        <Check className="h-3.5 w-3.5 text-emerald-400" /> Copiado!
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-3.5 w-3.5 text-sky-400" /> Copiar SQL
-                      </>
-                    )}
-                  </button>
-                </div>
-                <p className="text-xs text-slate-400">
-                  Abra o <strong>SQL Editor</strong> do seu painel Supabase, cole o código abaixo e clique em <strong>Run</strong>:
+              {/* Opção 1: Cloudflare Pages R2 Binding */}
+              <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-950/50 p-4">
+                <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-orange-500/20 text-orange-400 text-[11px]">1</span>
+                  Cloudflare Pages: R2 Bucket Binding (Recomendado)
+                </h4>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  No painel da <strong>Cloudflare</strong>, o armazenamento de vídeos funciona diretamente pelo <strong>Cloudflare R2</strong> integrado ao Cloudflare Pages:
                 </p>
-                <div className="relative">
-                  <pre className="max-h-48 overflow-x-auto rounded-xl border border-slate-800 bg-slate-950 p-3 font-mono text-[11px] leading-relaxed text-sky-200 select-all">
-                    {SUPABASE_VIDEO_BUCKET_SQL}
-                  </pre>
-                </div>
+                <ol className="space-y-1.5 text-xs text-slate-400 list-decimal list-inside pl-1 leading-relaxed">
+                  <li>No menu lateral da Cloudflare, vá em <strong className="text-white">R2 Object Storage</strong> e crie um bucket (ex: <code className="rounded bg-black/60 px-1 py-0.5 font-mono text-orange-300">product-videos</code>).</li>
+                  <li>No seu projeto Pages, acesse <strong className="text-white">Settings &gt; Functions &gt; R2 bucket bindings</strong>.</li>
+                  <li>Adicione uma vinculação com a variável: <code className="rounded bg-black/60 px-1 py-0.5 font-mono text-orange-300">VIDEOS_BUCKET</code> e aponte para o seu bucket.</li>
+                  <li>Pronto! Os uploads são processados de forma nativa e ilimitada pela Cloudflare.</li>
+                </ol>
               </div>
 
-              {/* Opção 2: Pelo painel gráfico do Supabase */}
-              <div className="space-y-2 border-t border-slate-800/80 pt-4">
+              {/* Opção 2: URL Pública do R2 / Domínio Customizado */}
+              <div className="space-y-3 rounded-xl border border-slate-800 bg-slate-950/50 p-4">
                 <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-800 text-slate-300 text-[11px]">2</span>
-                  Opção 2: Criar Bucket Manualmente no Supabase Storage
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-orange-500/20 text-orange-400 text-[11px]">2</span>
+                  Domínio Público do Cloudflare R2 (Opcional)
                 </h4>
-                <ol className="space-y-1.5 text-xs text-slate-300 list-decimal list-inside pl-1 leading-relaxed">
-                  <li>No painel Supabase, clique em <strong className="text-white">Storage</strong> no menu lateral.</li>
-                  <li>Clique no botão <strong className="text-white">New bucket</strong>.</li>
-                  <li>Defina o nome exatamente como: <code className="rounded bg-black/50 px-1 py-0.5 font-mono text-sky-300">product-videos</code></li>
-                  <li>Ative a chave <strong className="text-emerald-300">Public bucket</strong> (obrigatório para download e reprodução direta).</li>
-                  <li>Clique em <strong className="text-white">Save bucket</strong> e depois retorne aqui e clique em <strong>Testar Conexão</strong>.</li>
-                </ol>
+                <p className="text-xs text-slate-400">
+                  Se você habilitou o <em>R2.dev subdomain</em> ou conectou um domínio próprio (ex: <code>videos.seusite.com.br</code>) no bucket R2, informe abaixo para links diretos de CDN:
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={cfConfig.r2PublicUrl || ''}
+                    onChange={(e) => setCfConfig({ ...cfConfig, r2PublicUrl: e.target.value.trim() })}
+                    placeholder="https://pub-xxxxxxxxxxxxxxxx.r2.dev"
+                    className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white placeholder-slate-500 focus:border-orange-500 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSaveCfConfig}
+                    className="rounded-lg bg-orange-600 hover:bg-orange-500 px-3.5 py-2 text-xs font-bold text-white transition cursor-pointer"
+                  >
+                    Salvar
+                  </button>
+                </div>
+                {cfSavedMsg && (
+                  <p className="text-xs text-emerald-400 flex items-center gap-1">
+                    <Check className="h-3.5 w-3.5" /> Configuração salva no seu navegador!
+                  </p>
+                )}
               </div>
             </div>
 
             {/* Footer */}
             <div className="flex items-center justify-between border-t border-slate-800 px-6 py-4 bg-slate-950/40">
               <a
-                href="https://supabase.com/dashboard/project/fgweictufozyzerbdbtt/storage/buckets"
+                href="https://dash.cloudflare.com/"
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-400 hover:text-sky-300 transition"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-orange-400 hover:text-orange-300 transition"
               >
-                <ExternalLink className="h-3.5 w-3.5" /> Abrir Supabase Storage
+                <ExternalLink className="h-3.5 w-3.5" /> Abrir Painel Cloudflare
               </a>
               <button
                 type="button"
