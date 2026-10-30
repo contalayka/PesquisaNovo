@@ -670,6 +670,7 @@ export function extractProductsFromLabel(rawText: string): ExtractedLabelItem[] 
   for (let i = 0; i < lines.length; i++) {
     const trimmed = lines[i].trim();
     if (!trimmed || trimmed.length < 3) continue;
+    if (/\b(?:total\s*items?|deadline|#up[0-9a-z]+)\b/i.test(trimmed)) continue;
 
     // Padrão 0: Linha de tabela da Declaração de Conteúdo dos Correios / Mercado Envios / Shopee
     // Formato: "1 MANTEIGUEIRA VIDRO 250G 2 35,00" ou "1 Garrafa Térmica 1 25.00"
@@ -692,9 +693,29 @@ export function extractProductsFromLabel(rawText: string): ExtractedLabelItem[] 
     );
     if (mItem) {
       let candidateName = mItem[1].trim();
+      let qty = parseInt(mItem[2] || mItem[3] || mItem[4] || mItem[5] || mItem[6] || mItem[7] || '1', 10);
+
+      // Trata quantidade no final caso tenha sido consumida pelo seletor de texto
+      const trailingQty = candidateName.match(
+        /(?:\s+(?:\(\s*\*\s*(\d+)\s*\)|\*\s*(\d+)|\(\s*x\s*(\d+)\s*\)|x\s*(\d+)|\(\s*(?:qtd|qty)[:\s]*(\d+)\s*\)|[-:]\s*(?:qtd|qty)[:\s]*(\d+)))$/i
+      );
+      if (trailingQty) {
+        candidateName = candidateName.slice(0, trailingQty.index).trim();
+        const parsedQ = parseInt(
+          trailingQty[1] ||
+            trailingQty[2] ||
+            trailingQty[3] ||
+            trailingQty[4] ||
+            trailingQty[5] ||
+            trailingQty[6] ||
+            '1',
+          10
+        );
+        if (!isNaN(parsedQ) && parsedQ > 0) qty = parsedQ;
+      }
+
       candidateName = candidateName.replace(/^\[[^\]]+\]\s*/, '').replace(/^\([^\)]+\)\s*/, '');
       if (candidateName.length >= 3 && !nonProductPattern.test(candidateName)) {
-        const qty = parseInt(mItem[2] || mItem[3] || mItem[4] || mItem[5] || mItem[6] || mItem[7] || '1', 10);
         items.push({ name: candidateName, qty: isNaN(qty) || qty <= 0 ? 1 : qty });
         continue;
       }
@@ -995,3 +1016,235 @@ export function formatWhatsAppMessage(summary: ShippingReportSummary): string {
     '_MARKETPREÇO | Relatório de expedição_',
   ].join('\n');
 }
+
+export const MONTH_NAMES_BR = [
+  'Janeiro',
+  'Fevereiro',
+  'Março',
+  'Abril',
+  'Maio',
+  'Junho',
+  'Julho',
+  'Agosto',
+  'Setembro',
+  'Outubro',
+  'Novembro',
+  'Dezembro',
+];
+
+export const MONTH_SHORT_NAMES_BR = [
+  'Jan',
+  'Fev',
+  'Mar',
+  'Abr',
+  'Mai',
+  'Jun',
+  'Jul',
+  'Ago',
+  'Set',
+  'Out',
+  'Nov',
+  'Dez',
+];
+
+export function formatMonthName(monthKey: string): string {
+  const [y, m] = (monthKey || '').split('-');
+  const monthNum = parseInt(m, 10);
+  if (!y || isNaN(monthNum) || monthNum < 1 || monthNum > 12) return monthKey;
+  return `${MONTH_NAMES_BR[monthNum - 1]} de ${y}`;
+}
+
+export function formatMonthShort(monthKey: string): string {
+  const [y, m] = (monthKey || '').split('-');
+  const monthNum = parseInt(m, 10);
+  if (!y || isNaN(monthNum) || monthNum < 1 || monthNum > 12) return monthKey;
+  return `${MONTH_SHORT_NAMES_BR[monthNum - 1]}/${y}`;
+}
+
+export interface MonthSummary {
+  monthKey: string; // "YYYY-MM"
+  year: number;
+  month: number;
+  label: string; // Ex: "Outubro de 2026"
+  shortLabel: string; // Ex: "Out/2026"
+  counts: Record<Platform, number>;
+  totalOrders: number;
+  daysCount: number;
+  dailyBreakdown: {
+    date: string;
+    totalOrders: number;
+    counts: Record<Platform, number>;
+  }[];
+}
+
+/**
+ * Consolida os totais diários únicos unificando as fontes (Supabase, lotes do histórico e sessão ativa)
+ */
+export function consolidateDailyOrders(
+  dailyTotals: Record<string, Record<string, number>> = {},
+  historyBatches: { operational_date: string; counts?: Record<string, number>; total_orders?: number }[] = [],
+  activeSession?: { date: string; counts: Record<Platform, number>; totalUniqueOrders: number }
+): Record<string, Record<Platform, number>> {
+  const map: Record<string, Record<Platform, number>> = {};
+
+  // 1. Incorpora dailyTotals registrados no banco
+  for (const [d, counts] of Object.entries(dailyTotals || {})) {
+    if (!d) continue;
+    map[d] = {
+      'Shopee': Number(counts['Shopee'] || 0),
+      'Mercado Livre': Number(counts['Mercado Livre'] || 0),
+      'TikTok Shop': Number(counts['TikTok Shop'] || 0),
+      'SHEIN': Number(counts['SHEIN'] || 0),
+    };
+  }
+
+  // 2. Incorpora histórico de lotes locais
+  for (const b of historyBatches || []) {
+    const d = b.operational_date;
+    if (!d) continue;
+    if (!map[d]) {
+      map[d] = {
+        'Shopee': Number(b.counts?.['Shopee'] || 0),
+        'Mercado Livre': Number(b.counts?.['Mercado Livre'] || 0),
+        'TikTok Shop': Number(b.counts?.['TikTok Shop'] || 0),
+        'SHEIN': Number(b.counts?.['SHEIN'] || 0),
+      };
+    } else {
+      const bTotal =
+        Number(b.total_orders || 0) ||
+        Object.values(b.counts || {}).reduce((x, y) => x + Number(y), 0);
+      const existingTotal = Object.values(map[d]).reduce((x, y) => x + y, 0);
+      if (bTotal > existingTotal) {
+        map[d] = {
+          'Shopee': Math.max(map[d]['Shopee'], Number(b.counts?.['Shopee'] || 0)),
+          'Mercado Livre': Math.max(map[d]['Mercado Livre'], Number(b.counts?.['Mercado Livre'] || 0)),
+          'TikTok Shop': Math.max(map[d]['TikTok Shop'], Number(b.counts?.['TikTok Shop'] || 0)),
+          'SHEIN': Math.max(map[d]['SHEIN'], Number(b.counts?.['SHEIN'] || 0)),
+        };
+      }
+    }
+  }
+
+  // 3. Incorpora sessão ativa (atualização em tempo real quando pedidos são lidos na tela)
+  if (activeSession && activeSession.date && activeSession.totalUniqueOrders > 0) {
+    const d = activeSession.date;
+    const existing = map[d] || createEmptyCounts();
+    const existingTotal = Object.values(existing).reduce((x, y) => x + y, 0);
+    if (activeSession.totalUniqueOrders >= existingTotal) {
+      map[d] = { ...activeSession.counts };
+    } else {
+      map[d] = {
+        'Shopee': Math.max(existing['Shopee'], activeSession.counts['Shopee']),
+        'Mercado Livre': Math.max(existing['Mercado Livre'], activeSession.counts['Mercado Livre']),
+        'TikTok Shop': Math.max(existing['TikTok Shop'], activeSession.counts['TikTok Shop']),
+        'SHEIN': Math.max(existing['SHEIN'], activeSession.counts['SHEIN']),
+      };
+    }
+  }
+
+  return map;
+}
+
+/**
+ * Calcula a soma total consolidada de pedidos de cada mês, com detalhamento por marketplace
+ * e lista diária, atualizando automaticamente em tempo real.
+ */
+export function computeMonthlyTotals(
+  dailyTotals: Record<string, Record<string, number>> = {},
+  historyBatches: any[] = [],
+  activeSession?: { date: string; counts: Record<Platform, number>; totalUniqueOrders: number },
+  ensureMonthKey?: string
+): MonthSummary[] {
+  const daily = consolidateDailyOrders(dailyTotals, historyBatches, activeSession);
+  const byMonth: Record<
+    string,
+    {
+      counts: Record<Platform, number>;
+      dailyBreakdown: { date: string; totalOrders: number; counts: Record<Platform, number> }[];
+    }
+  > = {};
+
+  // Se garantirmos um mês específico (ex: mês selecionado na tela), inicializa ele
+  if (ensureMonthKey && /^\d{4}-\d{2}$/.test(ensureMonthKey)) {
+    byMonth[ensureMonthKey] = {
+      counts: createEmptyCounts(),
+      dailyBreakdown: [],
+    };
+  }
+
+  for (const [dateStr, counts] of Object.entries(daily)) {
+    const dayTotal = Object.values(counts).reduce((a, b) => a + b, 0);
+    if (!dateStr || dateStr.length < 7) continue;
+    const mKey = dateStr.slice(0, 7); // "YYYY-MM"
+
+    if (!byMonth[mKey]) {
+      byMonth[mKey] = {
+        counts: createEmptyCounts(),
+        dailyBreakdown: [],
+      };
+    }
+
+    PLATFORMS.forEach((p) => {
+      byMonth[mKey].counts[p] += counts[p] || 0;
+    });
+
+    if (dayTotal > 0) {
+      byMonth[mKey].dailyBreakdown.push({
+        date: dateStr,
+        totalOrders: dayTotal,
+        counts: { ...counts },
+      });
+    }
+  }
+
+  const results: MonthSummary[] = Object.entries(byMonth).map(([mKey, data]) => {
+    const [yStr, mStr] = mKey.split('-');
+    const year = parseInt(yStr, 10) || new Date().getFullYear();
+    const month = parseInt(mStr, 10) || new Date().getMonth() + 1;
+    const totalOrders = Object.values(data.counts).reduce((a, b) => a + b, 0);
+
+    data.dailyBreakdown.sort((a, b) => b.date.localeCompare(a.date));
+
+    return {
+      monthKey: mKey,
+      year,
+      month,
+      label: formatMonthName(mKey),
+      shortLabel: formatMonthShort(mKey),
+      counts: data.counts,
+      totalOrders,
+      daysCount: data.dailyBreakdown.length,
+      dailyBreakdown: data.dailyBreakdown,
+    };
+  });
+
+  // Ordena meses mais recentes primeiro
+  results.sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+  return results;
+}
+
+/**
+ * Formata mensagem de fechamento mensal para envio no WhatsApp
+ */
+export function formatMonthlyWhatsAppMessage(summary: MonthSummary): string {
+  const c = summary.counts;
+  const avg =
+    summary.daysCount > 0 ? (summary.totalOrders / summary.daysCount).toFixed(1) : '0';
+  return [
+    '*📊 RELATÓRIO MENSAL DE EXPEDIÇÃO*',
+    `📅 Mês: ${summary.label}`,
+    '',
+    `🟠 Shopee: ${c['Shopee']} pedido(s)`,
+    `🟡 Mercado Livre: ${c['Mercado Livre']} pedido(s)`,
+    `⚫ TikTok Shop: ${c['TikTok Shop']} pedido(s)`,
+    `⚪ SHEIN: ${c['SHEIN']} pedido(s)`,
+    '',
+    '━━━━━━━━━━━━━━',
+    `📦 *TOTAL DO MÊS: ${summary.totalOrders} pedido(s)*`,
+    `🗓️ Dias operacionais com envio: ${summary.daysCount} dia(s)`,
+    `📈 Média diária: ${avg} pedido(s)/dia`,
+    '',
+    '_MARKETPREÇO | Relatório de expedição_',
+  ].join('\n');
+}
+

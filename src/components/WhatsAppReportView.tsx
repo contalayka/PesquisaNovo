@@ -20,12 +20,21 @@ import {
   ChevronUp,
   Info,
   CheckCircle2,
+  Calendar,
+  BarChart3,
+  Layers,
+  TrendingUp,
+  Plus,
+  X,
+  ArrowRight,
+  Sparkles,
 } from 'lucide-react';
 import {
   Platform,
   PLATFORMS,
   ProcessedLabel,
   ShippingReportSummary,
+  MonthSummary,
   createEmptyCounts,
   detectPlatform,
   extractOrderNumber,
@@ -36,6 +45,10 @@ import {
   formatBrDate,
   formatWhatsAppMessage,
   normalizeOrderCode,
+  formatMonthName,
+  formatMonthShort,
+  computeMonthlyTotals,
+  formatMonthlyWhatsAppMessage,
 } from '../utils/shippingReportEngine';
 import { Product } from '../types';
 
@@ -90,27 +103,59 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [copied, setCopied] = useState(false);
-  const [tab, setTab] = useState<'processar' | 'historico'>('processar');
+  const [copiedMonthly, setCopiedMonthly] = useState(false);
+  const [tab, setTab] = useState<'processar' | 'mensal' | 'historico'>('processar');
+  const [selectedMonthKey, setSelectedMonthKey] = useState<string>(() =>
+    getTodayIsoDate().slice(0, 7)
+  );
+  const [expandedMonthKeys, setExpandedMonthKeys] = useState<Record<string, boolean>>({});
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [showConfirmClear, setShowConfirmClear] = useState(false);
 
   const client = getSupabaseClient();
 
+  // Helper para computar dailyTotals a partir de lotes locais
+  function buildDailyTotalsFromBatches(batches: Batch[]): Record<string, Record<string, number>> {
+    const grouped: Record<string, Record<string, number>> = {};
+    for (const b of batches) {
+      if (!b.operational_date) continue;
+      grouped[b.operational_date] ||= createEmptyCounts();
+      PLATFORMS.forEach((p) => {
+        grouped[b.operational_date][p] = Math.max(
+          grouped[b.operational_date][p] || 0,
+          Number(b.counts?.[p] || 0)
+        );
+      });
+    }
+    return grouped;
+  }
+
   // Carrega histórico e etiquetas do cache local ao iniciar
   useEffect(() => {
     try {
       const savedHistory = localStorage.getItem(HISTORY_KEY);
-      if (savedHistory) setHistory(JSON.parse(savedHistory));
+      if (savedHistory) {
+        const parsed = JSON.parse(savedHistory);
+        setHistory(parsed);
+        setDailyTotals(buildDailyTotalsFromBatches(parsed));
+      }
       const savedLabels = localStorage.getItem(ORDER_KEY);
       if (savedLabels) {
         setLabels(JSON.parse(savedLabels));
       } else {
         const histBatches = JSON.parse(localStorage.getItem(HISTORY_LABELS_KEY) || '[]');
-        if (Array.isArray(histBatches) && histBatches.length > 0 && Array.isArray(histBatches[0]?.labels) && histBatches[0].labels.length > 0) {
+        if (
+          Array.isArray(histBatches) &&
+          histBatches.length > 0 &&
+          Array.isArray(histBatches[0]?.labels) &&
+          histBatches[0].labels.length > 0
+        ) {
           setLabels(histBatches[0].labels);
         } else if (savedHistory) {
           const parsedBatches: Batch[] = JSON.parse(savedHistory);
-          const firstWithLabels = parsedBatches.find((b) => Array.isArray(b.labels) && b.labels.length > 0);
+          const firstWithLabels = parsedBatches.find(
+            (b) => Array.isArray(b.labels) && b.labels.length > 0
+          );
           if (firstWithLabels && firstWithLabels.labels) {
             setLabels(firstWithLabels.labels);
           }
@@ -121,6 +166,26 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
     }
     void loadHistory();
   }, []);
+
+  // Sincronização em tempo real entre abas e eventos do sistema
+  useEffect(() => {
+    const onSync = () => {
+      void loadHistory();
+    };
+    window.addEventListener('marketpreco_labels_updated', onSync);
+    window.addEventListener('storage', onSync);
+    return () => {
+      window.removeEventListener('marketpreco_labels_updated', onSync);
+      window.removeEventListener('storage', onSync);
+    };
+  }, []);
+
+  // Atualiza selectedMonthKey quando a data for alterada
+  useEffect(() => {
+    if (date && date.length >= 7) {
+      setSelectedMonthKey(date.slice(0, 7));
+    }
+  }, [date]);
 
   async function loadHistory() {
     const local = (() => {
@@ -133,6 +198,7 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
 
     if (!client) {
       setHistory(local);
+      setDailyTotals(buildDailyTotalsFromBatches(local));
       return;
     }
 
@@ -143,11 +209,8 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
         .order('created_at', { ascending: false })
         .limit(100);
 
-      if (!err && data) {
-        setHistory(data as Batch[]);
-      } else {
-        setHistory(local);
-      }
+      const activeBatches = !err && data ? (data as Batch[]) : local;
+      setHistory(activeBatches);
 
       const { data: rows } = await client
         .from('report_orders')
@@ -155,7 +218,7 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
         .order('operational_date', { ascending: false })
         .limit(10000);
 
-      if (rows) {
+      if (rows && rows.length > 0) {
         const grouped: Record<string, Record<string, number>> = {};
         const seen = new Set<string>();
         for (const row of rows) {
@@ -167,10 +230,13 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
             (grouped[row.operational_date][row.marketplace] || 0) + 1;
         }
         setDailyTotals(grouped);
+      } else {
+        setDailyTotals(buildDailyTotalsFromBatches(activeBatches));
       }
     } catch (e) {
       console.warn('Erro ao carregar histórico do Supabase:', e);
       setHistory(local);
+      setDailyTotals(buildDailyTotalsFromBatches(local));
     }
   }
 
@@ -178,6 +244,43 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
   const summary: ShippingReportSummary = useMemo(() => {
     return deduplicateAndSummarize(labels, new Set(), date);
   }, [labels, date]);
+
+  // Cálculo automático dos totais mensais reativo a qualquer adição ou alteração em tempo real
+  const monthlySummaries: MonthSummary[] = useMemo(() => {
+    const curMonthKey = date ? date.slice(0, 7) : getTodayIsoDate().slice(0, 7);
+    return computeMonthlyTotals(
+      dailyTotals,
+      history,
+      summary.totalUniqueOrders > 0
+        ? {
+            date,
+            counts: summary.counts,
+            totalUniqueOrders: summary.totalUniqueOrders,
+          }
+        : undefined,
+      curMonthKey
+    );
+  }, [dailyTotals, history, summary.counts, summary.totalUniqueOrders, date]);
+
+  const targetMonthKey =
+    selectedMonthKey || (date ? date.slice(0, 7) : getTodayIsoDate().slice(0, 7));
+
+  const currentMonthSummary: MonthSummary = useMemo(() => {
+    return (
+      monthlySummaries.find((m) => m.monthKey === targetMonthKey) ||
+      monthlySummaries[0] || {
+        monthKey: targetMonthKey,
+        year: parseInt(targetMonthKey.split('-')[0], 10) || new Date().getFullYear(),
+        month: parseInt(targetMonthKey.split('-')[1], 10) || new Date().getMonth() + 1,
+        label: formatMonthName(targetMonthKey),
+        shortLabel: formatMonthShort(targetMonthKey),
+        counts: createEmptyCounts(),
+        totalOrders: 0,
+        daysCount: 0,
+        dailyBreakdown: [],
+      }
+    );
+  }, [monthlySummaries, targetMonthKey]);
 
   const reportText = useMemo(() => {
     return formatWhatsAppMessage(summary);
@@ -348,8 +451,11 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
         }
       }
 
+      // Acumula os novos pedidos aos já existentes na sessão para permitir adicionar pedidos continuamente no mês
+      const combinedRaw = labels.length > 0 ? [...labels, ...rawExtractedLabels] : rawExtractedLabels;
+
       // Executa consolidação estrita com deduplicação em 3 níveis
-      const calculated = deduplicateAndSummarize(rawExtractedLabels, knownHashes, date);
+      const calculated = deduplicateAndSummarize(combinedRaw, knownHashes, date);
 
       setLabels(calculated.items);
       try {
@@ -369,7 +475,7 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
       const pendingCount = calculated.realPendingCount;
       const dupCount = calculated.duplicateCount;
 
-      let msg = `Leitura concluída com sucesso: ${rawExtractedLabels.length} etiqueta(s) analisada(s). ${confirmedCount} pedido(s) único(s) contabilizado(s).`;
+      let msg = `Leitura concluída com sucesso: ${rawExtractedLabels.length} nova(s) etiqueta(s) analisada(s). Total acumulado no mês de ${formatMonthName(date)}: ${currentMonthSummary.totalOrders + (calculated.totalUniqueOrders - summary.totalUniqueOrders)} pedidos.`;
       if (dupCount > 0) {
         msg += ` ${dupCount} duplicata(s) descartada(s).`;
       }
@@ -462,6 +568,11 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
 
       const nextHistory = [batch, ...local.filter((b) => b.id !== batchId)].slice(0, 100);
       setHistory(nextHistory);
+      setDailyTotals((prev) => {
+        const next = { ...prev };
+        next[date] = { ...summary.counts };
+        return next;
+      });
       try {
         localStorage.setItem(HISTORY_KEY, JSON.stringify(nextHistory));
         const prevHistBatches = JSON.parse(localStorage.getItem(HISTORY_LABELS_KEY) || '[]');
@@ -485,7 +596,7 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
     }
   }
 
-  // Copia mensagem oficial para o WhatsApp
+  // Copia mensagem oficial para o WhatsApp (diário)
   async function copyToWhatsApp() {
     try {
       await navigator.clipboard.writeText(reportText);
@@ -501,7 +612,24 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
     window.setTimeout(() => setCopied(false), 2000);
   }
 
-  // Gera PDF formatado do relatório
+  // Copia mensagem oficial do fechamento mensal para o WhatsApp
+  async function copyMonthlyToWhatsApp(mSummary: MonthSummary) {
+    const text = formatMonthlyWhatsAppMessage(mSummary);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedMonthly(true);
+    } catch {
+      const el = document.createElement('textarea');
+      el.value = text;
+      document.body.appendChild(el);
+      el.select();
+      setCopiedMonthly(document.execCommand('copy'));
+      el.remove();
+    }
+    window.setTimeout(() => setCopiedMonthly(false), 2000);
+  }
+
+  // Gera PDF formatado do relatório diário
   function exportPdf(batch?: Batch) {
     const d = batch?.operational_date || date;
     const c = (batch?.counts || summary.counts) as Record<Platform, number>;
@@ -557,6 +685,101 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
     doc.text(`Pendentes de conferência: ${p}`, 20, y);
 
     doc.save(`relatorio-pedidos-${d}.pdf`);
+  }
+
+  // Gera PDF formatado do relatório mensal consolidado
+  function exportMonthlyPdf(mSummary: MonthSummary) {
+    const doc = new jsPDF();
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, 210, 297, 'F');
+
+    // Header
+    doc.setTextColor(52, 211, 153);
+    doc.setFontSize(22);
+    doc.text('MARKETPREÇO', 18, 22);
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(15);
+    doc.text('Relatório Mensal Consolidado de Pedidos', 18, 34);
+
+    doc.setFontSize(11);
+    doc.setTextColor(148, 163, 184);
+    doc.text(`Período de referência: ${mSummary.label}`, 18, 44);
+
+    let y = 60;
+    PLATFORMS.forEach((plat) => {
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(12);
+      doc.text(plat, 20, y);
+
+      doc.setTextColor(52, 211, 153);
+      doc.setFontSize(12);
+      doc.text(`${mSummary.counts[plat] || 0} pedido(s)`, 185, y, { align: 'right' });
+      y += 12;
+    });
+
+    doc.setDrawColor(52, 211, 153);
+    doc.setLineWidth(0.5);
+    doc.line(18, y + 2, 192, y + 2);
+    y += 16;
+
+    // Total Geral do Mês
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(15);
+    doc.text('TOTAL CONSOLIDADO DO MÊS', 20, y);
+
+    doc.setTextColor(52, 211, 153);
+    doc.setFontSize(15);
+    doc.text(`${mSummary.totalOrders} pedido(s)`, 185, y, { align: 'right' });
+
+    y += 10;
+    doc.setTextColor(203, 213, 225);
+    doc.setFontSize(9.5);
+    const avg =
+      mSummary.daysCount > 0 ? (mSummary.totalOrders / mSummary.daysCount).toFixed(1) : '0';
+    doc.text(
+      `Dias operacionais: ${mSummary.daysCount} dia(s)  •  Média: ${avg} pedido(s)/dia`,
+      20,
+      y
+    );
+
+    // Tabela diária detalhada
+    if (mSummary.dailyBreakdown.length > 0) {
+      y += 16;
+      doc.setFontSize(11);
+      doc.setTextColor(52, 211, 153);
+      doc.text('Detalhamento Diário no Mês', 18, y);
+      y += 6;
+
+      // Header da tabela
+      doc.setFillColor(30, 41, 59);
+      doc.rect(18, y, 174, 8, 'F');
+      doc.setFontSize(9);
+      doc.setTextColor(226, 232, 240);
+      doc.text('Data', 22, y + 5.5);
+      doc.text('Shopee', 62, y + 5.5);
+      doc.text('Meli', 92, y + 5.5);
+      doc.text('TikTok', 122, y + 5.5);
+      doc.text('SHEIN', 152, y + 5.5);
+      doc.text('Total', 178, y + 5.5);
+      y += 9;
+
+      mSummary.dailyBreakdown.slice(0, 20).forEach((day) => {
+        if (y > 275) return;
+        doc.setFontSize(8.5);
+        doc.setTextColor(203, 213, 225);
+        doc.text(formatBrDate(day.date), 22, y + 5);
+        doc.text(String(day.counts['Shopee'] || 0), 67, y + 5);
+        doc.text(String(day.counts['Mercado Livre'] || 0), 97, y + 5);
+        doc.text(String(day.counts['TikTok Shop'] || 0), 127, y + 5);
+        doc.text(String(day.counts['SHEIN'] || 0), 157, y + 5);
+        doc.setTextColor(52, 211, 153);
+        doc.text(String(day.totalOrders), 180, y + 5);
+        y += 7.5;
+      });
+    }
+
+    doc.save(`relatorio-mensal-${mSummary.monthKey}.pdf`);
   }
 
   // Limpa lista atual com confirmação segura sem apagar o histórico salvo
@@ -660,18 +883,41 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
       </header>
 
       {/* 2. Navegação por Abas */}
-      <nav className="flex gap-2 border-b border-slate-800 pb-2">
+      <nav className="flex flex-wrap gap-2 border-b border-slate-800 pb-2">
         <button
           type="button"
           onClick={() => setTab('processar')}
-          className={`rounded-lg px-4 py-2 text-sm font-medium transition cursor-pointer ${
+          className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition cursor-pointer ${
             tab === 'processar'
               ? 'bg-emerald-600 text-white shadow-sm'
               : 'text-slate-400 hover:bg-slate-900 hover:text-white'
           }`}
         >
-          Processar Etiquetas
+          <ScanLine className="h-4 w-4" />
+          <span>Processar Etiquetas</span>
+          {summary.totalUniqueOrders > 0 && (
+            <span className="rounded-full bg-emerald-950/80 border border-emerald-500/30 px-2 py-0.5 text-[11px] font-bold text-emerald-300">
+              {summary.totalUniqueOrders}
+            </span>
+          )}
         </button>
+
+        <button
+          type="button"
+          onClick={() => setTab('mensal')}
+          className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition cursor-pointer ${
+            tab === 'mensal'
+              ? 'bg-emerald-600 text-white shadow-sm'
+              : 'text-slate-400 hover:bg-slate-900 hover:text-white'
+          }`}
+        >
+          <BarChart3 className="h-4 w-4" />
+          <span>Totais por Mês</span>
+          <span className="rounded-full bg-emerald-500/20 border border-emerald-500/40 px-2 py-0.5 text-[11px] font-bold text-emerald-300">
+            {currentMonthSummary.totalOrders} {currentMonthSummary.totalOrders === 1 ? 'pedido' : 'pedidos'}
+          </span>
+        </button>
+
         <button
           type="button"
           onClick={() => {
@@ -704,7 +950,7 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
         </div>
       )}
 
-      {tab === 'processar' ? (
+      {tab === 'processar' && (
         <>
           {/* Seção 1: Upload e Seleção */}
           <section className="rounded-2xl border border-slate-800 bg-[#121824] p-5 space-y-4">
@@ -729,21 +975,34 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
                 Selecionar arquivos de etiquetas
               </span>
               <span className="mt-1 text-xs text-slate-400">
-                Formatos aceitos: PDF (térmico ou A4), JPG, PNG e WEBP
+                Formatos aceitos: PDF (térmico ou A4), JPG, PNG e WEBP — você pode adicionar mais arquivos a qualquer momento
               </span>
               <input
                 className="sr-only"
                 type="file"
                 multiple
                 accept="application/pdf,image/*,.pdf"
-                onChange={(e) => setFiles(Array.from(e.target.files || []))}
+                onChange={(e) => {
+                  const picked = Array.from(e.target.files || []);
+                  if (picked.length > 0) {
+                    setFiles((prev) => [...prev, ...picked]);
+                  }
+                  e.target.value = '';
+                }}
               />
             </label>
 
             {files.length > 0 && (
               <div className="space-y-1.5 max-h-48 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950 p-2.5">
-                <div className="text-xs font-semibold text-slate-400 px-1 pb-1">
-                  {files.length} arquivo(s) selecionado(s):
+                <div className="flex items-center justify-between text-xs font-semibold text-slate-400 px-1 pb-1">
+                  <span>{files.length} arquivo(s) aguardando leitura:</span>
+                  <button
+                    type="button"
+                    onClick={() => setFiles([])}
+                    className="text-[11px] text-red-400 hover:text-red-300 underline cursor-pointer"
+                  >
+                    Descartar todos
+                  </button>
                 </div>
                 {files.map((f, i) => (
                   <div
@@ -751,9 +1010,19 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
                     className="flex items-center justify-between rounded bg-slate-900/60 px-3 py-1.5 text-xs text-slate-300"
                   >
                     <span className="truncate pr-2">{f.name}</span>
-                    <span className="font-mono text-slate-400 shrink-0">
-                      {(f.size / (1024 * 1024)).toFixed(2)} MB
-                    </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="font-mono text-slate-400">
+                        {(f.size / (1024 * 1024)).toFixed(2)} MB
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                        className="p-1 text-slate-400 hover:text-red-400 transition cursor-pointer"
+                        title="Remover este arquivo"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -778,7 +1047,107 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
             </button>
           </section>
 
-          {/* Seção 2: Cards com os 4 Marketplaces + Total Geral */}
+          {/* Banner de Destaque: Soma Total de Cada Mês com Atualização Automática */}
+          <section className="rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/40 via-slate-900/90 to-[#0e1420] p-4 sm:p-5 shadow-lg relative overflow-hidden">
+            <div className="absolute top-0 right-0 -mt-6 -mr-6 h-36 w-36 rounded-full bg-emerald-500/10 blur-2xl pointer-events-none" />
+            
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-300 border border-emerald-500/30">
+                    <Sparkles className="h-3 w-3" />
+                    Soma Total do Mês • Atualização Automática
+                  </span>
+                  <span className="text-xs text-slate-400">
+                    Referência: <strong className="text-white capitalize">{currentMonthSummary.label}</strong>
+                  </span>
+                </div>
+
+                <div className="flex items-baseline gap-3 pt-1">
+                  <span className="text-3xl sm:text-4xl font-extrabold font-mono text-white tracking-tight">
+                    {currentMonthSummary.totalOrders}
+                  </span>
+                  <span className="text-sm font-semibold text-emerald-400">
+                    {currentMonthSummary.totalOrders === 1 ? 'pedido acumulado no mês' : 'pedidos acumulados no mês'}
+                  </span>
+                </div>
+
+                <p className="text-xs text-slate-400 flex items-center gap-1.5 flex-wrap">
+                  <Calendar className="h-3.5 w-3.5 text-slate-500" />
+                  <span>{currentMonthSummary.daysCount} dia(s) com envios registrados</span>
+                  <span className="text-slate-600">•</span>
+                  <span>
+                    Média diária:{' '}
+                    <strong className="text-slate-200">
+                      {currentMonthSummary.daysCount > 0
+                        ? (currentMonthSummary.totalOrders / currentMonthSummary.daysCount).toFixed(1)
+                        : '0'}{' '}
+                      pedidos/dia
+                    </strong>
+                  </span>
+                </p>
+              </div>
+
+              {/* Contagem mensal por marketplace + Ações rápidas do mês */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                  <div className="rounded-lg border border-orange-500/30 bg-orange-500/10 px-2.5 py-1.5 text-xs text-orange-200">
+                    <span className="text-[10px] uppercase block text-orange-300/80">Shopee</span>
+                    <span className="font-bold font-mono text-sm">{currentMonthSummary.counts['Shopee']}</span>
+                  </div>
+                  <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-2.5 py-1.5 text-xs text-yellow-100">
+                    <span className="text-[10px] uppercase block text-yellow-200/80">Meli</span>
+                    <span className="font-bold font-mono text-sm">{currentMonthSummary.counts['Mercado Livre']}</span>
+                  </div>
+                  <div className="rounded-lg border border-slate-600/40 bg-slate-800/60 px-2.5 py-1.5 text-xs text-slate-200">
+                    <span className="text-[10px] uppercase block text-slate-400">TikTok</span>
+                    <span className="font-bold font-mono text-sm">{currentMonthSummary.counts['TikTok Shop']}</span>
+                  </div>
+                  <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-xs text-emerald-200">
+                    <span className="text-[10px] uppercase block text-emerald-300/80">SHEIN</span>
+                    <span className="font-bold font-mono text-sm">{currentMonthSummary.counts['SHEIN']}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void copyMonthlyToWhatsApp(currentMonthSummary)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/90 hover:bg-slate-700 px-3 py-2 text-xs font-semibold text-white transition shadow-sm cursor-pointer"
+                    title="Copiar relatório consolidado do mês para WhatsApp"
+                  >
+                    {copiedMonthly ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5 text-slate-300" />}
+                    <span>{copiedMonthly ? 'Copiado!' : 'WhatsApp do Mês'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => exportMonthlyPdf(currentMonthSummary)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-700/50 bg-emerald-950/40 hover:bg-emerald-900/40 px-3 py-2 text-xs font-semibold text-emerald-200 transition shadow-sm cursor-pointer"
+                    title="Baixar PDF do Mês"
+                  >
+                    <FileDown className="h-3.5 w-3.5 text-emerald-400" />
+                    <span>PDF do Mês</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedMonthKey(currentMonthSummary.monthKey);
+                      setTab('mensal');
+                    }}
+                    className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-2 text-xs font-semibold text-white transition shadow-sm cursor-pointer"
+                    title="Ver histórico e comparativo de todos os meses"
+                  >
+                    <span>Ver Meses</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Seção 2: Cards com os 4 Marketplaces + Total Geral da Data Selecionada */}
           <section className="grid grid-cols-2 gap-3 lg:grid-cols-5">
             {PLATFORMS.map((plat) => {
               const style = platformCardStyles[plat];
@@ -1030,8 +1399,283 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
           )}
 
         </>
-      ) : (
-        /* Seção Histórico de Lotes Salvos */
+      )}
+
+      {/* 3. Seção Totais por Mês (Consolidado Mensal com Atualização Automática) */}
+      {tab === 'mensal' && (
+        <div className="space-y-5">
+          {/* Header e Seleção de Mês */}
+          <section className="rounded-2xl border border-slate-800 bg-[#121824] p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
+              <div>
+                <div className="flex items-center gap-2 text-emerald-400">
+                  <BarChart3 className="h-5 w-5" />
+                  <span className="text-xs font-semibold uppercase tracking-wider">Consolidado Mensal</span>
+                </div>
+                <h2 className="text-xl font-bold text-white tracking-tight mt-1">
+                  Soma Total dos Pedidos por Mês
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Atualização automática em tempo real à medida que novos arquivos e pedidos são adicionados ao sistema.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void copyMonthlyToWhatsApp(currentMonthSummary)}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3.5 py-2 text-xs font-semibold text-white transition shadow-sm cursor-pointer"
+                >
+                  {copiedMonthly ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  <span>{copiedMonthly ? 'Copiado!' : 'Copiar WhatsApp do Mês'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => exportMonthlyPdf(currentMonthSummary)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition cursor-pointer"
+                >
+                  <FileDown className="h-4 w-4 text-emerald-400" />
+                  <span>PDF do Mês</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Seletor dos Meses Registrados */}
+            <div className="space-y-2">
+              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
+                Selecione o mês para visualizar a soma total:
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {monthlySummaries.map((m) => {
+                  const isSelected = m.monthKey === currentMonthSummary.monthKey;
+                  return (
+                    <button
+                      key={m.monthKey}
+                      type="button"
+                      onClick={() => setSelectedMonthKey(m.monthKey)}
+                      className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold transition cursor-pointer ${
+                        isSelected
+                          ? 'border border-emerald-500 bg-emerald-500/20 text-white shadow-sm'
+                          : 'border border-slate-800 bg-slate-950/70 text-slate-300 hover:border-slate-700 hover:text-white'
+                      }`}
+                    >
+                      <Calendar className={`h-3.5 w-3.5 ${isSelected ? 'text-emerald-400' : 'text-slate-500'}`} />
+                      <span className="capitalize">{m.label}</span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[11px] font-bold font-mono ${
+                          isSelected
+                            ? 'bg-emerald-500 text-slate-950'
+                            : 'bg-slate-800 text-slate-300'
+                        }`}
+                      >
+                        {m.totalOrders}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+
+          {/* Destaque do Mês Selecionado */}
+          <section className="rounded-2xl border border-slate-800 bg-[#121824] p-5 space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 border-b border-slate-800/80 pb-4">
+              <div>
+                <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400">
+                  Resumo Geral do Período
+                </span>
+                <h3 className="text-2xl font-extrabold text-white capitalize mt-0.5">
+                  {currentMonthSummary.label}
+                </h3>
+              </div>
+              <div className="text-xs text-slate-400 flex items-center gap-1.5">
+                <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>
+                  Soma consolidada em tempo real com{' '}
+                  <strong className="text-white font-mono">{currentMonthSummary.totalOrders}</strong> pedido(s)
+                </span>
+              </div>
+            </div>
+
+            {/* KPIs do Mês */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border border-emerald-900/60 bg-emerald-950/30 p-4 space-y-1">
+                <span className="text-xs font-semibold uppercase tracking-wider text-emerald-300">
+                  Soma Total no Mês
+                </span>
+                <div className="text-3xl sm:text-4xl font-extrabold font-mono text-white tracking-tight">
+                  {currentMonthSummary.totalOrders}
+                </div>
+                <div className="text-[11px] text-emerald-300/80">pedidos únicos computados no período</div>
+              </div>
+
+              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-1">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  Dias com Expedição
+                </span>
+                <div className="text-3xl sm:text-4xl font-extrabold font-mono text-white tracking-tight">
+                  {currentMonthSummary.daysCount}
+                </div>
+                <div className="text-[11px] text-slate-400">dia(s) operacionais registrados no mês</div>
+              </div>
+
+              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-1">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  Média Diária
+                </span>
+                <div className="text-3xl sm:text-4xl font-extrabold font-mono text-white tracking-tight">
+                  {currentMonthSummary.daysCount > 0
+                    ? (currentMonthSummary.totalOrders / currentMonthSummary.daysCount).toFixed(1)
+                    : '0'}
+                </div>
+                <div className="text-[11px] text-slate-400">pedidos por dia de envio no mês</div>
+              </div>
+            </div>
+
+            {/* Detalhamento por Marketplace no Mês */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                Distribuição por Marketplace em {currentMonthSummary.shortLabel}
+              </h4>
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                {PLATFORMS.map((plat) => {
+                  const style = platformCardStyles[plat];
+                  const count = currentMonthSummary.counts[plat] || 0;
+                  const pct =
+                    currentMonthSummary.totalOrders > 0
+                      ? Math.round((count / currentMonthSummary.totalOrders) * 100)
+                      : 0;
+                  return (
+                    <div
+                      key={plat}
+                      className={`rounded-xl border p-4 transition ${style.border} ${style.bg} ${style.text}`}
+                    >
+                      <div className="flex items-center justify-between text-xs font-medium uppercase tracking-wider">
+                        <span>{plat}</span>
+                        <span className="font-mono font-semibold">{pct}%</span>
+                      </div>
+                      <div className="mt-2 text-2xl sm:text-3xl font-bold font-mono tracking-tight">
+                        {count}
+                      </div>
+                      <div className="text-[11px] opacity-75 mt-0.5">pedidos no mês</div>
+
+                      {/* Barra de progresso proporcional */}
+                      <div className="mt-3 h-1.5 w-full rounded-full bg-slate-900/60 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-current transition-all duration-300"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Prévia da mensagem mensal formatada para o WhatsApp */}
+            <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-2">
+              <div className="flex items-center justify-between text-xs text-slate-400 font-medium">
+                <span>Mensagem de Fechamento Mensal para WhatsApp</span>
+                <button
+                  type="button"
+                  onClick={() => void copyMonthlyToWhatsApp(currentMonthSummary)}
+                  className="text-emerald-400 hover:text-emerald-300 font-semibold cursor-pointer"
+                >
+                  {copiedMonthly ? 'Copiado!' : 'Copiar'}
+                </button>
+              </div>
+              <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-slate-200 select-all p-3 rounded-lg bg-[#0B0F19] border border-slate-800/80">
+                {formatMonthlyWhatsAppMessage(currentMonthSummary)}
+              </pre>
+            </div>
+
+            {/* Tabela de Detalhamento Diário no Mês Selecionado */}
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-semibold text-white">
+                    Detalhamento Diário ({currentMonthSummary.dailyBreakdown.length} dias registrados)
+                  </h4>
+                  <p className="text-xs text-slate-400">
+                    Clique em qualquer data para abrir no painel diário ou adicionar novos pedidos.
+                  </p>
+                </div>
+              </div>
+
+              {currentMonthSummary.dailyBreakdown.length === 0 ? (
+                <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-8 text-center text-sm text-slate-400">
+                  Nenhum pedido registrado para este mês até o momento. Envie etiquetas na aba{' '}
+                  <button
+                    type="button"
+                    onClick={() => setTab('processar')}
+                    className="text-emerald-400 hover:text-emerald-300 font-semibold underline cursor-pointer"
+                  >
+                    Processar Etiquetas
+                  </button>{' '}
+                  para iniciar a contagem.
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950">
+                  <table className="w-full text-left text-xs">
+                    <thead className="text-[11px] uppercase text-slate-400 bg-slate-900/80 border-b border-slate-800">
+                      <tr>
+                        <th className="p-3">Data Operacional</th>
+                        <th className="p-3">Shopee</th>
+                        <th className="p-3">Mercado Livre</th>
+                        <th className="p-3">TikTok Shop</th>
+                        <th className="p-3">SHEIN</th>
+                        <th className="p-3">Total do Dia</th>
+                        <th className="p-3 text-right">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800">
+                      {currentMonthSummary.dailyBreakdown.map((row) => (
+                        <tr key={row.date} className="hover:bg-slate-900/50 transition">
+                          <td className="p-3 font-medium text-white whitespace-nowrap">
+                            <span className="font-mono text-emerald-400">{formatBrDate(row.date)}</span>
+                          </td>
+                          <td className="p-3 font-mono text-orange-300">
+                            {row.counts['Shopee'] || 0}
+                          </td>
+                          <td className="p-3 font-mono text-yellow-200">
+                            {row.counts['Mercado Livre'] || 0}
+                          </td>
+                          <td className="p-3 font-mono text-slate-300">
+                            {row.counts['TikTok Shop'] || 0}
+                          </td>
+                          <td className="p-3 font-mono text-emerald-300">
+                            {row.counts['SHEIN'] || 0}
+                          </td>
+                          <td className="p-3 font-mono font-bold text-white">
+                            {row.totalOrders} pedido(s)
+                          </td>
+                          <td className="p-3 text-right whitespace-nowrap">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDate(row.date);
+                                setTab('processar');
+                              }}
+                              className="inline-flex items-center gap-1 rounded bg-slate-800 hover:bg-slate-700 px-2.5 py-1 text-[11px] font-medium text-slate-200 transition cursor-pointer"
+                            >
+                              <span>Abrir dia</span>
+                              <ArrowRight className="h-3 w-3" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
+
+      {/* 4. Seção Histórico de Lotes Salvos */}
+      {tab === 'historico' && (
         <section className="rounded-2xl border border-slate-800 bg-[#121824] p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -1043,7 +1687,7 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
             <button
               type="button"
               onClick={() => void loadHistory()}
-              className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white transition"
+              className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white transition cursor-pointer"
             >
               Atualizar
             </button>
@@ -1114,14 +1758,27 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => exportPdf(batch)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800 transition cursor-pointer"
-                    >
-                      <FileDown className="h-3.5 w-3.5 text-emerald-400" />
-                      <span>Baixar PDF</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDate(batch.operational_date);
+                          setTab('processar');
+                        }}
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-xs text-slate-300 hover:text-white transition cursor-pointer"
+                        title="Ver no painel diário"
+                      >
+                        <span>Abrir</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => exportPdf(batch)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800 transition cursor-pointer"
+                      >
+                        <FileDown className="h-3.5 w-3.5 text-emerald-400" />
+                        <span>Baixar PDF</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div className="flex flex-wrap gap-1.5">

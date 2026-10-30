@@ -9,6 +9,9 @@ import {
   createEmptyCounts,
   ProcessedLabel,
   extractProductsFromLabel,
+  computeMonthlyTotals,
+  formatMonthlyWhatsAppMessage,
+  formatMonthName,
 } from '../src/utils/shippingReportEngine';
 
 console.log('=== INICIANDO SUÍTE DE TESTES OBRIGATÓRIOS (RELATÓRIO DE EXPEDIÇÃO) ===\n');
@@ -827,6 +830,68 @@ assert(
     tiktokPdfLabel.orderNumber === '999882506783685' &&
     tiktokPdfLabel.confidence === 'Detectado',
   '37. TikTok Shop: prioriza Pedido 999... e não confunde a chave fiscal de 44 dígitos'
+);
+
+// =========================================================================
+// TESTE 38: Cálculo e soma total dos pedidos de cada mês (computeMonthlyTotals)
+// =========================================================================
+const mockDailyTotals = {
+  '2026-10-14': { 'Shopee': 5, 'Mercado Livre': 3, 'TikTok Shop': 2, 'SHEIN': 4 },
+  '2026-10-15': { 'Shopee': 2, 'Mercado Livre': 4, 'TikTok Shop': 1, 'SHEIN': 1 },
+  '2026-09-20': { 'Shopee': 10, 'Mercado Livre': 5, 'TikTok Shop': 0, 'SHEIN': 0 },
+};
+const monthsCalculated = computeMonthlyTotals(mockDailyTotals, []);
+const octSummary = monthsCalculated.find((m) => m.monthKey === '2026-10');
+const sepSummary = monthsCalculated.find((m) => m.monthKey === '2026-09');
+
+assert(
+  octSummary !== undefined &&
+    octSummary.totalOrders === 22 &&
+    octSummary.counts['Shopee'] === 7 &&
+    octSummary.counts['Mercado Livre'] === 7 &&
+    octSummary.counts['TikTok Shop'] === 3 &&
+    octSummary.counts['SHEIN'] === 5 &&
+    octSummary.daysCount === 2 &&
+    sepSummary !== undefined &&
+    sepSummary.totalOrders === 15,
+  '38. computeMonthlyTotals: soma total dos pedidos de cada mês computada com exatidão por marketplace'
+);
+
+// =========================================================================
+// TESTE 39: Atualização automática em tempo real ao adicionar novos pedidos no mês
+// =========================================================================
+// Simula o usuário adicionando 8 novos pedidos no dia 2026-10-16 (sessão ativa em tempo real)
+const activeLiveSession = {
+  date: '2026-10-16',
+  counts: { 'Shopee': 3, 'Mercado Livre': 2, 'TikTok Shop': 1, 'SHEIN': 2 },
+  totalUniqueOrders: 8,
+};
+const updatedMonths = computeMonthlyTotals(mockDailyTotals, [], activeLiveSession);
+const updatedOct = updatedMonths.find((m) => m.monthKey === '2026-10');
+
+assert(
+  updatedOct !== undefined &&
+    updatedOct.totalOrders === 30 && // 22 anteriores + 8 novos
+    updatedOct.counts['Shopee'] === 10 &&
+    updatedOct.counts['Mercado Livre'] === 9 &&
+    updatedOct.counts['TikTok Shop'] === 4 &&
+    updatedOct.counts['SHEIN'] === 7 &&
+    updatedOct.daysCount === 3,
+  '39. Atualização automática em tempo real: ao adicionar novos pedidos no mês, a soma total atualiza instantaneamente (22 -> 30)'
+);
+
+// =========================================================================
+// TESTE 40: Formatação de relatório mensal para o WhatsApp
+// =========================================================================
+const whatsappMonthlyMsg = formatMonthlyWhatsAppMessage(updatedOct!);
+assert(
+  whatsappMonthlyMsg.includes('RELATÓRIO MENSAL DE EXPEDIÇÃO') &&
+    whatsappMonthlyMsg.includes('TOTAL DO MÊS: 30 pedido(s)') &&
+    whatsappMonthlyMsg.includes('Shopee: 10 pedido(s)') &&
+    whatsappMonthlyMsg.includes('Mercado Livre: 9 pedido(s)') &&
+    whatsappMonthlyMsg.includes('TikTok Shop: 4 pedido(s)') &&
+    whatsappMonthlyMsg.includes('SHEIN: 7 pedido(s)'),
+  '40. formatMonthlyWhatsAppMessage: gera mensagem de WhatsApp formatada com totais consolidados do mês'
 );
 
 console.log(`\n======================================================`);
