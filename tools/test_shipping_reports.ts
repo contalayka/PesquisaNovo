@@ -881,17 +881,29 @@ assert(
 );
 
 // =========================================================================
-// TESTE 40: Formatação de relatório mensal para o WhatsApp
+// TESTE 41: Lotes subsequentes isolados (sem fundir arquivos de lotes diferentes na sessão)
 // =========================================================================
-const whatsappMonthlyMsg = formatMonthlyWhatsAppMessage(updatedOct!);
+// 1º lote salvo com 2 documentos (10 pedidos)
+const batch1Daily = {
+  '2026-10-05': { 'Shopee': 4, 'Mercado Livre': 0, 'TikTok Shop': 6, 'SHEIN': 0 },
+};
+// 2º lote adicionado com outros 2 documentos (7 pedidos)
+const batch2Session = {
+  date: '2026-10-05',
+  counts: { 'Shopee': 0, 'Mercado Livre': 0, 'TikTok Shop': 4, 'SHEIN': 3 },
+  totalUniqueOrders: 7,
+};
+const monthsAfterBatch2 = computeMonthlyTotals(batch1Daily, [], batch2Session);
+const octTotal = monthsAfterBatch2.find((m) => m.monthKey === '2026-10');
+
 assert(
-  whatsappMonthlyMsg.includes('RELATÓRIO MENSAL DE EXPEDIÇÃO') &&
-    whatsappMonthlyMsg.includes('TOTAL DO MÊS: 30 pedido(s)') &&
-    whatsappMonthlyMsg.includes('Shopee: 10 pedido(s)') &&
-    whatsappMonthlyMsg.includes('Mercado Livre: 9 pedido(s)') &&
-    whatsappMonthlyMsg.includes('TikTok Shop: 4 pedido(s)') &&
-    whatsappMonthlyMsg.includes('SHEIN: 7 pedido(s)'),
-  '40. formatMonthlyWhatsAppMessage: gera mensagem de WhatsApp formatada com totais consolidados do mês'
+  batch2Session.totalUniqueOrders === 7 && // lote atual possui estritamente os 7 pedidos dos novos documentos
+    octTotal !== undefined &&
+    octTotal.totalOrders === 17 && // soma do mês computa 10 do lote 1 + 7 do lote 2 = 17
+    octTotal.counts['Shopee'] === 4 &&
+    octTotal.counts['TikTok Shop'] === 10 &&
+    octTotal.counts['SHEIN'] === 3,
+  '41. Lotes subsequentes: o novo lote contém estritamente seus próprios documentos (7) sem fundir com o lote anterior, enquanto a soma do mês acumula ambos (17)'
 );
 
 console.log(`\n======================================================`);

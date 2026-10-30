@@ -1125,21 +1125,16 @@ export function consolidateDailyOrders(
     }
   }
 
-  // 3. Incorpora sessão ativa (atualização em tempo real quando pedidos são lidos na tela)
+  // 3. Incorpora sessão ativa (atualização em tempo real somando novos pedidos aos já salvos)
   if (activeSession && activeSession.date && activeSession.totalUniqueOrders > 0) {
     const d = activeSession.date;
     const existing = map[d] || createEmptyCounts();
-    const existingTotal = Object.values(existing).reduce((x, y) => x + y, 0);
-    if (activeSession.totalUniqueOrders >= existingTotal) {
-      map[d] = { ...activeSession.counts };
-    } else {
-      map[d] = {
-        'Shopee': Math.max(existing['Shopee'], activeSession.counts['Shopee']),
-        'Mercado Livre': Math.max(existing['Mercado Livre'], activeSession.counts['Mercado Livre']),
-        'TikTok Shop': Math.max(existing['TikTok Shop'], activeSession.counts['TikTok Shop']),
-        'SHEIN': Math.max(existing['SHEIN'], activeSession.counts['SHEIN']),
-      };
-    }
+    map[d] = {
+      'Shopee': (existing['Shopee'] || 0) + (activeSession.counts['Shopee'] || 0),
+      'Mercado Livre': (existing['Mercado Livre'] || 0) + (activeSession.counts['Mercado Livre'] || 0),
+      'TikTok Shop': (existing['TikTok Shop'] || 0) + (activeSession.counts['TikTok Shop'] || 0),
+      'SHEIN': (existing['SHEIN'] || 0) + (activeSession.counts['SHEIN'] || 0),
+    };
   }
 
   return map;
