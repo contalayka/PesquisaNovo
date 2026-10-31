@@ -50,6 +50,8 @@ export interface Product {
   image: string;
   status: ProductStatus;
   is_new?: boolean;
+  not_in_catalog?: boolean;
+  catalog_missing_since?: string;
   sku?: string;
   weight?: number | string;
   package_length?: number | string;

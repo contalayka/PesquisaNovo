@@ -25,6 +25,7 @@ import {
   ChevronDown,
   TrendingUp,
   TrendingDown,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface ProductTableRowProps {
@@ -36,6 +37,7 @@ interface ProductTableRowProps {
   onOpenDetails?: (product: Product) => void;
   onDismissNew?: (productId: string) => void;
   onUpdateStatus?: (productId: string, status: ProductStatus) => void;
+  onToggleNotInCatalog?: (productId: string, notInCatalog: boolean) => void;
 }
 
 const getStatusBadge = (status: ProductStatus) => {
@@ -81,6 +83,7 @@ const ProductTableRow = React.memo<ProductTableRowProps>(
     onOpenDetails,
     onDismissNew,
     onUpdateStatus,
+    onToggleNotInCatalog,
   }) => {
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [showMenu, setShowMenu] = useState(false);
@@ -105,6 +108,8 @@ const ProductTableRow = React.memo<ProductTableRowProps>(
         className={`group transition-colors ${
           isSelected
             ? 'bg-blue-950/30'
+            : product.not_in_catalog
+            ? 'bg-amber-950/20 hover:bg-amber-950/30 border-l-2 border-l-amber-500'
             : product.is_new
             ? 'bg-blue-950/15 hover:bg-slate-800/40'
             : 'hover:bg-slate-800/30'
@@ -135,14 +140,23 @@ const ProductTableRow = React.memo<ProductTableRowProps>(
         {/* 3. Produto */}
         <td className="py-2.5 px-3">
           <div className="min-w-0 max-w-sm">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span
                 onClick={() => (onOpenDetails ? onOpenDetails(product) : onOpenResearch(product))}
                 title={product.name}
-                className="font-medium text-slate-100 hover:text-blue-400 transition cursor-pointer truncate block"
+                className="font-medium text-slate-100 hover:text-blue-400 transition cursor-pointer truncate max-w-xs block"
               >
                 {product.name}
               </span>
+              {product.not_in_catalog && (
+                <span
+                  className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-950/90 text-amber-300 border border-amber-500/80 shadow-xs shrink-0"
+                  title="Este produto não consta mais na lista do fornecedor / site (destacado)"
+                >
+                  <AlertTriangle className="w-2.5 h-2.5 text-amber-400" />
+                  <span>FORA DO SITE</span>
+                </span>
+              )}
               {product.is_new && (
                 <span className="inline-block px-1.5 py-0.2 rounded text-[9px] font-bold bg-blue-600 text-white shrink-0">
                   NOVO
@@ -395,6 +409,22 @@ const ProductTableRow = React.memo<ProductTableRowProps>(
                         <span>Remover marcação Novo</span>
                       </button>
                     )}
+
+                    {onToggleNotInCatalog && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onToggleNotInCatalog(product.id, !product.not_in_catalog);
+                          setShowMenu(false);
+                        }}
+                        className={`w-full px-3 py-1.5 hover:bg-slate-800 flex items-center gap-2 border-t border-slate-800 text-left ${
+                          product.not_in_catalog ? 'text-emerald-300' : 'text-amber-300'
+                        }`}
+                      >
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <span>{product.not_in_catalog ? 'Desmarcar "Fora do Site"' : 'Marcar "Fora do Site"'}</span>
+                      </button>
+                    )}
                   </div>
                 </>
               )}
@@ -413,7 +443,8 @@ const ProductTableRow = React.memo<ProductTableRowProps>(
       prevProps.onOpenSimulator === nextProps.onOpenSimulator &&
       prevProps.onOpenDetails === nextProps.onOpenDetails &&
       prevProps.onDismissNew === nextProps.onDismissNew &&
-      prevProps.onUpdateStatus === nextProps.onUpdateStatus
+      prevProps.onUpdateStatus === nextProps.onUpdateStatus &&
+      prevProps.onToggleNotInCatalog === nextProps.onToggleNotInCatalog
     );
   }
 );
@@ -430,6 +461,7 @@ interface ProductTableViewProps {
   onOpenDetails?: (product: Product) => void;
   onDismissNew?: (productId: string) => void;
   onUpdateStatus?: (productId: string, status: ProductStatus) => void;
+  onToggleNotInCatalog?: (productId: string, notInCatalog: boolean) => void;
   sortBy?: string;
   onSortChange?: (sort: any) => void;
 }
@@ -445,6 +477,7 @@ export const ProductTableView = React.memo<ProductTableViewProps>(
     onOpenDetails,
     onDismissNew,
     onUpdateStatus,
+    onToggleNotInCatalog,
     sortBy,
     onSortChange,
   }) => {
@@ -520,6 +553,8 @@ export const ProductTableView = React.memo<ProductTableViewProps>(
                   className={`p-2.5 rounded-lg border flex flex-col justify-between transition min-w-0 w-full ${
                     isSelected
                       ? 'bg-[#151d2d] border-blue-500 ring-1 ring-blue-500'
+                      : product.not_in_catalog
+                      ? 'bg-[#17131d] border-amber-500/80 ring-1 ring-amber-500/30'
                       : product.is_new
                       ? 'bg-[#121824] border-blue-500/50'
                       : 'bg-[#121824] border-slate-800'
@@ -543,7 +578,12 @@ export const ProductTableView = React.memo<ProductTableViewProps>(
                           aria-label={`Selecionar ${product.name}`}
                         />
                       </div>
-                      {product.is_new && (
+                      {product.not_in_catalog && (
+                        <span className="absolute top-1 right-1 z-10 px-1 py-0.2 rounded text-[8px] font-bold bg-amber-950/90 text-amber-300 border border-amber-500/70 shrink-0">
+                          FORA DO SITE
+                        </span>
+                      )}
+                      {product.is_new && !product.not_in_catalog && (
                         <span className="absolute top-1 right-1 z-10 px-1 py-0.2 rounded text-[8px] font-bold bg-blue-600 text-white shrink-0">
                           NOVO
                         </span>
@@ -920,6 +960,7 @@ export const ProductTableView = React.memo<ProductTableViewProps>(
                       onOpenDetails={onOpenDetails}
                       onDismissNew={onDismissNew}
                       onUpdateStatus={onUpdateStatus}
+                      onToggleNotInCatalog={onToggleNotInCatalog}
                     />
                   );
                 })}

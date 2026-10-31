@@ -63,6 +63,8 @@ import { SettingsView } from './components/SettingsView';
 import { InternalInventoryView, InternalItem } from './components/InternalInventoryView';
 import { VideoFinderView } from './components/VideoFinderView';
 import { WhatsAppReportView } from './components/WhatsAppReportView';
+import { MissingProductsModal } from './components/MissingProductsModal';
+import { CatalogReconciliationBanner } from './components/CatalogReconciliationBanner';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import { useDevice } from './utils/device';
 import {
@@ -83,6 +85,7 @@ import {
   ArrowUp,
   RefreshCw,
   Check,
+  AlertTriangle,
 } from 'lucide-react';
 
 const STORAGE_KEY = 'minha_loja_produtos_pesquisa_v2';
@@ -249,6 +252,7 @@ export default function App() {
     onlyNew: false,
     onlyWithRecords: false,
     onlyAvailable: false,
+    catalogStatus: 'all',
   });
 
   const [isFiltersDrawerOpen, setIsFiltersDrawerOpen] = useState(false);
@@ -260,6 +264,7 @@ export default function App() {
   const [showSimulatorModal, setShowSimulatorModal] = useState(false);
   const [showSupabaseModal, setShowSupabaseModal] = useState(false);
   const [showAddProductModal, setShowAddProductModal] = useState(false);
+  const [showMissingProductsModal, setShowMissingProductsModal] = useState(false);
   const [detectionPending, setDetectionPending] = useState<ColumnDetectionResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -569,14 +574,14 @@ export default function App() {
             }
           }
 
-          // 1. Detect only genuine newly created local drafts that aren't on Supabase yet
+          // 1. Detect any local products that aren't on Supabase yet and upload them so they are never lost
           const unsyncedToPush = (localList || []).filter(
-            (lp) => (lp as any)._isLocalDraft && !remoteIdSet.has(String(lp.id).trim())
+            (lp) => !remoteIdSet.has(String(lp.id).trim())
           );
 
           let pushedCount = 0;
           if (unsyncedToPush.length > 0) {
-            console.log(`Encontrados ${unsyncedToPush.length} rascunhos locais pendentes. Enviando para o Supabase...`);
+            console.log(`Encontrados ${unsyncedToPush.length} produtos locais pendentes. Enviando para o Supabase...`);
             const { error: pushErr } = await upsertProductsToSupabase(unsyncedToPush);
             if (!pushErr) {
               pushedCount = unsyncedToPush.length;
@@ -584,18 +589,24 @@ export default function App() {
                 normalizedData.push(pushed);
                 remoteIdSet.add(String(pushed.id).trim());
               }
-              console.log(`${pushedCount} rascunhos sincronizados com sucesso na nuvem!`);
+              console.log(`${pushedCount} produtos sincronizados com sucesso na nuvem!`);
             } else {
-              console.error('Erro ao enviar rascunhos pendentes para o Supabase:', pushErr);
+              console.error('Erro ao enviar produtos pendentes para o Supabase:', pushErr);
             }
           }
 
-          // 2. Reconcile: Supabase cloud is the primary source of truth for products, is_new flag, and status
+          // 2. Reconcile: Supabase cloud is the source of truth, but local not_in_catalog and local products are preserved
           const mergedList: Product[] = [];
 
           for (const remoteProd of normalizedData) {
             const remoteId = String(remoteProd.id).trim();
             const localProd = (localList || []).find((lp) => String(lp.id).trim() === remoteId);
+
+            // Crucial: preserve local not_in_catalog flag if local has it marked!
+            const isLocalNotInCatalog = Boolean(localProd?.not_in_catalog);
+            const isRemoteNotInCatalog = Boolean(remoteProd.not_in_catalog);
+            const resolvedNotInCatalog = isRemoteNotInCatalog || isLocalNotInCatalog;
+            const resolvedMissingSince = remoteProd.catalog_missing_since || localProd?.catalog_missing_since;
 
             mergedList.push({
               ...localProd,
@@ -615,6 +626,8 @@ export default function App() {
                   : (localProd?.cost ?? 0),
               name: remoteProd.name || localProd?.name || `Produto #${remoteProd.id}`,
               image: remoteProd.image !== undefined ? remoteProd.image : (localProd?.image || null),
+              not_in_catalog: resolvedNotInCatalog,
+              catalog_missing_since: resolvedMissingSince,
               research_records:
                 remoteProd.research_records !== undefined
                   ? remoteProd.research_records
@@ -623,15 +636,16 @@ export default function App() {
             });
           }
 
-          // 3. Keep only explicit local drafts if any failed to push
+          // 3. Keep ALL local products that aren't on remote yet (NEVER discard user's products!)
           for (const localProd of localList || []) {
             const localId = String(localProd.id).trim();
-            if ((localProd as any)._isLocalDraft && !remoteIdSet.has(localId)) {
+            if (!remoteIdSet.has(localId)) {
               mergedList.push(localProd);
             }
           }
 
           // Update local state and persist to local storage for offline use
+          productsRef.current = mergedList;
           setProducts(mergedList);
           try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(mergedList));
@@ -750,6 +764,12 @@ export default function App() {
                 ? { cost: Number(payload.new.cost) }
                 : {}),
               ...(payload.new.image !== undefined ? { image: payload.new.image || null } : {}),
+              ...(payload.new.not_in_catalog !== undefined && payload.new.not_in_catalog !== null
+                ? { not_in_catalog: Boolean(payload.new.not_in_catalog) }
+                : {}),
+              ...(payload.new.catalog_missing_since !== undefined
+                ? { catalog_missing_since: payload.new.catalog_missing_since }
+                : {}),
               updated_at: payload.new.updated_at || new Date().toISOString(),
             };
 
@@ -774,6 +794,8 @@ export default function App() {
               image: payload.new.image || null,
               status: (payload.new.status as ProductStatus) || 'Pendente',
               is_new: payload.new.is_new !== undefined ? Boolean(payload.new.is_new) : true,
+              not_in_catalog: Boolean(payload.new.not_in_catalog),
+              catalog_missing_since: payload.new.catalog_missing_since || undefined,
               research_records: [],
               created_at: payload.new.created_at || new Date().toISOString(),
               updated_at: payload.new.updated_at || new Date().toISOString(),
@@ -1063,7 +1085,8 @@ export default function App() {
     imageCol: string,
     availableCol?: string,
     idCol?: string,
-    statusCol?: string
+    statusCol?: string,
+    options?: { markMissingAsNotInCatalog?: boolean }
   ) => {
     if (!detectionPending) return;
     const importedRows = convertRowsToProducts(
@@ -1097,10 +1120,14 @@ export default function App() {
       newCount: importedNewCount,
       updatedCount,
       preservedCount,
+      missingCount,
+      reappearedCount,
       newProducts,
       updatedProducts,
-    } = mergeCatalogs(products, importedRows);
+      missingProducts,
+    } = mergeCatalogs(products, importedRows, options);
 
+    productsRef.current = mergedProducts;
     setProducts(mergedProducts);
     try {
       localStorage.setItem(LAST_IMPORT_IDS_KEY, JSON.stringify(newProducts.map((p) => String(p.id))));
@@ -1116,43 +1143,30 @@ export default function App() {
     setCurrentSidebarSection('produtos');
 
     if (products.length > 0) {
+      let mainMsg = '';
       if (importedNewCount > 0 && updatedCount > 0) {
-        setSuccessMessage(
-          `Importação concluída: ${importedNewCount} novos produtos adicionados e ${updatedCount} valores atualizados com sucesso.`
-        );
-        addToast(
-          'Catálogo Atualizado',
-          `${importedNewCount} novos produtos adicionados e ${updatedCount} valores atualizados. Pesquisas e mídias foram mantidas intactas.`,
-          'success'
-        );
+        mainMsg = `${importedNewCount} novos produtos adicionados e ${updatedCount} valores atualizados com sucesso.`;
       } else if (updatedCount > 0) {
-        setSuccessMessage(
-          `${updatedCount} produto(s) tiveram seus valores atualizados conforme a nova planilha. Pesquisas e vídeos foram 100% preservados.`
-        );
-        addToast(
-          'Valores Atualizados',
-          `${updatedCount} produto(s) tiveram seus valores atualizados com sucesso (nenhum produto duplicado).`,
-          'success'
-        );
+        mainMsg = `${updatedCount} produto(s) tiveram seus valores atualizados.`;
       } else if (importedNewCount > 0) {
-        setSuccessMessage(
-          `Importação concluída: ${importedNewCount} novos produtos adicionados ao catálogo.`
-        );
-        addToast(
-          'Novos Produtos Adicionados',
-          `${importedNewCount} novos produtos cadastrados com sucesso.`,
-          'success'
-        );
+        mainMsg = `${importedNewCount} novos produtos adicionados ao catálogo.`;
       } else {
-        setSuccessMessage(
-          `Todos os ${preservedCount} produtos já estavam com os valores atualizados no catálogo.`
-        );
-        addToast(
-          'Planilha Verificada',
-          `Nenhuma alteração de valor detectada. Todos os ${preservedCount} produtos permanecem atualizados.`,
-          'info'
-        );
+        mainMsg = `Catálogo sincronizado com a lista do fornecedor.`;
       }
+
+      if (missingCount > 0) {
+        mainMsg += ` (${missingCount} produtos não listados foram mantidos em destaque como "Fora do Site")`;
+      }
+      if (reappearedCount > 0) {
+        mainMsg += ` (${reappearedCount} produtos voltaram ao site)`;
+      }
+
+      setSuccessMessage(`Importação concluída: ${mainMsg}`);
+      addToast(
+        'Catálogo Atualizado',
+        mainMsg,
+        'success'
+      );
     } else {
       setSuccessMessage(`${mergedProducts.length} produtos carregados com sucesso!`);
       addToast(
@@ -1164,7 +1178,7 @@ export default function App() {
 
     if (isSupabaseConfigured()) {
       setIsLoading(true);
-      const toSync = [...newProducts, ...updatedProducts];
+      const toSync = [...newProducts, ...updatedProducts, ...missingProducts];
       if (toSync.length > 0) {
         await upsertProductsToSupabase(toSync);
       }
@@ -1637,6 +1651,122 @@ export default function App() {
     );
   }, [products, addToast]);
 
+  // Toggle "Fora do Site" tag for a single product
+  const handleToggleNotInCatalog = useCallback((productId: string, notInCatalog: boolean) => {
+    setProducts((prev) => {
+      const next = prev.map((p) => {
+        if (String(p.id) === String(productId)) {
+          return {
+            ...p,
+            not_in_catalog: notInCatalog,
+            catalog_missing_since: notInCatalog ? (p.catalog_missing_since || new Date().toISOString()) : undefined,
+            updated_at: new Date().toISOString(),
+          };
+        }
+        return p;
+      });
+
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch (e) {
+        console.error('Falha ao salvar no localStorage', e);
+      }
+      return next;
+    });
+
+    const target = products.find((p) => String(p.id) === String(productId));
+    if (target && isSupabaseConfigured()) {
+      upsertProductsToSupabase([{ ...target, not_in_catalog: notInCatalog }]).catch((err) =>
+        console.warn('Erro ao atualizar not_in_catalog no Supabase:', err)
+      );
+    }
+
+    addToast(
+      notInCatalog ? 'Produto Fora do Site' : 'Produto no Site',
+      notInCatalog
+        ? 'Produto marcado em destaque como fora da lista do fornecedor.'
+        : 'Produto marcado como presente no site do fornecedor.',
+      'info'
+    );
+  }, [products, addToast]);
+
+  // Batch toggle "Fora do Site" for selected products
+  const handleBatchToggleNotInCatalog = useCallback(async (notInCatalog: boolean) => {
+    if (selectedProductIds.length === 0) return;
+    const idSet = new Set(selectedProductIds.map(String));
+
+    setProducts((prev) => {
+      const next = prev.map((p) => {
+        if (idSet.has(String(p.id))) {
+          return {
+            ...p,
+            not_in_catalog: notInCatalog,
+            catalog_missing_since: notInCatalog ? (p.catalog_missing_since || new Date().toISOString()) : undefined,
+            updated_at: new Date().toISOString(),
+          };
+        }
+        return p;
+      });
+
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch (e) {
+        console.error('Falha ao salvar no localStorage', e);
+      }
+      return next;
+    });
+
+    if (isSupabaseConfigured()) {
+      try {
+        const toSync = products
+          .filter((p) => idSet.has(String(p.id)))
+          .map((p) => ({ ...p, not_in_catalog: notInCatalog }));
+        await upsertProductsToSupabase(toSync);
+      } catch (err) {
+        console.warn('Erro ao atualizar lote no Supabase:', err);
+      }
+    }
+
+    addToast(
+      'Etiquetas Atualizadas',
+      `${selectedProductIds.length} produto(s) ${notInCatalog ? 'marcados em destaque como "Fora do Site"' : 'marcados como presentes no site'}.`,
+      'success'
+    );
+    setSelectedProductIds([]);
+  }, [selectedProductIds, products, addToast]);
+
+  // Delete products (used in modal audit or batch actions)
+  const handleDeleteProducts = useCallback(async (productIds: string[]) => {
+    if (!productIds || productIds.length === 0) return;
+    const idSet = new Set(productIds.map(String));
+
+    setProducts((prev) => {
+      const next = prev.filter((p) => !idSet.has(String(p.id)));
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch (e) {
+        console.error('Falha ao salvar no localStorage', e);
+      }
+      return next;
+    });
+
+    setSelectedProductIds((prev) => prev.filter((id) => !idSet.has(String(id))));
+
+    if (isSupabaseConfigured()) {
+      try {
+        await deleteProductsFromSupabase(productIds);
+      } catch (e) {
+        console.warn('Erro ao deletar produtos no Supabase:', e);
+      }
+    }
+
+    addToast(
+      'Produtos Excluídos',
+      `${productIds.length} produto(s) excluído(s) do catálogo com sucesso.`,
+      'info'
+    );
+  }, [addToast]);
+
   // Undo / Rollback last import operation or remove all newly imported items
   const handleUndoLastImport = async () => {
     let lastImportIds: string[] = [];
@@ -1783,6 +1913,14 @@ export default function App() {
     return products.filter((p) => p.is_new).length;
   }, [products]);
 
+  const notInCatalogCount = useMemo(() => {
+    return products.filter((p) => p.not_in_catalog).length;
+  }, [products]);
+
+  const inCatalogCount = useMemo(() => {
+    return products.filter((p) => !p.not_in_catalog).length;
+  }, [products]);
+
   const selectedNewCount = useMemo(() => {
     if (selectedProductIds.length === 0) return 0;
     const selectedSet = new Set(selectedProductIds.map(String));
@@ -1826,6 +1964,10 @@ export default function App() {
         const normalizedStatus = (p.status as any) === 'Pesquisando' ? 'Pendente' : p.status;
         if (normalizedStatus !== advancedFilters.status) return false;
       }
+
+      // Catalog status (presença no site do fornecedor)
+      if (advancedFilters.catalogStatus === 'in_catalog' && p.not_in_catalog) return false;
+      if (advancedFilters.catalogStatus === 'not_in_catalog' && !p.not_in_catalog) return false;
 
       // Only New
       if (advancedFilters.onlyNew && !p.is_new) return false;
@@ -2165,7 +2307,7 @@ export default function App() {
                     }
                   : null
               }
-              onConfirmImport={(mappings, mode) => {
+              onConfirmImport={(mappings, mode, options) => {
                 if (detectionPending) {
                   if (mode === 'replace') {
                     if (products.length > 0) {
@@ -2204,7 +2346,8 @@ export default function App() {
                       mappings.image,
                       mappings.available,
                       mappings.id,
-                      mappings.status
+                      mappings.status,
+                      options
                     );
                   }
                 }
@@ -2371,6 +2514,25 @@ export default function App() {
                     )}
                   </div>
 
+                  {/* Banner de Conciliação de Catálogo (Comparativo Projeto vs Site Fornecedor) */}
+                  <CatalogReconciliationBanner
+                    totalCount={totalCount}
+                    inCatalogCount={inCatalogCount}
+                    notInCatalogCount={notInCatalogCount}
+                    currentCatalogStatusFilter={advancedFilters.catalogStatus}
+                    onFilterNotInCatalog={() =>
+                      setAdvancedFilters((prev) => ({ ...prev, catalogStatus: 'not_in_catalog' }))
+                    }
+                    onFilterInCatalog={() =>
+                      setAdvancedFilters((prev) => ({ ...prev, catalogStatus: 'in_catalog' }))
+                    }
+                    onFilterAll={() =>
+                      setAdvancedFilters((prev) => ({ ...prev, catalogStatus: 'all' }))
+                    }
+                    onOpenAuditModal={() => setShowMissingProductsModal(true)}
+                    onNavigateToImport={() => setCurrentSidebarSection('importar')}
+                  />
+
                   {/* 4. BARRA DE PESQUISA & ORDENAÇÃO */}
                   <div className="bg-[#121824] rounded-lg border border-slate-800 p-3 flex flex-col sm:flex-row items-center gap-2.5">
                     <div className="relative flex-1 w-full">
@@ -2491,6 +2653,32 @@ export default function App() {
                         </button>
                       </div>
                     )}
+
+                    {/* Quick Tab: Fora do Site (ausentes da lista do fornecedor) */}
+                    {notInCatalogCount > 0 && (
+                      <div className="flex items-center gap-1 ml-1">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setAdvancedFilters((prev) => ({
+                              ...prev,
+                              catalogStatus: prev.catalogStatus === 'not_in_catalog' ? 'all' : 'not_in_catalog',
+                            }))
+                          }
+                          className={`px-3 py-1 rounded text-xs font-medium transition whitespace-nowrap flex items-center gap-1.5 border ${
+                            advancedFilters.catalogStatus === 'not_in_catalog'
+                              ? 'bg-amber-500 text-slate-950 font-bold border-amber-400 shadow-md shadow-amber-500/20'
+                              : 'bg-amber-950/40 border-amber-700/60 text-amber-300 hover:bg-amber-900/40'
+                          }`}
+                        >
+                          <AlertTriangle className="w-3 h-3 text-amber-400" />
+                          <span>Fora do Site</span>
+                          <span className="text-[10px] font-mono tabular-nums font-bold px-1.5 py-0.2 rounded bg-amber-500/30 text-amber-200">
+                            {notInCatalogCount}
+                          </span>
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* 6. RESUMO DE MÉTRICAS */}
@@ -2554,6 +2742,26 @@ export default function App() {
                           className="px-2.5 py-1 rounded bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 font-medium border border-emerald-800/60 transition"
                         >
                           <span>Encontrado ({selectedProductIds.length})</span>
+                        </button>
+
+                        {/* Batch Action: Marcar Fora do Site / No Site */}
+                        <button
+                          type="button"
+                          onClick={() => handleBatchToggleNotInCatalog(true)}
+                          className="px-2.5 py-1 rounded bg-amber-950/60 hover:bg-amber-900/60 text-amber-300 font-medium border border-amber-800/60 transition flex items-center gap-1"
+                          title="Marcar produtos selecionados como fora da lista do fornecedor"
+                        >
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Fora do Site ({selectedProductIds.length})</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleBatchToggleNotInCatalog(false)}
+                          className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium border border-slate-700 transition"
+                          title="Remover marcação Fora do Site (produtos presentes no fornecedor)"
+                        >
+                          <span>No Site ({selectedProductIds.length})</span>
                         </button>
 
                         <button
@@ -2621,6 +2829,38 @@ export default function App() {
                       >
                         Ver todos ({totalCount})
                       </button>
+                    </div>
+                  )}
+
+                  {/* Banner de Identificação Clara: Produtos Fora do Site */}
+                  {advancedFilters.catalogStatus === 'not_in_catalog' && (
+                    <div className="flex items-center justify-between p-3.5 rounded-lg bg-amber-950/40 border border-amber-600/60 text-xs flex-wrap gap-2 shadow-xs">
+                      <div className="flex items-center gap-2.5">
+                        <span className="flex items-center justify-center w-7 h-7 rounded-full bg-amber-900/80 text-amber-300 border border-amber-500/60 shrink-0">
+                          <AlertTriangle className="w-4 h-4 text-amber-400" />
+                        </span>
+                        <div>
+                          <div className="font-bold text-amber-300 flex items-center gap-2 flex-wrap text-sm">
+                            <span>Produtos Fora do Site do Fornecedor</span>
+                            <span className="text-xs font-mono font-bold text-amber-200 bg-amber-900/60 px-2 py-0.5 rounded border border-amber-600/60">
+                              {notInCatalogCount} produto(s)
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-amber-100/80 mt-0.5 leading-relaxed">
+                            Estes produtos não aparecem mais na lista atual do fornecedor (que conta com 443 produtos).
+                            Eles continuam 100% salvos no catálogo com todos os dados, custos, links e mídias preservadas.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setAdvancedFilters((prev) => ({ ...prev, catalogStatus: 'all' }))}
+                          className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs border border-slate-700 transition font-medium"
+                        >
+                          Ver todos ({totalCount})
+                        </button>
+                      </div>
                     </div>
                   )}
 
@@ -2775,6 +3015,7 @@ export default function App() {
                           onOpenDetails={handleOpenDetails}
                           onDismissNew={handleDismissNew}
                           onUpdateStatus={handleUpdateStatus}
+                          onToggleNotInCatalog={handleToggleNotInCatalog}
                         />
                       ))}
                     </div>
@@ -2790,6 +3031,7 @@ export default function App() {
                       onOpenDetails={handleOpenDetails}
                       onDismissNew={handleDismissNew}
                       onUpdateStatus={handleUpdateStatus}
+                      onToggleNotInCatalog={handleToggleNotInCatalog}
                       sortBy={sortBy}
                       onSortChange={handleSortChange}
                     />
@@ -2878,6 +3120,19 @@ export default function App() {
           onAddProduct={handleAddProduct}
         />
       )}
+
+      {/* Missing Products Audit Modal (471 vs 443 Produtos Fora do Site) */}
+      <MissingProductsModal
+        isOpen={showMissingProductsModal}
+        onClose={() => setShowMissingProductsModal(false)}
+        products={products}
+        onToggleNotInCatalog={handleToggleNotInCatalog}
+        onBatchToggleNotInCatalog={handleBatchToggleNotInCatalog}
+        onUpdateStatus={handleUpdateStatus}
+        onDeleteProducts={handleDeleteProducts}
+        onOpenResearch={handleOpenResearch}
+        onOpenSimulator={handleOpenSimulator}
+      />
 
       {/* Toast Notifications Overlay */}
       <ToastContainer toasts={toasts} onDismiss={removeToast} />

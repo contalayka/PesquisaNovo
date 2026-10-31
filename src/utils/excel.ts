@@ -1098,14 +1098,20 @@ export function convertRowsToProducts(
  */
 export function mergeCatalogs(
   existingProducts: Product[],
-  importedProducts: Product[]
+  importedProducts: Product[],
+  options?: {
+    markMissingAsNotInCatalog?: boolean;
+  }
 ): {
   merged: Product[];
   newCount: number;
   updatedCount: number;
   preservedCount: number;
+  missingCount: number;
+  reappearedCount: number;
   newProducts: Product[];
   updatedProducts: Product[];
+  missingProducts: Product[];
 } {
   const existingById = new Map<string, Product>();
   const existingBySku = new Map<string, Product>();
@@ -1133,10 +1139,14 @@ export function mergeCatalogs(
   let newCount = 0;
   let updatedCount = 0;
   let preservedCount = 0;
+  let missingCount = 0;
+  let reappearedCount = 0;
   const newProducts: Product[] = [];
   const updatedProducts: Product[] = [];
+  const missingProducts: Product[] = [];
   const mergedList: Product[] = [...existingProducts];
   const updatedIdsInRun = new Set<string>();
+  const matchedExistingIds = new Set<string>();
 
   for (const imported of importedProducts) {
     const importedIdStr = imported.id ? String(imported.id).trim() : '';
@@ -1167,35 +1177,41 @@ export function mergeCatalogs(
 
     // 5. Se o produto já existe no projeto:
     if (existing) {
+      matchedExistingIds.add(existing.id);
       const priceHasChanged = isCostDifferent(existing.cost, imported.cost);
+      const wasNotInCatalog = Boolean(existing.not_in_catalog);
 
-      if (priceHasChanged && !updatedIdsInRun.has(existing.id)) {
-        // "oque tem que acontecer é apenas a alteração dos valor quando ja tem o produto."
-        // Atualiza APENAS o custo/valor do produto e data de atualização.
-        // Registra o histórico mostrando com precisão se o valor subiu ou diminuiu.
+      if ((priceHasChanged || wasNotInCatalog) && !updatedIdsInRun.has(existing.id)) {
+        // Atualiza o custo/valor do produto e data de atualização.
+        // Se o produto estava marcado como 'Fora do Site' e reapareceu na lista, reativa-o!
         const oldNum = parseNumericCost(existing.cost);
         const newNum = parseNumericCost(imported.cost);
         const diff = (oldNum !== null && newNum !== null) ? Number((newNum - oldNum).toFixed(2)) : 0;
         const percentDiff = (oldNum && oldNum > 0 && diff !== 0) ? Math.round((diff / oldNum) * 100) : 0;
         const changeType: 'subiu' | 'diminuiu' | 'inalterado' = diff > 0 ? 'subiu' : diff < 0 ? 'diminuiu' : 'inalterado';
 
-        const historyRecord: PriceHistoryRecord = {
-          id: `ph_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-          date: new Date().toISOString(),
-          oldCost: existing.cost,
-          newCost: imported.cost,
-          diff,
-          percentDiff,
-          type: changeType,
-          source: 'planilha',
-          note: diff > 0 ? `Subiu +${formatCurrency(diff)}` : `Diminuiu -${formatCurrency(Math.abs(diff))}`,
-        };
+        let newHistory = existing.price_history || [];
+        if (priceHasChanged) {
+          const historyRecord: PriceHistoryRecord = {
+            id: `ph_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+            date: new Date().toISOString(),
+            oldCost: existing.cost,
+            newCost: imported.cost,
+            diff,
+            percentDiff,
+            type: changeType,
+            source: 'planilha',
+            note: diff > 0 ? `Subiu +${formatCurrency(diff)}` : `Diminuiu -${formatCurrency(Math.abs(diff))}`,
+          };
+          newHistory = [historyRecord, ...newHistory];
+        }
 
         const updatedProd: Product = {
           ...existing,
           cost: imported.cost,
+          not_in_catalog: false, // Produto está presente na lista do site!
           updated_at: new Date().toISOString(),
-          price_history: [historyRecord, ...(existing.price_history || [])],
+          price_history: newHistory,
         };
 
         const targetIdx = mergedList.findIndex((p) => p.id === existing!.id);
@@ -1203,14 +1219,14 @@ export function mergeCatalogs(
           mergedList[targetIdx] = updatedProd;
         }
 
-        // Atualiza os mapas de índice para consultas seguintes no mesmo lote
         if (updatedProd.id) existingById.set(String(updatedProd.id).trim(), updatedProd);
         if (importedSku) existingBySku.set(importedSku, updatedProd);
         if (importedBarcode) existingByBarcode.set(importedBarcode, updatedProd);
         if (importedNormName) existingByName.set(importedNormName, updatedProd);
 
         updatedIdsInRun.add(existing.id);
-        updatedCount++;
+        if (priceHasChanged) updatedCount++;
+        if (wasNotInCatalog) reappearedCount++;
         updatedProducts.push(updatedProd);
       } else {
         preservedCount++;
@@ -1221,6 +1237,7 @@ export function mergeCatalogs(
       const newProd: Product = {
         ...imported,
         is_new: true,
+        not_in_catalog: false,
         status: 'Pendente',
         research_records: [],
       };
@@ -1242,13 +1259,40 @@ export function mergeCatalogs(
     }
   }
 
+  // 7. Identificar produtos que NÃO constam na lista importada (ex: site só tem 443 produtos)
+  // Mantém TODOS no catálogo ("deixar") e marca em destaque ("marcado em destaque")
+  const shouldMarkMissing = options?.markMissingAsNotInCatalog !== false;
+  if (shouldMarkMissing) {
+    for (let i = 0; i < mergedList.length; i++) {
+      const p = mergedList[i];
+      if (!matchedExistingIds.has(p.id) && !newProducts.some((np) => np.id === p.id)) {
+        if (!p.not_in_catalog) {
+          missingCount++;
+          const flagged: Product = {
+            ...p,
+            not_in_catalog: true,
+            catalog_missing_since: p.catalog_missing_since || new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          mergedList[i] = flagged;
+          missingProducts.push(flagged);
+        } else {
+          missingProducts.push(p);
+        }
+      }
+    }
+  }
+
   return {
     merged: mergedList,
     newCount,
     updatedCount,
     preservedCount,
+    missingCount,
+    reappearedCount,
     newProducts,
     updatedProducts,
+    missingProducts,
   };
 }
 

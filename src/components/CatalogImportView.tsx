@@ -16,6 +16,7 @@ import {
   RefreshCw,
   AlertCircle,
   ShieldCheck,
+  AlertTriangle,
 } from 'lucide-react';
 import { Product } from '../types';
 import { ProductImage } from './ProductImage';
@@ -49,7 +50,7 @@ interface CatalogImportViewProps {
   onFileSelect: (file: File) => void;
   parseResult: ExcelParseResult | null;
   detectedMappings: ColumnMapping | null;
-  onConfirmImport: (mappings: ColumnMapping, mode: 'merge' | 'replace') => void;
+  onConfirmImport: (mappings: ColumnMapping, mode: 'merge' | 'replace', options?: { markMissingAsNotInCatalog?: boolean }) => void;
   onCancelImport: () => void;
   onDownloadTemplate: () => void;
   onNavigateToProducts: () => void;
@@ -74,7 +75,14 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
   const [dragActive, setDragActive] = useState(false);
   const [step, setStep] = useState<1 | 2 | 3 | 4>(parseResult ? 3 : 1);
   const [importMode, setImportMode] = useState<'merge' | 'replace'>('merge');
-  const [activeReviewTab, setActiveReviewTab] = useState<'prices' | 'new' | 'unchanged'>('prices');
+  const [activeReviewTab, setActiveReviewTab] = useState<'prices' | 'new' | 'missing' | 'unchanged'>('prices');
+  const [markMissingAsNotInCatalog, setMarkMissingAsNotInCatalog] = useState(true);
+  const userHasPickedTabRef = useRef(false);
+
+  const handleSelectReviewTab = (tab: 'prices' | 'new' | 'missing' | 'unchanged') => {
+    userHasPickedTabRef.current = true;
+    setActiveReviewTab(tab);
+  };
 
   const [customMappings, setCustomMappings] = useState<ColumnMapping>(
     detectedMappings || {
@@ -134,6 +142,7 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
     newProductCandidates,
     priceChangeCandidates,
     unchangedCandidates,
+    missingFromSupplierCandidates,
   } = useMemo(() => {
     if (!parseResult) {
       return {
@@ -147,6 +156,7 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
           row: any;
         }>,
         unchangedCandidates: [] as Array<{ product: Product; row: any }>,
+        missingFromSupplierCandidates: [] as Product[],
       };
     }
 
@@ -193,6 +203,14 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
       if (idLower && !idLower.startsWith('prod_')) {
         existing = existingById.get(idLower);
       }
+      // 1b. Busca por SKU / Código
+      if (!existing && idLower) {
+        existing = existingBySku.get(idLower);
+      }
+      // 1c. Busca por Barcode
+      if (!existing && idLower) {
+        existing = existingByBarcode.get(idLower);
+      }
       // 2. Busca por Nome
       if (!existing && normName) {
         existing = existingByName.get(normName);
@@ -235,28 +253,42 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
       }
     }
 
+    const missingFromSupplierCandidates: Product[] = [];
+    for (const p of currentProducts) {
+      if (!seenUpdatedIds.has(p.id)) {
+        missingFromSupplierCandidates.push(p);
+      }
+    }
+
     return {
       newProductCandidates: newCandidates,
       priceChangeCandidates: priceChanges,
       unchangedCandidates: unchanged,
+      missingFromSupplierCandidates,
     };
   }, [parseResult, currentProducts, customMappings]);
 
-  // Sincroniza a aba ativa de revisão
+  // Sincroniza a aba ativa de revisão apenas na inicialização (sem trocar de aba sozinho depois que o usuário está vendo)
   useEffect(() => {
-    if (priceChangeCandidates.length > 0) {
+    if (userHasPickedTabRef.current) return;
+    if (missingFromSupplierCandidates.length > 0 && priceChangeCandidates.length === 0 && newProductCandidates.length === 0) {
+      setActiveReviewTab('missing');
+    } else if (priceChangeCandidates.length > 0) {
       setActiveReviewTab('prices');
     } else if (newProductCandidates.length > 0) {
       setActiveReviewTab('new');
+    } else if (missingFromSupplierCandidates.length > 0) {
+      setActiveReviewTab('missing');
     } else {
       setActiveReviewTab('unchanged');
     }
-  }, [priceChangeCandidates.length, newProductCandidates.length]);
+  }, [priceChangeCandidates.length, newProductCandidates.length, missingFromSupplierCandidates.length]);
 
   const previewNewRows = newProductCandidates.slice(0, 12);
+  const previewMissingRows = missingFromSupplierCandidates.slice(0, 12);
 
   const handleExecuteImport = () => {
-    onConfirmImport(customMappings, 'merge');
+    onConfirmImport(customMappings, 'merge', { markMissingAsNotInCatalog });
     setFinishedSuccess(true);
     setStep(4);
   };
@@ -449,7 +481,7 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
             {priceChangeCandidates.length > 0 && (
               <button
                 type="button"
-                onClick={() => setActiveReviewTab('prices')}
+                onClick={() => handleSelectReviewTab('prices')}
                 className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
                   activeReviewTab === 'prices'
                     ? 'bg-blue-600 text-white shadow-xs'
@@ -467,7 +499,7 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
             {newProductCandidates.length > 0 && (
               <button
                 type="button"
-                onClick={() => setActiveReviewTab('new')}
+                onClick={() => handleSelectReviewTab('new')}
                 className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
                   activeReviewTab === 'new'
                     ? 'bg-blue-600 text-white shadow-xs'
@@ -482,10 +514,28 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
               </button>
             )}
 
+            {missingFromSupplierCandidates.length > 0 && (
+              <button
+                type="button"
+                onClick={() => handleSelectReviewTab('missing')}
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                  activeReviewTab === 'missing'
+                    ? 'bg-amber-600 text-slate-950 font-bold shadow-xs'
+                    : 'bg-amber-950/40 text-amber-300 hover:bg-amber-900/50 border border-amber-800/60'
+                }`}
+              >
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                <span>Fora do Site</span>
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-200 font-mono">
+                  {missingFromSupplierCandidates.length}
+                </span>
+              </button>
+            )}
+
             {unchangedCandidates.length > 0 && (
               <button
                 type="button"
-                onClick={() => setActiveReviewTab('unchanged')}
+                onClick={() => handleSelectReviewTab('unchanged')}
                 className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
                   activeReviewTab === 'unchanged'
                     ? 'bg-blue-600 text-white shadow-xs'
@@ -638,6 +688,71 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
             </div>
           )}
 
+          {/* TAB: FORA DO SITE / AUSENTES NO FORNECEDOR */}
+          {activeReviewTab === 'missing' && missingFromSupplierCandidates.length > 0 && (
+            <div className="space-y-3">
+              <div className="p-3.5 rounded-lg bg-amber-950/40 border border-amber-600/50 text-xs text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-amber-200 text-sm">
+                      {missingFromSupplierCandidates.length} produto(s) não constam mais na lista atual do fornecedor
+                    </p>
+                    <p className="text-[11px] text-amber-300/80 mt-1 leading-relaxed">
+                      Estes itens estão no seu projeto, mas não constam na lista atual importada (a nova lista tem {parseResult.rows.length} produtos, como os 443 do site).
+                      Eles <strong>permanecerão salvos no seu catálogo</strong> com todas as pesquisas e fotos intactas, marcados em destaque como <strong>&ldquo;Fora do Site&rdquo;</strong>.
+                    </p>
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-900/50 border border-amber-500/50 cursor-pointer shrink-0 select-none">
+                  <input
+                    type="checkbox"
+                    checked={markMissingAsNotInCatalog}
+                    onChange={(e) => setMarkMissingAsNotInCatalog(e.target.checked)}
+                    className="rounded border-amber-600 bg-slate-900 text-amber-500 focus:ring-amber-400"
+                  />
+                  <span className="text-xs font-semibold text-amber-100">
+                    Destacar como &ldquo;Fora do Site&rdquo;
+                  </span>
+                </label>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                {previewMissingRows.map((prod) => {
+                  const displayCost = prod.cost ? formatCurrency(prod.cost) : 'R$ --';
+                  return (
+                    <div
+                      key={prod.id}
+                      className="p-2.5 rounded-lg bg-[#16131d] border border-amber-500/40 flex flex-col justify-between"
+                    >
+                      <div className="relative w-full aspect-square rounded overflow-hidden bg-[#0b0f17] border border-amber-900/40 mb-2">
+                        <ProductImage
+                          src={prod.image}
+                          alt={prod.name}
+                          className="w-full h-full object-cover"
+                        />
+                        <span className="absolute top-1 left-1 px-1 py-0.2 rounded text-[9px] font-bold bg-amber-950/90 text-amber-300 border border-amber-500/60 shadow-xs">
+                          FORA DO SITE
+                        </span>
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="text-xs font-medium text-slate-200 truncate" title={prod.name}>
+                          {prod.name}
+                        </p>
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-500">Custo:</span>
+                          <span className="font-mono tabular-nums font-semibold text-amber-300">{displayCost}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* TAB: INALTERADOS */}
           {activeReviewTab === 'unchanged' && (
             <div className="p-4 rounded-lg bg-slate-900/60 border border-slate-800 text-xs text-slate-400 space-y-2">
@@ -704,6 +819,8 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
                   ? `Confirmar e Atualizar ${priceChangeCandidates.length} Valores`
                   : newProductCandidates.length > 0
                   ? `Confirmar e Adicionar ${newProductCandidates.length} Novos Itens`
+                  : missingFromSupplierCandidates.length > 0 && markMissingAsNotInCatalog
+                  ? `Confirmar e Destacar ${missingFromSupplierCandidates.length} Fora do Site`
                   : `Re-sincronizar Catálogo`}
               </span>
             </button>
@@ -729,8 +846,13 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
                 ? `${priceChangeCandidates.length} produto(s) tiveram seus valores atualizados. Pesquisas, opções e mídias existentes foram 100% preservadas.`
                 : newProductCandidates.length > 0
                 ? `${newProductCandidates.length} novos produtos adicionados ao seu catálogo.`
-                : 'Catálogo sincronizado. Todos os produtos já estavam com os valores atualizados.'}
+                : 'Catálogo sincronizado com a lista do fornecedor.'}
             </p>
+            {missingFromSupplierCandidates.length > 0 && markMissingAsNotInCatalog && (
+              <p className="text-[11px] text-amber-300 font-medium">
+                ⚠️ {missingFromSupplierCandidates.length} produto(s) ausentes na lista de {parseResult.rows.length} itens foram mantidos no seu catálogo e marcados em destaque como &ldquo;Fora do Site&rdquo;.
+              </p>
+            )}
             {priceChangeCandidates.length > 0 && (
               <p className="text-[11px] text-emerald-400 font-medium">
                 O histórico completo (se subiu ou diminuiu) foi salvo em cada produto e pode ser consultado na aba &ldquo;Histórico de Preços&rdquo; nos detalhes do item.

@@ -1,6 +1,6 @@
 import React from 'react';
 import { ProductStatus } from '../types';
-import { X, Filter, RotateCcw, Check, PlusCircle, DollarSign, Tag, CheckCircle2 } from 'lucide-react';
+import { X, Filter, RotateCcw, Check, PlusCircle, DollarSign, Tag, CheckCircle2, AlertTriangle } from 'lucide-react';
 
 export interface AdvancedFiltersState {
   status: 'all' | ProductStatus;
@@ -10,6 +10,7 @@ export interface AdvancedFiltersState {
   onlyNew: boolean;
   onlyWithRecords: boolean;
   onlyAvailable: boolean;
+  catalogStatus?: 'all' | 'in_catalog' | 'not_in_catalog';
 }
 
 interface FiltersDrawerProps {
@@ -61,6 +62,7 @@ export const FiltersDrawer: React.FC<FiltersDrawerProps> = ({
     filters.onlyNew,
     filters.onlyWithRecords,
     filters.onlyAvailable,
+    filters.catalogStatus && filters.catalogStatus !== 'all',
   ].filter(Boolean).length;
 
   return (
@@ -271,6 +273,51 @@ export const FiltersDrawer: React.FC<FiltersDrawerProps> = ({
                 </p>
               </div>
             </label>
+
+            {/* Catalog Status (Site / Fornecedor) */}
+            <div className="pt-2">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-2">
+                Presença no Site / Fornecedor
+              </label>
+              <div className="grid grid-cols-3 gap-1.5 bg-[#121824] p-1 rounded-lg border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => onChangeFilters({ ...filters, catalogStatus: 'all' })}
+                  className={`py-1.5 px-2 rounded text-xs font-medium transition ${
+                    !filters.catalogStatus || filters.catalogStatus === 'all'
+                      ? 'bg-indigo-600 text-white font-bold'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Todos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onChangeFilters({ ...filters, catalogStatus: 'in_catalog' })}
+                  className={`py-1.5 px-2 rounded text-xs font-medium transition ${
+                    filters.catalogStatus === 'in_catalog'
+                      ? 'bg-emerald-600 text-white font-bold'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="Produtos que constam na lista ativa do fornecedor"
+                >
+                  No Site
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onChangeFilters({ ...filters, catalogStatus: 'not_in_catalog' })}
+                  className={`py-1.5 px-2 rounded text-xs font-medium transition flex items-center justify-center gap-1 ${
+                    filters.catalogStatus === 'not_in_catalog'
+                      ? 'bg-amber-600 text-white font-bold'
+                      : 'text-amber-400 hover:text-amber-300'
+                  }`}
+                  title="Produtos que não aparecem mais na lista do fornecedor (destacados)"
+                >
+                  <AlertTriangle className="w-3 h-3 text-current" />
+                  <span>Fora do Site</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 

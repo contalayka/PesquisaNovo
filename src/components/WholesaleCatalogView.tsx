@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Product } from '../types';
 import { parseNumericCost } from '../utils/productDeduplication';
-import { Search, Settings2, ShoppingBasket } from 'lucide-react';
+import { Search, Settings2, ShoppingBasket, AlertTriangle } from 'lucide-react';
 
 type Channel = 'Shopee' | 'Mercado Livre' | 'TikTok Shop' | 'SHEIN';
 type Rule = { rate: number; fixed: number };
@@ -18,9 +18,17 @@ export const WholesaleCatalogView: React.FC<{ products: Product[] }> = ({ produc
   const [markup, setMarkup] = useState(40);
   const [rules, setRules] = useState(INITIAL_RULES);
   const [showSettings, setShowSettings] = useState(false);
+  const [supplierFilter, setSupplierFilter] = useState<'all' | 'in_catalog' | 'not_in_catalog'>('all');
+
+  const notInCatalogCount = useMemo(() => products.filter(p => p.not_in_catalog).length, [products]);
 
   const rows = useMemo(() => products
-    .filter(product => product.name && product.name.toLowerCase().includes(query.toLowerCase()))
+    .filter(product => {
+      if (supplierFilter === 'in_catalog' && product.not_in_catalog) return false;
+      if (supplierFilter === 'not_in_catalog' && !product.not_in_catalog) return false;
+      if (query && !product.name.toLowerCase().includes(query.toLowerCase())) return false;
+      return true;
+    })
     .slice()
     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base', numeric: true }))
     .map(product => {
@@ -33,7 +41,7 @@ export const WholesaleCatalogView: React.FC<{ products: Product[] }> = ({ produc
         return { channel, price: Math.ceil(listingPrice * 100) / 100, valid };
       });
       return { product, cost, targetNet, prices };
-    }), [products, query, markup, rules]);
+    }), [products, query, markup, rules, supplierFilter]);
 
   const updateRule = (channel: Channel, key: keyof Rule, value: number) =>
     setRules(current => ({ ...current, [channel]: { ...current[channel], [key]: Math.max(0, Math.min(key === 'rate' ? 99 : 100000, value)) } }));
@@ -65,19 +73,73 @@ export const WholesaleCatalogView: React.FC<{ products: Product[] }> = ({ produc
       <p className="text-xs text-amber-200 sm:col-span-2 xl:col-span-4">Taxas iniciais são estimativas editáveis. Frete, impostos, embalagem e tarifas variáveis não estão incluídos; confirme as condições da sua conta antes de anunciar.</p>
     </div>}
 
-    <div className="relative">
-      <Search className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
-      <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Buscar produto do catálogo..." className="w-full rounded-lg border border-slate-700 bg-[#071827] p-2.5 pl-9 text-sm text-white" />
+    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+      <div className="relative flex-1">
+        <Search className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
+        <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Buscar produto do catálogo..." className="w-full rounded-lg border border-slate-700 bg-[#071827] p-2.5 pl-9 text-sm text-white" />
+      </div>
+
+      <div className="flex items-center gap-1.5 shrink-0">
+        <button
+          type="button"
+          onClick={() => setSupplierFilter('all')}
+          className={`px-3 py-2 rounded-lg text-xs font-medium border transition ${
+            supplierFilter === 'all'
+              ? 'bg-cyan-600 text-white border-cyan-500'
+              : 'bg-[#071827] text-slate-300 border-slate-800 hover:border-slate-700'
+          }`}
+        >
+          Todos ({products.length})
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setSupplierFilter('in_catalog')}
+          className={`px-3 py-2 rounded-lg text-xs font-medium border transition ${
+            supplierFilter === 'in_catalog'
+              ? 'bg-emerald-600 text-white border-emerald-500'
+              : 'bg-[#071827] text-slate-300 border-slate-800 hover:border-slate-700'
+          }`}
+        >
+          No Site ({products.length - notInCatalogCount})
+        </button>
+
+        {notInCatalogCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setSupplierFilter('not_in_catalog')}
+            className={`px-3 py-2 rounded-lg text-xs font-medium border transition flex items-center gap-1.5 ${
+              supplierFilter === 'not_in_catalog'
+                ? 'bg-amber-600 text-slate-950 font-bold border-amber-500'
+                : 'bg-amber-950/40 text-amber-300 border-amber-800/60 hover:bg-amber-900/40'
+            }`}
+          >
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+            <span>Fora do Site ({notInCatalogCount})</span>
+          </button>
+        )}
+      </div>
     </div>
 
-    <div className="text-xs text-slate-400">{rows.length} produtos • acréscimo configurado: {markup}% • preço calculado para, após a comissão e taxa fixa, receber o custo + acréscimo.</div>
+    <div className="text-xs text-slate-400">{rows.length} produtos exibidos • acréscimo configurado: {markup}% • preço calculado para, após a comissão e taxa fixa, receber o custo + acréscimo.</div>
     <div className="overflow-auto rounded-xl border border-slate-800">
       <table className="w-full min-w-[1000px] text-sm">
         <thead className="bg-[#0a2030] text-slate-300"><tr>
           {['Produto', 'Custo PDVMaster', 'Receber líquido', 'Shopee', 'Mercado Livre', 'TikTok Shop', 'SHEIN'].map(label => <th key={label} className="whitespace-nowrap px-3 py-3 text-left font-semibold">{label}</th>)}
         </tr></thead>
-        <tbody>{rows.map(({ product, cost, targetNet, prices }, index) => <tr key={product.id} className={`border-t border-slate-800 ${index % 2 ? 'bg-[#07131e]' : 'bg-[#061a27]'}`}>
-          <td className="max-w-[280px] px-3 py-3"><div className="truncate font-medium" title={product.name}>{product.name}</div><div className="text-[11px] text-slate-500">Código: {product.sku || product.id}</div></td>
+        <tbody>{rows.map(({ product, cost, targetNet, prices }, index) => <tr key={product.id} className={`border-t border-slate-800 ${product.not_in_catalog ? 'bg-[#181216]' : index % 2 ? 'bg-[#07131e]' : 'bg-[#061a27]'}`}>
+          <td className="max-w-[320px] px-3 py-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="truncate font-medium block" title={product.name}>{product.name}</span>
+              {product.not_in_catalog && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-950/90 text-amber-300 border border-amber-500/80 shadow-xs shrink-0">
+                  <AlertTriangle className="w-2.5 h-2.5 text-amber-400" />
+                  <span>FORA DO SITE</span>
+                </span>
+              )}
+            </div>
+            <div className="text-[11px] text-slate-500 mt-0.5">Código: {product.sku || product.id}</div>
+          </td>
           <td className="whitespace-nowrap px-3 py-3">{cost !== null && cost > 0 ? money(cost) : <span className="text-amber-300">Sem custo</span>}</td>
           <td className="whitespace-nowrap px-3 py-3 font-semibold text-emerald-300">{targetNet > 0 ? money(targetNet) : '—'}</td>
           {prices.map(result => <td key={result.channel} className="whitespace-nowrap px-3 py-3 font-semibold text-cyan-200">{result.valid ? money(result.price) : '—'}</td>)}

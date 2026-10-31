@@ -17,6 +17,7 @@ import {
   ChevronDown,
   TrendingUp,
   TrendingDown,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface ProductCardProps {
@@ -28,6 +29,7 @@ interface ProductCardProps {
   onOpenDetails?: (product: Product) => void;
   onDismissNew?: (productId: string) => void;
   onUpdateStatus?: (productId: string, status: ProductStatus) => void;
+  onToggleNotInCatalog?: (productId: string, notInCatalog: boolean) => void;
 }
 
 export const ProductCard = React.memo<ProductCardProps>(
@@ -40,6 +42,7 @@ export const ProductCard = React.memo<ProductCardProps>(
     onOpenDetails,
     onDismissNew,
     onUpdateStatus,
+    onToggleNotInCatalog,
   }) => {
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedName, setCopiedName] = useState(false);
@@ -162,6 +165,8 @@ export const ProductCard = React.memo<ProductCardProps>(
       className={`group relative h-full flex flex-col justify-between rounded-lg border transition-colors duration-150 overflow-hidden min-w-0 w-full ${
         isSelected
           ? 'border-blue-500 bg-[#151d2d] ring-1 ring-blue-500'
+          : product.not_in_catalog
+          ? 'border-amber-500/80 bg-[#17131d] ring-1 ring-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.12)]'
           : product.is_new
           ? 'border-blue-500/60 bg-[#121824]'
           : 'border-slate-800 bg-[#121824] hover:border-slate-700'
@@ -197,6 +202,16 @@ export const ProductCard = React.memo<ProductCardProps>(
               >
                 <Check className="w-3 h-3" />
               </button>
+            )}
+
+            {product.not_in_catalog && (
+              <span
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-950/95 text-amber-300 border border-amber-500/80 shadow-[0_0_8px_rgba(245,158,11,0.35)] shrink-0"
+                title="Este produto não aparece mais na lista do fornecedor / site (destacado)"
+              >
+                <AlertTriangle className="w-2.5 h-2.5 text-amber-400" />
+                <span>FORA DO SITE</span>
+              </span>
             )}
 
             {product.is_new && (
@@ -478,6 +493,22 @@ export const ProductCard = React.memo<ProductCardProps>(
                     <span>Remover marcação Novo</span>
                   </button>
                 )}
+
+                {onToggleNotInCatalog && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onToggleNotInCatalog(product.id, !product.not_in_catalog);
+                      setShowMenu(false);
+                    }}
+                    className={`w-full px-3 py-2 hover:bg-slate-800 flex items-center gap-2 border-t border-slate-800 text-left ${
+                      product.not_in_catalog ? 'text-emerald-300' : 'text-amber-300'
+                    }`}
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <span>{product.not_in_catalog ? 'Desmarcar "Fora do Site"' : 'Marcar "Fora do Site"'}</span>
+                  </button>
+                )}
               </div>
             </>
           )}
@@ -495,7 +526,8 @@ export const ProductCard = React.memo<ProductCardProps>(
     prevProps.onOpenSimulator === nextProps.onOpenSimulator &&
     prevProps.onOpenDetails === nextProps.onOpenDetails &&
     prevProps.onDismissNew === nextProps.onDismissNew &&
-    prevProps.onUpdateStatus === nextProps.onUpdateStatus
+    prevProps.onUpdateStatus === nextProps.onUpdateStatus &&
+    prevProps.onToggleNotInCatalog === nextProps.onToggleNotInCatalog
   );
 }
 );

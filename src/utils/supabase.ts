@@ -156,6 +156,8 @@ create table if not exists products (
 
 -- Garantir que a coluna status existe na tabela products
 alter table products add column if not exists status text default 'Pendente';
+alter table products add column if not exists not_in_catalog boolean default false;
+alter table products add column if not exists catalog_missing_since timestamptz;
 
 -- 2. Criar tabela de pesquisas / opções encontradas
 create table if not exists research_records (
@@ -524,6 +526,8 @@ export async function fetchProductsFromSupabase(): Promise<{
         image: row.image || '',
         status: resolvedStatus,
         is_new: Boolean(row.is_new),
+        not_in_catalog: Boolean((row as any).not_in_catalog),
+        catalog_missing_since: (row as any).catalog_missing_since || undefined,
         research_records: resInfo?.records || [],
         created_at: row.created_at,
         updated_at: row.updated_at,
@@ -552,13 +556,14 @@ export async function upsertProductsToSupabase(products: Product[]): Promise<{ e
         image: p.image || null,
         status: p.status || 'Pendente',
         is_new: Boolean(p.is_new),
+        not_in_catalog: Boolean(p.not_in_catalog),
         updated_at: new Date().toISOString(),
       };
     });
 
     // 1. Save products table with automatic fallback
     for (let i = 0; i < rowsWithStatus.length; i += 100) {
-      const batch = rowsWithStatus.slice(i, i + 100);
+      let batch = rowsWithStatus.slice(i, i + 100);
 
       // Attempt 1: Direct upsert
       let upsertError: any = null;
@@ -569,12 +574,26 @@ export async function upsertProductsToSupabase(products: Product[]): Promise<{ e
         upsertError = err;
       }
 
+      // If not_in_catalog column is missing, try upsert without not_in_catalog
+      if (
+        upsertError &&
+        (upsertError.code === '42703' || upsertError.message?.includes('not_in_catalog'))
+      ) {
+        const batchNoNotInCatalog = batch.map(({ not_in_catalog, ...rest }) => rest);
+        const { error: errNoCol } = await client.from('products').upsert(batchNoNotInCatalog, { onConflict: 'id' });
+        if (!errNoCol) {
+          upsertError = null;
+        } else {
+          upsertError = errNoCol;
+        }
+      }
+
       // If status column is missing, try upsert without status
       if (
         upsertError &&
         (upsertError.code === '42703' || upsertError.message?.includes('column "status"') || upsertError.message?.includes('status'))
       ) {
-        const batchNoStatus = batch.map(({ status, ...rest }) => rest);
+        const batchNoStatus = batch.map(({ status, not_in_catalog, ...rest }) => rest);
         const { error: errNoStatus } = await client.from('products').upsert(batchNoStatus, { onConflict: 'id' });
         if (!errNoStatus) {
           upsertError = null;
