@@ -639,6 +639,7 @@ export default function App() {
           // 2. Reconcile: Supabase cloud is the source of truth, but local not_in_catalog, valid images, and local products are preserved
           const mergedList: Product[] = [];
           const imagesToHealInCloud: Product[] = [];
+          const metadataToRestoreInCloud: Product[] = [];
 
           for (const remoteProd of normalizedData) {
             const remoteId = String(remoteProd.id).trim();
@@ -676,6 +677,12 @@ export default function App() {
                   : localProd?.price_history || [],
               sku: remoteProd.sku || localProd?.sku,
               barcode: remoteProd.barcode || localProd?.barcode,
+              category: remoteProd.category || localProd?.category,
+              notes: remoteProd.notes || localProd?.notes,
+              weight: remoteProd.weight ?? localProd?.weight,
+              package_length: remoteProd.package_length ?? localProd?.package_length,
+              package_width: remoteProd.package_width ?? localProd?.package_width,
+              package_height: remoteProd.package_height ?? localProd?.package_height,
               // Cloud state is the source of truth across all devices (PC and mobile)
               is_new: Boolean(remoteProd.is_new),
               status: (remoteProd.status as ProductStatus) || 'Pendente',
@@ -698,6 +705,20 @@ export default function App() {
               imagesToHealInCloud.push(mergedProd);
             }
 
+            const hasLocalMetadataToRestore = Boolean(localProd && (
+              (!remoteProd.notes && localProd.notes) ||
+              (!remoteProd.category && localProd.category) ||
+              (!remoteProd.sku && localProd.sku) ||
+              (!remoteProd.barcode && localProd.barcode) ||
+              (remoteProd.weight == null && localProd.weight != null) ||
+              (remoteProd.package_length == null && localProd.package_length != null) ||
+              (remoteProd.package_width == null && localProd.package_width != null) ||
+              (remoteProd.package_height == null && localProd.package_height != null) ||
+              ((!remoteProd.rawColumns || Object.keys(remoteProd.rawColumns).length === 0) && Boolean(localProd.rawColumns && Object.keys(localProd.rawColumns).length > 0)) ||
+              ((!remoteProd.price_history || remoteProd.price_history.length === 0) && Boolean(localProd.price_history && localProd.price_history.length > 0))
+            ));
+            if (hasLocalMetadataToRestore) metadataToRestoreInCloud.push(mergedProd);
+
             mergedList.push(mergedProd);
           }
 
@@ -713,6 +734,12 @@ export default function App() {
           if (imagesToHealInCloud.length > 0) {
             upsertProductsToSupabase(imagesToHealInCloud).catch((err) => {
               console.warn('Falha ao restaurar URLs de imagem no Supabase:', err);
+            });
+          }
+
+          if (metadataToRestoreInCloud.length > 0) {
+            upsertProductsToSupabase(metadataToRestoreInCloud).catch((err) => {
+              console.warn('Falha ao restaurar anotações e metadados locais no Supabase:', err);
             });
           }
 
