@@ -538,80 +538,72 @@ export function resolveImageUrl(
   rowContext?: Record<string, unknown>,
   fallbackName?: string
 ): string {
-  let imgStr = rawImage !== undefined && rawImage !== null ? String(rawImage).trim() : '';
+  const imgStr = rawImage !== undefined && rawImage !== null ? String(rawImage).trim() : '';
 
-  // 1. Check embedded image from XLSX binary
-  if (rowContext && rowContext['__embedded_image__'] && typeof rowContext['__embedded_image__'] === 'string') {
+  // 1. Embedded XLSX image has priority over text values.
+  if (rowContext && typeof rowContext['__embedded_image__'] === 'string' && rowContext['__embedded_image__']) {
     return rowContext['__embedded_image__'];
   }
 
-  // 2. If rawImage is already a genuine image source
+  // 2. Accept already-recognized image sources exactly as before.
   if (imgStr && isActualImageSource(imgStr)) {
     const formatted = formatImageUrl(imgStr);
     if (formatted) return formatted;
   }
 
-  // 3. If rawImage is missing, an invalid webpage URL (like web_scraper_start_url), or empty:
-  // Scan EVERY column in rowContext to locate the real image!
   if (rowContext) {
     const baseOrigin = extractBaseOrigin(rowContext);
+    const isScraperColumn = (name: string) => {
+      const key = normalizeStr(name).toLowerCase().replace(/[^a-z0-9]+/g, '_');
+      return key.includes('start_url') || key.includes('web_scraper') || key.includes('scraper');
+    };
+    const isExplicitImageColumn = (name: string) => {
+      const key = normalizeStr(name).toLowerCase().replace(/[^a-z0-9]+/g, '_');
+      return (
+        key.includes('image') || key.includes('imagem') ||
+        key.includes('photo') || key.includes('foto') ||
+        key.includes('picture') || key === 'img' || key.startsWith('img_') ||
+        key.endsWith('_img') || key.includes('thumbnail') ||
+        key.includes('thumb') || key.includes('miniatura') ||
+        key.includes('midia') || key.includes('media') ||
+        key.includes('data_src') || key.endsWith('_src')
+      );
+    };
 
-    // Pass 1: Columns with image-related names
-    for (const [colName, val] of Object.entries(rowContext)) {
-      if (!val) continue;
-      const colNorm = normalizeStr(colName).toLowerCase();
-      if (
-        colNorm.includes('start_url') ||
-        colNorm.includes('web_scraper') ||
-        colNorm.includes('scraper')
-      ) {
-        continue;
-      }
+    // 3. IMPORTANT: trust a URL stored in a specifically named image column even
+    // when the CDN URL has no .jpg/.png extension (signed URLs and image APIs often do not).
+    // Previously these valid URLs were rejected by isActualImageSource(), so imports
+    // silently replaced them with a generic placeholder and mergeCatalogs could not fill
+    // products whose photo was missing.
+    for (const [colName, value] of Object.entries(rowContext)) {
+      if (!value || isScraperColumn(colName) || !isExplicitImageColumn(colName)) continue;
+      const candidate = formatImageUrl(value);
+      if (!candidate) continue;
 
-      const s = String(val).trim();
-      if (isActualImageSource(s)) {
-        if (s.startsWith('/') && baseOrigin) {
-          return `${baseOrigin}${s}`;
-        }
-        return formatImageUrl(s);
-      }
+      if (candidate.startsWith('data:image/')) return candidate;
+      if (candidate.startsWith('//')) return `https:${candidate}`;
+      if (candidate.startsWith('/') && baseOrigin) return `${baseOrigin}${candidate.startsWith('./') ? candidate.slice(1) : candidate}`;
+      if (/^https?:\/\//i.test(candidate)) return candidate;
     }
 
-    // Pass 2: Check any column that has a relative image path (e.g., /arquivos/ids/... or ends with .jpg)
-    for (const [colName, val] of Object.entries(rowContext)) {
-      if (!val) continue;
-      const colNorm = normalizeStr(colName).toLowerCase();
-      if (colNorm.includes('start_url') || colNorm.includes('web_scraper')) continue;
-
-      const s = String(val).trim();
-      if ((s.startsWith('/') || s.startsWith('./') || s.startsWith('//')) && isActualImageSource(s)) {
-        if (s.startsWith('//')) return `https:${s}`;
-        if (baseOrigin) return `${baseOrigin}${s.startsWith('./') ? s.slice(1) : s}`;
-      }
-    }
-
-    // Pass 3: Check any column that has an image extension or CDN link
-    for (const [colName, val] of Object.entries(rowContext)) {
-      if (!val) continue;
-      const colNorm = normalizeStr(colName).toLowerCase();
-      if (colNorm.includes('start_url') || colNorm.includes('web_scraper')) continue;
-
-      const s = String(val).trim();
-      if (isActualImageSource(s)) {
-        return formatImageUrl(s);
-      }
+    // 4. Fall back to scanning other columns, but only accept known image URL patterns.
+    for (const [colName, value] of Object.entries(rowContext)) {
+      if (!value || isScraperColumn(colName)) continue;
+      const candidate = String(value).trim();
+      if (!isActualImageSource(candidate)) continue;
+      if (candidate.startsWith('//')) return `https:${candidate}`;
+      if (candidate.startsWith('/') && baseOrigin) return `${baseOrigin}${candidate}`;
+      return formatImageUrl(candidate);
     }
   }
 
-  // 4. If rawImage starts with a relative slash, resolve with base origin if available
+  // 5. Resolve a relative raw image URL if its source domain is present in the row.
   if (imgStr.startsWith('/') && rowContext) {
     const baseOrigin = extractBaseOrigin(rowContext);
-    if (baseOrigin) {
-      return `${baseOrigin}${imgStr}`;
-    }
+    if (baseOrigin) return `${baseOrigin}${imgStr}`;
   }
 
-  // 5. Final fallback: Contextual high-quality product photo so images ALWAYS appear!
+  // 6. Preserve the existing visual fallback for products that truly have no image source.
   return getFallbackProductPhoto(fallbackName);
 }
 
