@@ -158,6 +158,16 @@ create table if not exists products (
 alter table products add column if not exists status text default 'Pendente';
 alter table products add column if not exists not_in_catalog boolean default false;
 alter table products add column if not exists catalog_missing_since timestamptz;
+alter table products add column if not exists sku text;
+alter table products add column if not exists barcode text;
+alter table products add column if not exists category text;
+alter table products add column if not exists notes text;
+alter table products add column if not exists weight text;
+alter table products add column if not exists package_length text;
+alter table products add column if not exists package_width text;
+alter table products add column if not exists package_height text;
+alter table products add column if not exists raw_columns jsonb not null default '{}'::jsonb;
+alter table products add column if not exists price_history jsonb not null default '[]'::jsonb;
 
 -- 2. Criar tabela de pesquisas / opções encontradas
 create table if not exists research_records (
