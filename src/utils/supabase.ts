@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Product, ResearchRecord, ProductStatus, SupabaseConfig } from '../types';
+import { Product, ResearchRecord, ProductStatus, SupabaseConfig, PriceHistoryRecord } from '../types';
 
 const CONFIG_STORAGE_KEY = 'pesquisa_produtos_supabase_config_v1';
 
@@ -372,6 +372,18 @@ interface SupabaseProductRow {
   image: string | null;
   status?: string | null;
   is_new: boolean | null;
+  sku?: string | null;
+  barcode?: string | null;
+  category?: string | null;
+  notes?: string | null;
+  weight?: string | number | null;
+  package_length?: string | number | null;
+  package_width?: string | number | null;
+  package_height?: string | number | null;
+  raw_columns?: Record<string, unknown> | null;
+  price_history?: PriceHistoryRecord[] | null;
+  catalog_missing_since?: string | null;
+  not_in_catalog?: boolean | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -526,8 +538,18 @@ export async function fetchProductsFromSupabase(): Promise<{
         image: row.image || '',
         status: resolvedStatus,
         is_new: Boolean(row.is_new),
-        not_in_catalog: Boolean((row as any).not_in_catalog),
-        catalog_missing_since: (row as any).catalog_missing_since || undefined,
+        not_in_catalog: Boolean(row.not_in_catalog),
+        catalog_missing_since: row.catalog_missing_since || undefined,
+        sku: row.sku || undefined,
+        barcode: row.barcode || undefined,
+        category: row.category || undefined,
+        notes: row.notes || undefined,
+        weight: row.weight ?? undefined,
+        package_length: row.package_length ?? undefined,
+        package_width: row.package_width ?? undefined,
+        package_height: row.package_height ?? undefined,
+        rawColumns: row.raw_columns && typeof row.raw_columns === 'object' ? row.raw_columns : {},
+        price_history: Array.isArray(row.price_history) ? row.price_history : [],
         research_records: resInfo?.records || [],
         created_at: row.created_at,
         updated_at: row.updated_at,
@@ -557,6 +579,17 @@ export async function upsertProductsToSupabase(products: Product[]): Promise<{ e
         status: p.status || 'Pendente',
         is_new: Boolean(p.is_new),
         not_in_catalog: Boolean(p.not_in_catalog),
+        catalog_missing_since: p.catalog_missing_since || null,
+        sku: p.sku || null,
+        barcode: p.barcode || null,
+        category: p.category || null,
+        notes: p.notes || null,
+        weight: p.weight !== undefined && p.weight !== null ? String(p.weight) : null,
+        package_length: p.package_length !== undefined && p.package_length !== null ? String(p.package_length) : null,
+        package_width: p.package_width !== undefined && p.package_width !== null ? String(p.package_width) : null,
+        package_height: p.package_height !== undefined && p.package_height !== null ? String(p.package_height) : null,
+        raw_columns: p.rawColumns || {},
+        price_history: p.price_history || [],
         updated_at: new Date().toISOString(),
       };
     });
