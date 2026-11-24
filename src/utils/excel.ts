@@ -569,10 +569,15 @@ export function resolveImageUrl(
     return rowContext['__embedded_image__'];
   }
 
-  // 2. Accept already-recognized image sources exactly as before.
-  if (imgStr && isActualImageSource(imgStr)) {
-    const formatted = formatImageUrl(imgStr);
-    if (formatted) return formatted;
+  // 2. The caller supplies rawImage from the column explicitly mapped as the image
+  // field. Trust absolute image-column URLs even when their CDN endpoint has no extension.
+  if (imgStr) {
+    const htmlImage = imgStr.match(/<img[^>]+src=["']([^"']+)["']/i);
+    const candidate = formatImageUrl(htmlImage?.[1] || imgStr);
+    if (candidate.startsWith('data:image/')) return candidate;
+    if (candidate.startsWith('//')) return `https:${candidate}`;
+    if (/^https?:\/\//i.test(candidate) && !/web[_-]?scraper|start[_-]?url/i.test(candidate)) return candidate;
+    if (isActualImageSource(imgStr) && candidate) return candidate;
   }
 
   if (rowContext) {
