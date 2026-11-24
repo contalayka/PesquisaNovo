@@ -222,37 +222,45 @@ export function getImageCandidateEntries(src: string | undefined | null): ImageC
     normalizedOriginal.includes('/api/image-proxy');
 
   if (supabaseObjectUrl) {
-    // 1. Direct Supabase public object URL (bypasses broken/quota-limited /render/image/ endpoint)
-    pushUnique(supabaseObjectUrl, 'supabase-object');
-
-    // 2. Original saved URL directly from browser (works when /render/image/ is active)
-    pushUnique(normalizedOriginal, 'original');
-
-    // 3. Optimized WebP proxy pointing to the direct object URL
-    pushUnique(
-      `https://wsrv.nl/?url=${encodeURIComponent(supabaseObjectUrl)}&w=640&q=75&output=webp`,
-      'wsrv-object'
-    );
-
-    // 4. Same-origin Cloudflare Pages / dev server image proxy on the direct object URL
+    // 1. Same-origin Cloudflare Pages proxy first: avoids browser hotlink/CORS restrictions.
     pushUnique(
       `/api/image-proxy?url=${encodeURIComponent(supabaseObjectUrl)}`,
       'proxy-object'
     );
 
-    // 5. External proxy on original URL (without aggressive transform params)
+    // 2. Direct public object URL remains as fallback.
+    pushUnique(supabaseObjectUrl, 'supabase-object');
+
+    // 3. Original saved URL directly from browser remains as fallback.
+    pushUnique(normalizedOriginal, 'original');
+
+    // 4. External image proxy fallback.
+    pushUnique(
+      `https://wsrv.nl/?url=${encodeURIComponent(supabaseObjectUrl)}&w=640&q=75&output=webp`,
+      'wsrv-object'
+    );
+
+    // 5. External proxy on original URL (without aggressive transform params).
     pushUnique(
       `https://wsrv.nl/?url=${encodeURIComponent(normalizedOriginal)}`,
       'wsrv-original'
     );
 
-    // 6. Same-origin proxy on original URL
+    // 6. Same-origin proxy on original URL as final source fallback.
     pushUnique(
       `/api/image-proxy?url=${encodeURIComponent(normalizedOriginal)}`,
       'proxy-original'
     );
   } else {
-    // Standard external image URL
+    // Standard external image URL. Route through our own domain first to bypass
+    // marketplace hotlink blocks and browser referrer restrictions.
+    if (!isAlreadyProxy && (normalizedOriginal.startsWith('https://') || normalizedOriginal.startsWith('http://'))) {
+      pushUnique(
+        `/api/image-proxy?url=${encodeURIComponent(normalizedOriginal)}`,
+        'proxy-original'
+      );
+    }
+
     pushUnique(normalizedOriginal, 'original');
 
     if (httpFallback) {
@@ -263,10 +271,6 @@ export function getImageCandidateEntries(src: string | undefined | null): ImageC
       pushUnique(
         `https://wsrv.nl/?url=${encodeURIComponent(normalizedOriginal)}&w=640&q=75&output=webp`,
         'wsrv-original'
-      );
-      pushUnique(
-        `/api/image-proxy?url=${encodeURIComponent(normalizedOriginal)}`,
-        'proxy-original'
       );
     }
   }
