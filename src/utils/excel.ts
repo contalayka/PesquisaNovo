@@ -1115,6 +1115,7 @@ export function mergeCatalogs(
   importedProducts: Product[],
   options?: {
     markMissingAsNotInCatalog?: boolean;
+    fillMissingImages?: boolean;
   }
 ): {
   merged: Product[];
@@ -1201,7 +1202,8 @@ export function mergeCatalogs(
       const importedHasRealImage = Boolean(
         importedImg && isActualImageSource(importedImg) && !isGenericFallbackPhoto(importedImg)
       );
-      const imageHasChanged = importedHasRealImage && existingImg !== importedImg;
+      const shouldFillMissingImage = options?.fillMissingImages !== false && !existingImg && importedHasRealImage;
+      const imageHasChanged = shouldFillMissingImage || (importedHasRealImage && existingImg !== importedImg && Boolean(existingImg));
 
       if ((priceHasChanged || wasNotInCatalog || imageHasChanged) && !updatedIdsInRun.has(existing.id)) {
         // Atualiza o custo/valor, reativa se voltou ao site e atualiza a URL da imagem se o fornecedor mudou a foto.
