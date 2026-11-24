@@ -520,7 +520,7 @@ export function isUsableProductImage(val: unknown): boolean {
     const parsed = new URL(formatImageUrl(value));
     if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
     if (parsed.username || parsed.password) return false;
-    if (/\\.(html?|php|asp|aspx)(?:[?#]|$)/i.test(parsed.pathname + parsed.search)) return false;
+    if (/\.(html?|php|asp|aspx)(?:[?#]|$)/i.test(parsed.pathname + parsed.search)) return false;
     return true;
   } catch {
     return false;
@@ -1218,7 +1218,7 @@ export function mergeCatalogs(
       const importedHasRealImage = isUsableProductImage(importedImg);
       const existingHasUsableImage = isUsableProductImage(existingImg);
       const shouldFillMissingImage = options?.fillMissingImages !== false && !existingHasUsableImage && importedHasRealImage;
-      const imageHasChanged = shouldFillMissingImage || (options?.fillMissingImages === false && importedHasRealImage && existingImg !== importedImg && Boolean(existingImg));
+      const imageHasChanged = shouldFillMissingImage;
 
       if ((priceHasChanged || wasNotInCatalog || imageHasChanged) && !updatedIdsInRun.has(existing.id)) {
         // Atualiza o custo/valor, reativa se voltou ao site e atualiza a URL da imagem se o fornecedor mudou a foto.
