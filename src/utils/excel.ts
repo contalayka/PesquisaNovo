@@ -1204,7 +1204,7 @@ export function mergeCatalogs(
       );
       const existingHasUsableImage = Boolean(existingImg && isActualImageSource(existingImg) && !isGenericFallbackPhoto(existingImg));
       const shouldFillMissingImage = options?.fillMissingImages !== false && !existingHasUsableImage && importedHasRealImage;
-      const imageHasChanged = shouldFillMissingImage || (importedHasRealImage && existingImg !== importedImg && Boolean(existingImg));
+      const imageHasChanged = shouldFillMissingImage || (options?.fillMissingImages === false && importedHasRealImage && existingImg !== importedImg && Boolean(existingImg));
 
       if ((priceHasChanged || wasNotInCatalog || imageHasChanged) && !updatedIdsInRun.has(existing.id)) {
         // Atualiza o custo/valor, reativa se voltou ao site e atualiza a URL da imagem se o fornecedor mudou a foto.
