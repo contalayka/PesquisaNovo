@@ -601,12 +601,15 @@ export function resolveImageUrl(
     // products whose photo was missing.
     for (const [colName, value] of Object.entries(rowContext)) {
       if (!value || isScraperColumn(colName) || !isExplicitImageColumn(colName)) continue;
-      const candidate = formatImageUrl(value);
+      const rawValue = String(value).trim();
+      const htmlImage = rawValue.match(/<img[^>]+src=["']([^"']+)["']/i);
+      const candidate = formatImageUrl(htmlImage?.[1] || value);
       if (!candidate) continue;
 
       if (candidate.startsWith('data:image/')) return candidate;
       if (candidate.startsWith('//')) return `https:${candidate}`;
-      if (candidate.startsWith('/') && baseOrigin) return `${baseOrigin}${candidate.startsWith('./') ? candidate.slice(1) : candidate}`;
+      if (candidate.startsWith('./') && baseOrigin) return `${baseOrigin}/${candidate.slice(2)}`;
+      if (candidate.startsWith('/') && baseOrigin) return `${baseOrigin}${candidate}`;
       if (/^https?:\/\//i.test(candidate)) return candidate;
     }
 
