@@ -504,6 +504,30 @@ export function isGenericFallbackPhoto(val: unknown): boolean {
 }
 
 /**
+ * A stored image URL can be a signed/CDN endpoint without a file extension.
+ * Once a URL is stored in the product image field, treat valid HTTP(S) URLs as
+ * usable image sources unless they are known placeholders or scraper metadata.
+ */
+export function isUsableProductImage(val: unknown): boolean {
+  if (!val) return false;
+  const value = String(val).trim();
+  if (!value || isGenericFallbackPhoto(value)) return false;
+  if (value.startsWith('data:image/')) return true;
+  if (isActualImageSource(value)) return true;
+  if (/web[_-]?scraper|start[_-]?url/i.test(value)) return false;
+
+  try {
+    const parsed = new URL(formatImageUrl(value));
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
+    if (parsed.username || parsed.password) return false;
+    if (/\\.(html?|php|asp|aspx)(?:[?#]|$)/i.test(parsed.pathname + parsed.search)) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Backward-compatible check for image URLs or links
  */
 export function isImageUrlOrLink(val: unknown): boolean {
@@ -1191,10 +1215,8 @@ export function mergeCatalogs(
       const wasNotInCatalog = Boolean(existing.not_in_catalog);
       const existingImg = (existing.image || '').trim();
       const importedImg = (imported.image || '').trim();
-      const importedHasRealImage = Boolean(
-        importedImg && isActualImageSource(importedImg) && !isGenericFallbackPhoto(importedImg)
-      );
-      const existingHasUsableImage = Boolean(existingImg && isActualImageSource(existingImg) && !isGenericFallbackPhoto(existingImg));
+      const importedHasRealImage = isUsableProductImage(importedImg);
+      const existingHasUsableImage = isUsableProductImage(existingImg);
       const shouldFillMissingImage = options?.fillMissingImages !== false && !existingHasUsableImage && importedHasRealImage;
       const imageHasChanged = shouldFillMissingImage || (options?.fillMissingImages === false && importedHasRealImage && existingImg !== importedImg && Boolean(existingImg));
 
