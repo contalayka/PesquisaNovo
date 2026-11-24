@@ -1160,7 +1160,7 @@ export default function App() {
     availableCol?: string,
     idCol?: string,
     statusCol?: string,
-    options?: { markMissingAsNotInCatalog?: boolean }
+    options?: { markMissingAsNotInCatalog?: boolean; fillMissingImages?: boolean }
   ) => {
     if (!detectionPending) return;
     const importedRows = convertRowsToProducts(
