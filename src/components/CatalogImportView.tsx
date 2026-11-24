@@ -477,6 +477,19 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
             </button>
           </div>
 
+          <label className="flex items-start gap-2.5 px-3 py-3 rounded-lg bg-emerald-900/30 border border-emerald-500/40 cursor-pointer select-none mb-3">
+            <input
+              type="checkbox"
+              checked={fillMissingImages}
+              onChange={(e) => setFillMissingImages(e.target.checked)}
+              className="mt-0.5 rounded border-emerald-600 bg-slate-900 text-emerald-500 focus:ring-emerald-400"
+            />
+            <span>
+              <span className="block text-sm font-semibold text-emerald-100">Recuperar imagens dos produtos que estão sem foto</span>
+              <span className="block text-xs text-emerald-200/70 mt-1">Usa a imagem da planilha para preencher fotos vazias ou inválidas. Imagens existentes e os demais dados do produto são preservados.</span>
+            </span>
+          </label>
+
           {/* Sub-Tabs de Revisão */}
           <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 pb-3">
             {priceChangeCandidates.length > 0 && (
@@ -648,18 +661,6 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
               <span className="text-xs font-semibold text-slate-300">
                 Amostra dos {newProductCandidates.length} novos produtos a serem adicionados:
               </span>
-
-              <label className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-900/30 border border-emerald-500/40 cursor-pointer select-none mb-3">
-                <input
-                  type="checkbox"
-                  checked={fillMissingImages}
-                  onChange={(e) => setFillMissingImages(e.target.checked)}
-                  className="rounded border-emerald-600 bg-slate-900 text-emerald-500 focus:ring-emerald-400"
-                />
-                <span className="text-xs font-semibold text-emerald-100">
-                  Preencher imagens ausentes com fotos da planilha (sem substituir imagens já existentes)
-                </span>
-              </label>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
                 {previewNewRows.map((r, i) => {
