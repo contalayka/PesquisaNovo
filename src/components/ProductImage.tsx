@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Image as ImageIcon } from 'lucide-react';
 import { useResilientImage } from '../utils/imageHelper';
 
@@ -8,6 +8,7 @@ interface ProductImageProps {
   className?: string;
   fallbackIconSize?: string;
   showEmptyText?: boolean;
+  loading?: 'lazy' | 'eager';
 }
 
 export const ProductImage: React.FC<ProductImageProps> = ({
@@ -16,8 +17,17 @@ export const ProductImage: React.FC<ProductImageProps> = ({
   className = 'w-full h-full object-cover',
   fallbackIconSize = 'w-6 h-6',
   showEmptyText = false,
+  loading = 'lazy',
 }) => {
-  const { currentSrc, hasError, handleError } = useResilientImage(src);
+  const { currentSrc, hasError, handleError, handleLoad } = useResilientImage(src);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    const el = imgRef.current;
+    if (el && el.complete && el.naturalWidth > 0) {
+      handleLoad();
+    }
+  }, [currentSrc, handleLoad]);
 
   if (!currentSrc || hasError) {
     return (
@@ -28,12 +38,19 @@ export const ProductImage: React.FC<ProductImageProps> = ({
     );
   }
 
+  const isSameOriginProxy = currentSrc.startsWith('/api/');
+
   return (
     <img
+      key={currentSrc}
+      ref={imgRef}
       src={currentSrc}
       alt={alt}
+      loading={loading}
+      decoding="async"
       className={className}
-      referrerPolicy="no-referrer"
+      referrerPolicy={isSameOriginProxy ? undefined : 'no-referrer'}
+      onLoad={handleLoad}
       onError={handleError}
     />
   );

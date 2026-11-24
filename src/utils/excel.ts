@@ -452,12 +452,17 @@ export function isActualImageSource(val: unknown): boolean {
     /\.(jpe?g|png|webp|gif|svg|avif|jfif|bmp|ico|tiff?)[#&?]/i.test(s);
   if (hasImageExt) return true;
 
-  // 3. Known e-commerce CDNs and image storage paths (VTEX, Cloudinary, AWS S3, Shopify, Mercado Livre)
+  // 3. Known e-commerce CDNs and image storage paths (VTEX, Cloudinary, AWS S3, Shopify, Mercado Livre, Supabase, Cloudflare R2)
   if (
     lower.includes('/arquivos/ids/') || // Standard VTEX product image path!
     lower.includes('vteximg.') ||       // VTEX CDN
     lower.includes('vtexassets.') ||    // VTEX CDN
     lower.includes('/cdn-cgi/image/') ||// Cloudflare Image Resizing
+    lower.includes('supabase.co/storage') || // Supabase Storage
+    lower.includes('/storage/v1/') ||        // Supabase Storage path
+    lower.includes('/product-photos/') ||    // Supplier product photo bucket
+    lower.includes('.r2.dev') ||             // Cloudflare R2 public bucket
+    lower.includes('.r2.cloudflarestorage.com') || // Cloudflare R2 endpoint
     lower.includes('mlstatic.com') ||
     lower.includes('googleusercontent.com') ||
     lower.includes('drive.google.com') ||
@@ -487,6 +492,15 @@ export function isActualImageSource(val: unknown): boolean {
   }
 
   return false;
+}
+
+/**
+ * Checks if an image URL is one of the generic Unsplash fallback placeholders.
+ */
+export function isGenericFallbackPhoto(val: unknown): boolean {
+  if (!val) return false;
+  const s = String(val).trim().toLowerCase();
+  return s.includes('images.unsplash.com/photo-');
 }
 
 /**
@@ -1106,6 +1120,7 @@ export function mergeCatalogs(
   merged: Product[];
   newCount: number;
   updatedCount: number;
+  imagesUpdatedCount: number;
   preservedCount: number;
   missingCount: number;
   reappearedCount: number;
@@ -1138,6 +1153,7 @@ export function mergeCatalogs(
 
   let newCount = 0;
   let updatedCount = 0;
+  let imagesUpdatedCount = 0;
   let preservedCount = 0;
   let missingCount = 0;
   let reappearedCount = 0;
@@ -1180,10 +1196,15 @@ export function mergeCatalogs(
       matchedExistingIds.add(existing.id);
       const priceHasChanged = isCostDifferent(existing.cost, imported.cost);
       const wasNotInCatalog = Boolean(existing.not_in_catalog);
+      const existingImg = (existing.image || '').trim();
+      const importedImg = (imported.image || '').trim();
+      const importedHasRealImage = Boolean(
+        importedImg && isActualImageSource(importedImg) && !isGenericFallbackPhoto(importedImg)
+      );
+      const imageHasChanged = importedHasRealImage && existingImg !== importedImg;
 
-      if ((priceHasChanged || wasNotInCatalog) && !updatedIdsInRun.has(existing.id)) {
-        // Atualiza o custo/valor do produto e data de atualização.
-        // Se o produto estava marcado como 'Fora do Site' e reapareceu na lista, reativa-o!
+      if ((priceHasChanged || wasNotInCatalog || imageHasChanged) && !updatedIdsInRun.has(existing.id)) {
+        // Atualiza o custo/valor, reativa se voltou ao site e atualiza a URL da imagem se o fornecedor mudou a foto.
         const oldNum = parseNumericCost(existing.cost);
         const newNum = parseNumericCost(imported.cost);
         const diff = (oldNum !== null && newNum !== null) ? Number((newNum - oldNum).toFixed(2)) : 0;
@@ -1208,7 +1229,8 @@ export function mergeCatalogs(
 
         const updatedProd: Product = {
           ...existing,
-          cost: imported.cost,
+          cost: priceHasChanged ? imported.cost : existing.cost,
+          image: imageHasChanged ? importedImg : existing.image,
           not_in_catalog: false, // Produto está presente na lista do site!
           updated_at: new Date().toISOString(),
           price_history: newHistory,
@@ -1226,6 +1248,7 @@ export function mergeCatalogs(
 
         updatedIdsInRun.add(existing.id);
         if (priceHasChanged) updatedCount++;
+        if (imageHasChanged) imagesUpdatedCount++;
         if (wasNotInCatalog) reappearedCount++;
         updatedProducts.push(updatedProd);
       } else {
@@ -1287,6 +1310,7 @@ export function mergeCatalogs(
     merged: mergedList,
     newCount,
     updatedCount,
+    imagesUpdatedCount,
     preservedCount,
     missingCount,
     reappearedCount,

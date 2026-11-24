@@ -23,6 +23,9 @@ import {
   ArrowUpToLine,
   ExternalLink,
   HelpCircle,
+  Cloud,
+  Image as ImageIcon,
+  Activity,
 } from 'lucide-react';
 import { Product, SupabaseConfig } from '../types';
 import {
@@ -42,6 +45,7 @@ import {
   isGitHubSyncConfigured,
 } from '../utils/githubSync';
 import { isMasterUnlocked, setMasterUnlocked, verifyMasterPassword } from '../utils/security';
+import { getImageCandidateEntries } from '../utils/imageHelper';
 import { MarketPrepLogo } from './MarketPrepLogo';
 
 interface SettingsViewProps {
@@ -58,6 +62,7 @@ interface SettingsViewProps {
     pricing?: { markup: string; tax: string; packaging: string }
   ) => void;
   onUpdateGitHubConfig?: (config: GitHubSyncConfig) => void;
+  onRestoreBundledImages?: () => Promise<number>;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -71,6 +76,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   isSyncingSupabase = false,
   onGitHubPullSuccess,
   onUpdateGitHubConfig,
+  onRestoreBundledImages,
 }) => {
   const [config, setConfig] = useState<SupabaseConfig>(getStoredSupabaseConfig());
   const [showKey, setShowKey] = useState(false);
@@ -111,6 +117,162 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   });
 
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // Live Diagnostics State (Supabase DB, Cloudflare R2/Proxy, and Product Image Delivery)
+  const [isRunningDiag, setIsRunningDiag] = useState(false);
+  const [isRestoringImgs, setIsRestoringImgs] = useState(false);
+  const [diagReport, setDiagReport] = useState<{
+    dbOk: boolean;
+    dbHost: string;
+    dbMessage: string;
+    cloudflareR2Ok: boolean;
+    cloudflareR2Message: string;
+    imageProxyOk: boolean;
+    imageProxyMessage: string;
+    totalProducts: number;
+    withImageCount: number;
+    emptyImageCount: number;
+    sampleHost: string;
+    sampleProductName: string;
+    imageRoutes: Array<{ label: string; ok: boolean }>;
+    conclusion: string;
+  } | null>(null);
+
+  const probeBrowserImage = (url: string, useNoReferrer: boolean): Promise<boolean> =>
+    new Promise((resolve) => {
+      const img = new window.Image();
+      let done = false;
+      const finish = (ok: boolean) => {
+        if (done) return;
+        done = true;
+        resolve(ok);
+      };
+      const timer = window.setTimeout(() => finish(false), 7000);
+      img.onload = () => {
+        window.clearTimeout(timer);
+        finish(img.naturalWidth > 0);
+      };
+      img.onerror = () => {
+        window.clearTimeout(timer);
+        finish(false);
+      };
+      if (useNoReferrer) {
+        img.referrerPolicy = 'no-referrer';
+      }
+      img.src = url;
+    });
+
+  const handleRunDiagnostics = async () => {
+    setIsRunningDiag(true);
+    try {
+      const activeCfg = getStoredSupabaseConfig();
+      let dbHost = 'Não configurado';
+      try {
+        if (activeCfg.url) dbHost = new URL(activeCfg.url).hostname;
+      } catch {
+        dbHost = activeCfg.url || 'Inválido';
+      }
+
+      const [dbRes, r2Res, proxyRes] = await Promise.all([
+        testSupabaseConnection(activeCfg).catch((err: any) => ({
+          success: false,
+          message: err?.message || 'Erro ao testar Supabase.',
+        })),
+        fetch('/api/upload-video?check=1')
+          .then(async (r) => {
+            const data = await r.json().catch(() => ({}));
+            return {
+              ok: r.ok && Boolean(data.ok),
+              message: data.message || `HTTP ${r.status}`,
+            };
+          })
+          .catch(() => ({
+            ok: false,
+            message: 'Endpoint /api/upload-video indisponível neste ambiente.',
+          })),
+        fetch('/api/image-proxy?check=1')
+          .then(async (r) => {
+            const data = await r.json().catch(() => ({}));
+            return {
+              ok: r.ok && Boolean(data.ok),
+              message: data.message || `HTTP ${r.status}`,
+            };
+          })
+          .catch(() => ({
+            ok: false,
+            message: 'Proxy /api/image-proxy indisponível neste ambiente.',
+          })),
+      ]);
+
+      const withImageProducts = products.filter(
+        (p) => typeof p.image === 'string' && p.image.trim().length > 0
+      );
+      const emptyImageCount = products.length - withImageProducts.length;
+      const sampleProd = withImageProducts[0] || null;
+      let sampleHost = 'Nenhum link de foto salvo';
+      if (sampleProd?.image) {
+        try {
+          sampleHost = new URL(sampleProd.image).hostname;
+        } catch {
+          sampleHost = sampleProd.image.slice(0, 48);
+        }
+      }
+
+      const imageRoutes: Array<{ label: string; ok: boolean }> = [];
+      let anyRouteWorked = false;
+      if (sampleProd?.image) {
+        const candidates = getImageCandidateEntries(sampleProd.image).slice(0, 4);
+        const strategyLabelMap: Record<string, string> = {
+          'supabase-object': 'Direto (/object/public)',
+          original: 'Link original salvo',
+          'wsrv-object': 'Proxy wsrv.nl',
+          'proxy-object': 'Proxy /api/image-proxy',
+          'wsrv-original': 'Proxy wsrv.nl (original)',
+          'proxy-original': 'Proxy /api/image-proxy (original)',
+          'data-url': 'Imagem embutida',
+        };
+        for (const c of candidates) {
+          const isSameOrigin = c.url.startsWith('/api/');
+          const ok = await probeBrowserImage(c.url, !isSameOrigin);
+          if (ok) anyRouteWorked = true;
+          imageRoutes.push({
+            label: strategyLabelMap[c.strategy] || c.strategy,
+            ok,
+          });
+        }
+      }
+
+      let conclusion = '';
+      if (withImageProducts.length === 0) {
+        conclusion =
+          'Os produtos estão sem URL de imagem salva no catálogo. Use o botão "Restaurar Links de Foto" ou reimporte a planilha do fornecedor.';
+      } else if (anyRouteWorked) {
+        conclusion =
+          'As imagens do fornecedor responderam normalmente neste aparelho. Recarregue a aba Produtos se ainda estiver vendo cache antigo.';
+      } else {
+        conclusion = `O servidor de origem das fotos (${sampleHost}) não respondeu em nenhuma rota. Isso indica que o fornecedor trocou o endereço das fotos — importe a planilha atualizada do site na aba Importar para atualizar automaticamente todos os links de imagem.`;
+      }
+
+      setDiagReport({
+        dbOk: dbRes.success,
+        dbHost,
+        dbMessage: dbRes.message,
+        cloudflareR2Ok: r2Res.ok,
+        cloudflareR2Message: r2Res.message,
+        imageProxyOk: proxyRes.ok,
+        imageProxyMessage: proxyRes.message,
+        totalProducts: products.length,
+        withImageCount: withImageProducts.length,
+        emptyImageCount,
+        sampleHost,
+        sampleProductName: sampleProd?.name || '',
+        imageRoutes,
+        conclusion,
+      });
+    } finally {
+      setIsRunningDiag(false);
+    }
+  };
 
   const handleUnlock = (e: React.FormEvent) => {
     e.preventDefault();
@@ -363,6 +525,161 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             Gerencie integrações com banco de dados em nuvem, parâmetros e backups.
           </p>
         </div>
+      </div>
+
+      {/* 0. Diagnóstico de Conexões (Supabase, Cloudflare & Imagens) */}
+      <div className="rounded-lg bg-[#121824] border border-slate-800 p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-sky-950/50 border border-sky-800/50 flex items-center justify-center text-sky-400">
+              <Activity className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-xs font-bold text-white uppercase tracking-wider">
+                Diagnóstico de Conexões & Imagens
+              </h2>
+              <p className="text-xs text-slate-400">
+                Verifique banco de dados (Supabase), Cloudflare (R2/Proxy) e carregamento real das fotos
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {onRestoreBundledImages && (
+              <button
+                type="button"
+                disabled={isRestoringImgs}
+                onClick={async () => {
+                  setIsRestoringImgs(true);
+                  try {
+                    await onRestoreBundledImages();
+                  } finally {
+                    setIsRestoringImgs(false);
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 border border-slate-700 font-semibold text-xs transition"
+              >
+                <ImageIcon className="w-3.5 h-3.5 text-amber-400" />
+                <span>{isRestoringImgs ? 'Restaurando...' : 'Restaurar Links de Foto'}</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleRunDiagnostics}
+              disabled={isRunningDiag}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white font-bold text-xs transition"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRunningDiag ? 'animate-spin' : ''}`} />
+              <span>{isRunningDiag ? 'Testando...' : 'Testar Conexões e Fotos'}</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+          <div className="p-3 rounded-lg bg-slate-900/70 border border-slate-800 space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-slate-200 flex items-center gap-1.5">
+                <Database className="w-3.5 h-3.5 text-emerald-400" />
+                Banco de Dados
+              </span>
+              <span
+                className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                  (diagReport ? diagReport.dbOk : isSupabaseConnected)
+                    ? 'bg-emerald-950/70 text-emerald-300 border border-emerald-800/60'
+                    : 'bg-amber-950/70 text-amber-300 border border-amber-800/60'
+                }`}
+              >
+                {(diagReport ? diagReport.dbOk : isSupabaseConnected) ? 'Supabase Ativo' : 'Offline / Erro'}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 font-mono truncate">
+              {diagReport?.dbHost || (() => {
+                try {
+                  return config.url ? new URL(config.url).hostname : 'Não configurado';
+                } catch {
+                  return config.url || 'Não configurado';
+                }
+              })()}
+            </p>
+            <p className="text-[11px] text-slate-500">
+              {diagReport ? diagReport.dbMessage : 'Armazena produtos, pesquisas, histórico e relatórios.'}
+            </p>
+          </div>
+
+          <div className="p-3 rounded-lg bg-slate-900/70 border border-slate-800 space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-slate-200 flex items-center gap-1.5">
+                <Cloud className="w-3.5 h-3.5 text-orange-400" />
+                Cloudflare (Pages/R2)
+              </span>
+              {diagReport && (
+                <span
+                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                    diagReport.cloudflareR2Ok
+                      ? 'bg-emerald-950/70 text-emerald-300 border border-emerald-800/60'
+                      : 'bg-amber-950/70 text-amber-300 border border-amber-800/60'
+                  }`}
+                >
+                  {diagReport.cloudflareR2Ok ? 'Ativo' : 'Pendente'}
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-400">
+              Usado para vídeos (R2) e proxy de imagens, não como banco de produtos.
+            </p>
+            {diagReport && (
+              <p className="text-[11px] text-slate-500">
+                R2: {diagReport.cloudflareR2Message} • Proxy: {diagReport.imageProxyOk ? 'OK' : 'Offline'}
+              </p>
+            )}
+          </div>
+
+          <div className="p-3 rounded-lg bg-slate-900/70 border border-slate-800 space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-slate-200 flex items-center gap-1.5">
+                <ImageIcon className="w-3.5 h-3.5 text-indigo-400" />
+                Fotos no Catálogo
+              </span>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 tabular-nums">
+                {products.filter((p) => typeof p.image === 'string' && p.image.trim().length > 0).length}/{products.length}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 font-mono truncate">
+              {diagReport?.sampleHost || 'Clique em "Testar Conexões e Fotos"'}
+            </p>
+            <p className="text-[11px] text-slate-500">
+              {products.filter((p) => !p.image || !String(p.image).trim()).length} produto(s) sem URL de imagem salva.
+            </p>
+          </div>
+        </div>
+
+        {diagReport && (
+          <div className="p-3.5 rounded-lg bg-slate-900 border border-slate-800 space-y-2.5 text-xs">
+            {diagReport.imageRoutes.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-[11px] font-semibold text-slate-300">
+                  Teste ao vivo do 1º produto ({diagReport.sampleProductName}):
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {diagReport.imageRoutes.map((route, idx) => (
+                    <span
+                      key={idx}
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium border ${
+                        route.ok
+                          ? 'bg-emerald-950/50 text-emerald-300 border-emerald-800/60'
+                          : 'bg-rose-950/40 text-rose-300 border-rose-800/60'
+                      }`}
+                    >
+                      {route.ok ? <Check className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+                      {route.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <p className="text-xs text-slate-200 leading-relaxed">{diagReport.conclusion}</p>
+          </div>
+        )}
       </div>
 
       {/* 1. Supabase Cloud Connection */}

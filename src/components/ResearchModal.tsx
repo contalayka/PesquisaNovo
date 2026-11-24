@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Product, ResearchRecord, ProductStatus, ConfidenceLevel } from '../types';
 import { formatCurrency, parseNumber } from '../utils/excel';
+import { getBestExternalImageUrl } from '../utils/imageHelper';
 import { ProductImage } from './ProductImage';
 import {
   X,
@@ -95,11 +96,12 @@ export const ResearchModal: React.FC<ResearchModalProps> = ({
 
   // Search URLs
   const query = encodeURIComponent(product.name);
+  const bestExternalImageUrl = getBestExternalImageUrl(product.image);
   const shopeeUrl = `https://shopee.com.br/search?keyword=${query}`;
-  const shopeeImageUrl = product.image ? `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.image)}` : shopeeUrl;
+  const shopeeImageUrl = bestExternalImageUrl ? `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(bestExternalImageUrl)}` : shopeeUrl;
   const tiktokUrl = `https://www.tiktok.com/search?q=${query}`;
   const sheinUrl = `https://br.shein.com/pdsearch/${query}/`;
-  const googleLensUrl = product.image ? `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(product.image)}` : `https://www.google.com/search?tbm=isch&q=${query}`;
+  const googleLensUrl = bestExternalImageUrl ? `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(bestExternalImageUrl)}` : `https://www.google.com/search?tbm=isch&q=${query}`;
   const googleShopUrl = `https://www.google.com/search?tbm=shop&q=${query}`;
 
   const hasCode = product.id && !product.id.startsWith('prod_');
@@ -415,7 +417,7 @@ export const ResearchModal: React.FC<ResearchModalProps> = ({
                   {product.image && (
                     <button
                       type="button"
-                      onClick={() => handleCopy(product.image, 'image')}
+                      onClick={() => handleCopy(bestExternalImageUrl || product.image, 'image')}
                       className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1.5 transition whitespace-nowrap"
                     >
                       {copiedImage ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <ImageIcon className="w-3.5 h-3.5" />}

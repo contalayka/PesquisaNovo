@@ -31,6 +31,8 @@ import {
   Check
 } from 'lucide-react';
 import { Product, ResearchRecord } from '../types';
+import { ProductImage } from './ProductImage';
+import { getBestExternalImageUrl } from '../utils/imageHelper';
 import {
   fetchVideoRecords,
   saveVideoRecord,
@@ -1716,17 +1718,18 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
               {candidatesModal.candidates.map((cand, idx) => (
                 <div key={cand.videoUrl + idx} className="rounded-xl border border-slate-700 bg-slate-900/80 p-4">
                   <div className="flex gap-3">
-                    {cand.thumbnail ? (
-                      <img
-                        src={cand.thumbnail}
-                        alt=""
-                        className="h-20 w-20 shrink-0 rounded-lg border border-slate-700 bg-black object-contain"
-                      />
-                    ) : (
-                      <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg border border-slate-700 bg-black">
+                    <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-700 bg-black">
+                      {cand.thumbnail ? (
+                        <ProductImage
+                          src={cand.thumbnail}
+                          alt=""
+                          className="h-full w-full object-contain"
+                          fallbackIconSize="h-8 w-8"
+                        />
+                      ) : (
                         <Video className="h-8 w-8 text-slate-600" />
-                      </div>
-                    )}
+                      )}
+                    </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded bg-emerald-950 px-2 py-0.5 text-xs font-bold text-emerald-300 border border-emerald-800/40">
@@ -2313,17 +2316,18 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
             <article key={p.id} className="rounded-xl border border-slate-800 bg-[#121824] p-4 sm:p-5">
               {/* Cabeçalho do Produto */}
               <div className="flex gap-3">
-                {p.image ? (
-                  <img
-                    src={p.image}
-                    alt=""
-                    className="h-16 w-16 rounded-lg border border-slate-700 bg-slate-900 object-contain"
-                  />
-                ) : (
-                  <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-slate-700 bg-slate-900">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-700 bg-slate-900">
+                  {p.image ? (
+                    <ProductImage
+                      src={p.image}
+                      alt={p.name}
+                      className="h-full w-full object-contain"
+                      fallbackIconSize="h-6 w-6"
+                    />
+                  ) : (
                     <Video className="h-6 w-6 text-slate-600" />
-                  </div>
-                )}
+                  )}
+                </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-semibold text-white">{p.name}</h3>
@@ -2380,7 +2384,7 @@ export const VideoFinderView: React.FC<{ products: Product[] }> = ({ products })
                   <a
                     target="_blank"
                     rel="noreferrer"
-                    href={'https://lens.google.com/uploadbyurl?url=' + encodeURIComponent(p.image)}
+                    href={'https://lens.google.com/uploadbyurl?url=' + encodeURIComponent(getBestExternalImageUrl(p.image))}
                     className="inline-flex items-center gap-1.5 rounded-md border border-blue-500/70 bg-blue-600 px-2.5 py-2 text-xs font-bold text-white"
                   >
                     <Search className="h-3 w-3" /> Foto

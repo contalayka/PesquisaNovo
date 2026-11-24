@@ -10,6 +10,7 @@ import {
   ColumnDetectionResult,
   resolveImageUrl,
   isActualImageSource,
+  isGenericFallbackPhoto,
   parseNumber,
 } from './utils/excel';
 import {
@@ -94,6 +95,46 @@ const LAST_IMPORT_IDS_KEY = 'minha_loja_ultima_importacao_ids_v1';
 const GENERATED_FILES_STORAGE_KEY = 'pesquisa_produtos_arquivos_gerados_v1';
 const SIDEBAR_COLLAPSED_KEY = 'pesquisa_produtos_sidebar_collapsed';
 const VIEW_MODE_KEY = 'pesquisa_produtos_view_mode';
+
+// Pre-indexed map of bundled product image URLs used to self-heal empty/null image fields from cloud sync
+const BUNDLED_IMAGE_BY_ID = new Map<string, string>();
+const BUNDLED_IMAGE_BY_NAME = new Map<string, string>();
+try {
+  const rawBundled = (bundledSyncJson as { products?: Array<{ id?: string | number; sku?: string; name?: string; image?: string }> })?.products;
+  if (Array.isArray(rawBundled)) {
+    for (const bp of rawBundled) {
+      const img = typeof bp.image === 'string' ? bp.image.trim() : '';
+      if (!img || !isActualImageSource(img) || isGenericFallbackPhoto(img)) continue;
+      if (bp.id !== undefined && bp.id !== null) {
+        BUNDLED_IMAGE_BY_ID.set(String(bp.id).trim(), img);
+      }
+      if (bp.sku) {
+        BUNDLED_IMAGE_BY_ID.set(String(bp.sku).trim(), img);
+      }
+      if (bp.name) {
+        BUNDLED_IMAGE_BY_NAME.set(bp.name.trim().toLowerCase(), img);
+      }
+    }
+  }
+} catch {
+  // Ignore malformed bundled JSON
+}
+
+function getBundledImageFallback(id?: string | number, sku?: string, name?: string): string | null {
+  if (id !== undefined && id !== null) {
+    const byId = BUNDLED_IMAGE_BY_ID.get(String(id).trim());
+    if (byId) return byId;
+  }
+  if (sku) {
+    const bySku = BUNDLED_IMAGE_BY_ID.get(String(sku).trim());
+    if (bySku) return bySku;
+  }
+  if (name) {
+    const byName = BUNDLED_IMAGE_BY_NAME.get(name.trim().toLowerCase());
+    if (byName) return byName;
+  }
+  return null;
+}
 
 export default function App() {
   // Local storage cache for products
@@ -595,8 +636,9 @@ export default function App() {
             }
           }
 
-          // 2. Reconcile: Supabase cloud is the source of truth, but local not_in_catalog and local products are preserved
+          // 2. Reconcile: Supabase cloud is the source of truth, but local not_in_catalog, valid images, and local products are preserved
           const mergedList: Product[] = [];
+          const imagesToHealInCloud: Product[] = [];
 
           for (const remoteProd of normalizedData) {
             const remoteId = String(remoteProd.id).trim();
@@ -608,7 +650,24 @@ export default function App() {
             const resolvedNotInCatalog = isRemoteNotInCatalog || isLocalNotInCatalog;
             const resolvedMissingSince = remoteProd.catalog_missing_since || localProd?.catalog_missing_since;
 
-            mergedList.push({
+            // Never allow an empty/null remote image field to wipe out a valid local or bundled image URL
+            const remoteImg = typeof remoteProd.image === 'string' ? remoteProd.image.trim() : '';
+            const localImg = typeof localProd?.image === 'string' ? localProd.image.trim() : '';
+            const remoteHasRealImg = Boolean(remoteImg && isActualImageSource(remoteImg) && !isGenericFallbackPhoto(remoteImg));
+            const localHasRealImg = Boolean(localImg && isActualImageSource(localImg) && !isGenericFallbackPhoto(localImg));
+            const bundledImg = getBundledImageFallback(
+              remoteProd.id,
+              remoteProd.sku || localProd?.sku,
+              remoteProd.name || localProd?.name
+            );
+
+            const resolvedImage = remoteHasRealImg
+              ? remoteImg
+              : localHasRealImg
+              ? localImg
+              : bundledImg || remoteImg || localImg || '';
+
+            const mergedProd: Product = {
               ...localProd,
               ...remoteProd,
               price_history:
@@ -625,7 +684,7 @@ export default function App() {
                   ? Number(remoteProd.cost)
                   : (localProd?.cost ?? 0),
               name: remoteProd.name || localProd?.name || `Produto #${remoteProd.id}`,
-              image: remoteProd.image !== undefined ? remoteProd.image : (localProd?.image || null),
+              image: resolvedImage || null,
               not_in_catalog: resolvedNotInCatalog,
               catalog_missing_since: resolvedMissingSince,
               research_records:
@@ -633,7 +692,13 @@ export default function App() {
                   ? remoteProd.research_records
                   : (localProd?.research_records || []),
               rawColumns: { ...(localProd?.rawColumns || {}), ...(remoteProd?.rawColumns || {}) },
-            });
+            };
+
+            if (!remoteHasRealImg && resolvedImage && isActualImageSource(resolvedImage) && !isGenericFallbackPhoto(resolvedImage)) {
+              imagesToHealInCloud.push(mergedProd);
+            }
+
+            mergedList.push(mergedProd);
           }
 
           // 3. Keep ALL local products that aren't on remote yet (NEVER discard user's products!)
@@ -642,6 +707,13 @@ export default function App() {
             if (!remoteIdSet.has(localId)) {
               mergedList.push(localProd);
             }
+          }
+
+          // Background repair: if Supabase rows had empty image columns while we recovered valid links, heal them
+          if (imagesToHealInCloud.length > 0) {
+            upsertProductsToSupabase(imagesToHealInCloud).catch((err) => {
+              console.warn('Falha ao restaurar URLs de imagem no Supabase:', err);
+            });
           }
 
           // Update local state and persist to local storage for offline use
@@ -763,7 +835,9 @@ export default function App() {
               ...(payload.new.cost !== undefined && payload.new.cost !== null
                 ? { cost: Number(payload.new.cost) }
                 : {}),
-              ...(payload.new.image !== undefined ? { image: payload.new.image || null } : {}),
+              ...(typeof payload.new.image === 'string' && payload.new.image.trim().length > 0 && isActualImageSource(payload.new.image)
+                ? { image: payload.new.image.trim() }
+                : {}),
               ...(payload.new.not_in_catalog !== undefined && payload.new.not_in_catalog !== null
                 ? { not_in_catalog: Boolean(payload.new.not_in_catalog) }
                 : {}),
@@ -1119,6 +1193,7 @@ export default function App() {
       merged: mergedProducts,
       newCount: importedNewCount,
       updatedCount,
+      imagesUpdatedCount,
       preservedCount,
       missingCount,
       reappearedCount,
@@ -1150,10 +1225,15 @@ export default function App() {
         mainMsg = `${updatedCount} produto(s) tiveram seus valores atualizados.`;
       } else if (importedNewCount > 0) {
         mainMsg = `${importedNewCount} novos produtos adicionados ao catálogo.`;
+      } else if (imagesUpdatedCount > 0) {
+        mainMsg = `${imagesUpdatedCount} link(s) de imagem atualizados com sucesso.`;
       } else {
         mainMsg = `Catálogo sincronizado com a lista do fornecedor.`;
       }
 
+      if (imagesUpdatedCount > 0 && (importedNewCount > 0 || updatedCount > 0)) {
+        mainMsg += ` (${imagesUpdatedCount} foto(s) atualizada(s))`;
+      }
       if (missingCount > 0) {
         mainMsg += ` (${missingCount} produtos não listados foram mantidos em destaque como "Fora do Site")`;
       }
@@ -2441,6 +2521,46 @@ export default function App() {
               onForceFullSync={handleForceFullCloudSync}
               isSyncingSupabase={isSyncingSupabase}
               onUpdateGitHubConfig={(cfg) => setGithubConfig(cfg)}
+              onRestoreBundledImages={async () => {
+                let restoredCount = 0;
+                const toUpdate: Product[] = [];
+                const nextList = productsRef.current.map((p) => {
+                  const curImg = typeof p.image === 'string' ? p.image.trim() : '';
+                  const hasValid = Boolean(curImg && isActualImageSource(curImg) && !isGenericFallbackPhoto(curImg));
+                  if (hasValid) return p;
+                  const fallback = getBundledImageFallback(p.id, p.sku, p.name);
+                  if (fallback) {
+                    restoredCount++;
+                    const healed = { ...p, image: fallback, updated_at: new Date().toISOString() };
+                    toUpdate.push(healed);
+                    return healed;
+                  }
+                  return p;
+                });
+
+                if (restoredCount > 0) {
+                  productsRef.current = nextList;
+                  setProducts(nextList);
+                  try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextList));
+                  } catch {}
+                  if (isSupabaseConfigured() && toUpdate.length > 0) {
+                    await upsertProductsToSupabase(toUpdate);
+                  }
+                  addToast(
+                    'Links de Imagem Restaurados',
+                    `${restoredCount} produto(s) tiveram seus links de foto restaurados e sincronizados.`,
+                    'success'
+                  );
+                } else {
+                  addToast(
+                    'Nenhuma Imagem Vazia Encontrada',
+                    'Todos os produtos já possuem link de imagem preenchido ou não constam no catálogo base.',
+                    'info'
+                  );
+                }
+                return restoredCount;
+              }}
             />
           )}
 

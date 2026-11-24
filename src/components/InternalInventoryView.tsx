@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { getSupabaseClient } from '../utils/supabase';
 import { Product } from '../types';
+import { ProductImage } from './ProductImage';
+import { getBestExternalImageUrl } from '../utils/imageHelper';
 
 export type InternalItem = {
   id: string;
@@ -616,29 +618,23 @@ export const InternalInventoryView: React.FC<InternalInventoryViewProps> = ({
                             }
                             className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-slate-900 border border-slate-700/70 overflow-hidden flex items-center justify-center shadow-md transition-all duration-300 ease-out group-hover:scale-125 group-hover:border-indigo-400 group-hover:shadow-2xl group-hover:z-30 cursor-pointer"
                           >
-                            {i.image_url ? (
-                              <img
-                                src={i.image_url}
-                                alt={i.product_name}
-                                loading="lazy"
-                                className="w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-110"
-                                onError={(e) => {
-                                  e.currentTarget.style.display = 'none';
-                                }}
-                              />
-                            ) : (
-                              <ImageIcon className="h-6 w-6 text-slate-600" />
-                            )}
+                            <ProductImage
+                              src={i.image_url}
+                              alt={i.product_name}
+                              className="w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-110"
+                              fallbackIconSize="h-6 w-6"
+                            />
                           </div>
 
                           {/* Card flutuante de alta ampliação ao passar o mouse */}
                           {i.image_url && (
                             <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 z-50 flex flex-col items-center">
                               <div className="w-56 h-56 rounded-2xl bg-slate-950 border-2 border-indigo-500 shadow-2xl overflow-hidden p-1 flex items-center justify-center ring-4 ring-black/80">
-                                <img
+                                <ProductImage
                                   src={i.image_url}
                                   alt={i.product_name}
                                   className="w-full h-full object-cover rounded-xl"
+                                  fallbackIconSize="h-8 w-8"
                                 />
                               </div>
                               <span className="mt-1 text-[10px] text-indigo-200 bg-slate-900/95 border border-slate-700 px-2.5 py-0.5 rounded-full shadow-lg whitespace-nowrap font-medium">
@@ -783,10 +779,13 @@ export const InternalInventoryView: React.FC<InternalInventoryViewProps> = ({
               </button>
             </div>
             <div className="w-full max-h-[60vh] flex items-center justify-center bg-slate-950 rounded-xl overflow-hidden p-2">
-              <img
+              <ProductImage
                 src={previewImage.url}
                 alt={previewImage.name}
+                loading="eager"
                 className="max-h-[50vh] max-w-full object-contain rounded-lg shadow-lg"
+                fallbackIconSize="h-10 w-10"
+                showEmptyText
               />
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 border-t border-slate-800 pt-3">
@@ -794,7 +793,7 @@ export const InternalInventoryView: React.FC<InternalInventoryViewProps> = ({
                 <a
                   href={
                     previewImage.url
-                      ? `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(previewImage.url)}`
+                      ? `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(getBestExternalImageUrl(previewImage.url))}`
                       : `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(previewImage.name)}`
                   }
                   target="_blank"

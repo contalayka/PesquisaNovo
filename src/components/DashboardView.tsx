@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Product, ProductStatus, getProductSku } from '../types';
 import { formatCurrency, parseNumericCost } from '../utils/excel';
+import { ProductImage } from './ProductImage';
 
 interface DashboardViewProps {
   products: Product[];
@@ -259,16 +260,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       <td className="py-2.5 px-3">
                         <div className="flex items-center gap-2.5 min-w-0 max-w-xs">
                           <div className="w-8 h-8 rounded bg-slate-900 border border-slate-800 shrink-0 overflow-hidden flex items-center justify-center">
-                            {p.image ? (
-                              <img
-                                src={p.image}
-                                alt=""
-                                className="w-full h-full object-cover"
-                                referrerPolicy="no-referrer"
-                              />
-                            ) : (
-                              <Package className="w-4 h-4 text-slate-600" />
-                            )}
+                            <ProductImage
+                              src={p.image}
+                              alt={p.name}
+                              className="w-full h-full object-cover"
+                              fallbackIconSize="w-4 h-4"
+                            />
                           </div>
                           <span
                             onClick={() => onOpenResearch(p)}

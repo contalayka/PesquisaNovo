@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Product, ResearchRecord, ConfidenceLevel } from '../types';
 import { parseNumber } from '../utils/excel';
+import { ProductImage } from './ProductImage';
 import { X, Plus, Link as LinkIcon, Package } from 'lucide-react';
 
 interface AddProductModalProps {
@@ -24,7 +25,6 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({ onClose, onAdd
   const [adConfidence] = useState<ConfidenceLevel>('Alta');
   const [adNote] = useState('');
 
-  const [imageError, setImageError] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Auto-detect marketplace when pasting link
@@ -194,19 +194,18 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({ onClose, onAdd
                 value={image}
                 onChange={(e) => {
                   setImage(e.target.value);
-                  setImageError(false);
                 }}
                 placeholder="https://exemplo.com/foto.jpg"
                 className="flex-1 px-3 py-2 rounded-lg border border-slate-800 bg-[#121824] text-white text-xs focus:border-indigo-500 focus:outline-none"
               />
-              {image && !imageError && (
+              {image && (
                 <div className="w-8 h-8 rounded-lg border border-slate-800 overflow-hidden shrink-0 bg-[#121824] flex items-center justify-center">
-                  <img
+                  <ProductImage
                     src={image}
                     alt="Preview"
+                    loading="eager"
                     className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                    onError={() => setImageError(true)}
+                    fallbackIconSize="w-4 h-4"
                   />
                 </div>
               )}
