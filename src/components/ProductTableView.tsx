@@ -8,6 +8,7 @@ import {
 } from '../types';
 import { formatCurrency, parseNumericCost } from '../utils/excel';
 import { ProductImage } from './ProductImage';
+import { resolveImageUrl } from '../utils/excel';
 import {
   Search,
   Calculator,
@@ -129,7 +130,7 @@ const ProductTableRow = React.memo<ProductTableRowProps>(
         <td className="py-2 px-3 text-center">
           <div className="relative w-9 h-9 rounded bg-[#0b0f17] border border-slate-800 overflow-hidden flex items-center justify-center mx-auto shrink-0">
             <ProductImage
-              src={product.image}
+              src={resolveImageUrl(product.image, product.rawColumns as Record<string, unknown> | undefined, product.name)}
               alt={product.name}
               className="w-full h-full object-cover"
               fallbackIconSize="w-4 h-4"
@@ -564,7 +565,7 @@ export const ProductTableView = React.memo<ProductTableViewProps>(
                     {/* Imagem + Checkbox + Badge */}
                     <div className="relative aspect-4/3 w-full rounded bg-[#0b0f17] border border-slate-800 overflow-hidden flex items-center justify-center">
                       <ProductImage
-                        src={product.image}
+                        src={resolveImageUrl(product.image, product.rawColumns as Record<string, unknown> | undefined, product.name)}
                         alt={product.name}
                         className="w-full h-full object-cover"
                         fallbackIconSize="w-5 h-5"
@@ -726,7 +727,7 @@ export const ProductTableView = React.memo<ProductTableViewProps>(
                       />
                       <div className="relative w-12 h-12 rounded bg-[#0b0f17] border border-slate-800 overflow-hidden flex items-center justify-center shrink-0">
                         <ProductImage
-                          src={product.image}
+                          src={resolveImageUrl(product.image, product.rawColumns as Record<string, unknown> | undefined, product.name)}
                           alt={product.name}
                           className="w-full h-full object-cover"
                           fallbackIconSize="w-5 h-5"
