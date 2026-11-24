@@ -1202,7 +1202,8 @@ export function mergeCatalogs(
       const importedHasRealImage = Boolean(
         importedImg && isActualImageSource(importedImg) && !isGenericFallbackPhoto(importedImg)
       );
-      const shouldFillMissingImage = options?.fillMissingImages !== false && !existingImg && importedHasRealImage;
+      const existingHasUsableImage = Boolean(existingImg && isActualImageSource(existingImg) && !isGenericFallbackPhoto(existingImg));
+      const shouldFillMissingImage = options?.fillMissingImages !== false && !existingHasUsableImage && importedHasRealImage;
       const imageHasChanged = shouldFillMissingImage || (importedHasRealImage && existingImg !== importedImg && Boolean(existingImg));
 
       if ((priceHasChanged || wasNotInCatalog || imageHasChanged) && !updatedIdsInRun.has(existing.id)) {
@@ -1233,7 +1234,7 @@ export function mergeCatalogs(
           ...existing,
           cost: priceHasChanged ? imported.cost : existing.cost,
           image: imageHasChanged ? importedImg : existing.image,
-          not_in_catalog: false, // Produto está presente na lista do site!
+          not_in_catalog: wasNotInCatalog ? false : existing.not_in_catalog, // Só reativa quando estava marcado como ausente
           updated_at: new Date().toISOString(),
           price_history: newHistory,
         };
