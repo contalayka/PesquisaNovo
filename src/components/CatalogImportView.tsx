@@ -50,7 +50,7 @@ interface CatalogImportViewProps {
   onFileSelect: (file: File) => void;
   parseResult: ExcelParseResult | null;
   detectedMappings: ColumnMapping | null;
-  onConfirmImport: (mappings: ColumnMapping, mode: 'merge' | 'replace', options?: { markMissingAsNotInCatalog?: boolean }) => void;
+  onConfirmImport: (mappings: ColumnMapping, mode: 'merge' | 'replace', options?: { markMissingAsNotInCatalog?: boolean; fillMissingImages?: boolean }) => void;
   onCancelImport: () => void;
   onDownloadTemplate: () => void;
   onNavigateToProducts: () => void;
@@ -77,6 +77,7 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
   const [importMode, setImportMode] = useState<'merge' | 'replace'>('merge');
   const [activeReviewTab, setActiveReviewTab] = useState<'prices' | 'new' | 'missing' | 'unchanged'>('prices');
   const [markMissingAsNotInCatalog, setMarkMissingAsNotInCatalog] = useState(true);
+  const [fillMissingImages, setFillMissingImages] = useState(true);
   const userHasPickedTabRef = useRef(false);
 
   const handleSelectReviewTab = (tab: 'prices' | 'new' | 'missing' | 'unchanged') => {
@@ -288,7 +289,7 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
   const previewMissingRows = missingFromSupplierCandidates.slice(0, 12);
 
   const handleExecuteImport = () => {
-    onConfirmImport(customMappings, 'merge', { markMissingAsNotInCatalog });
+    onConfirmImport(customMappings, 'merge', { markMissingAsNotInCatalog, fillMissingImages });
     setFinishedSuccess(true);
     setStep(4);
   };
@@ -647,6 +648,18 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
               <span className="text-xs font-semibold text-slate-300">
                 Amostra dos {newProductCandidates.length} novos produtos a serem adicionados:
               </span>
+
+              <label className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-900/30 border border-emerald-500/40 cursor-pointer select-none mb-3">
+                <input
+                  type="checkbox"
+                  checked={fillMissingImages}
+                  onChange={(e) => setFillMissingImages(e.target.checked)}
+                  className="rounded border-emerald-600 bg-slate-900 text-emerald-500 focus:ring-emerald-400"
+                />
+                <span className="text-xs font-semibold text-emerald-100">
+                  Preencher imagens ausentes com fotos da planilha (sem substituir imagens já existentes)
+                </span>
+              </label>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
                 {previewNewRows.map((r, i) => {
