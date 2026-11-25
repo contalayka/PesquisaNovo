@@ -166,6 +166,13 @@ main { background: var(--mp-bg) !important; }
 [id^="product-card-"] .text-slate-400,
 [id^="product-card-"] .text-slate-500 { color: #9aa5b2 !important; }
 
+/* Hide catalog entries whose image URL fails after the browser attempts recovery.
+   The product remains stored in Supabase/local storage; only the visual listing is hidden. */
+[id^="product-card-"]:has(.product-image-unavailable),
+.mp-app-content tbody tr:has(.product-image-unavailable) {
+  display: none !important;
+}
+
 /* Panels, metrics, tables and drawers */
 .mp-panel, .mp-metric, .mp-dashboard-hero {
   color: var(--mp-text) !important;
