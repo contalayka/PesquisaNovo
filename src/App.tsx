@@ -749,7 +749,19 @@ export default function App() {
               remoteProd.name || localProd?.name
             );
 
-            const resolvedImage = remoteHasRealImg
+            // Resolve image conflicts by freshness, not by blindly trusting the cloud copy.
+            // After an import, the local catalog may already contain a newer supplier image while
+            // the cloud write is still pending or has failed. Never replace that newer image with
+            // an older (but syntactically valid) URL returned by Supabase.
+            const localUpdatedAt = localProd?.updated_at ? new Date(localProd.updated_at).getTime() : 0;
+            const remoteUpdatedAt = remoteProd.updated_at ? new Date(remoteProd.updated_at).getTime() : 0;
+            const localImageIsNewer = Boolean(
+              localHasRealImg &&
+              (!remoteHasRealImg || (localUpdatedAt > 0 && remoteUpdatedAt > 0 && localUpdatedAt > remoteUpdatedAt))
+            );
+            const resolvedImage = localImageIsNewer
+              ? localImg
+              : remoteHasRealImg
               ? remoteImg
               : localHasRealImg
               ? localImg
@@ -788,7 +800,13 @@ export default function App() {
               rawColumns: { ...(localProd?.rawColumns || {}), ...(remoteProd?.rawColumns || {}) },
             };
 
-            if (!remoteHasRealImg && resolvedImage && isActualImageSource(resolvedImage) && !isGenericFallbackPhoto(resolvedImage)) {
+            if (
+              resolvedImage &&
+              resolvedImage !== remoteImg &&
+              isActualImageSource(resolvedImage) &&
+              !isGenericFallbackPhoto(resolvedImage)
+            ) {
+              // Also repair stale-but-valid cloud URLs, not only empty cloud image fields.
               imagesToHealInCloud.push(mergedProd);
             }
 
