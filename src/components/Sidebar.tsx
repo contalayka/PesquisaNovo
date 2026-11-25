@@ -59,18 +59,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeFilterStatus,
 }) => {
   const [isHovered, setIsHovered] = React.useState(false);
-  const [isCompactViewport, setIsCompactViewport] = React.useState(
-    () => typeof window !== 'undefined' && window.innerWidth < 1280
-  );
-  React.useEffect(() => {
-    const updateViewport = () => {
-      setIsCompactViewport(window.innerWidth < 1280);
-      setIsHovered(false);
-    };
-    window.addEventListener('resize', updateViewport);
-    return () => window.removeEventListener('resize', updateViewport);
-  }, []);
-  const isCollapsed = isCompactViewport && !isHovered;
+  // Desktop navigation stays completely hidden and opens only on pointer hover.
+  const isCollapsed = !isHovered;
 
   const navItems: {
     id: AppView;
@@ -327,22 +317,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <>
-      {/* Desktop Sidebar: hidden until the pointer reaches the left edge on compact monitors */}
+      {/* Desktop Sidebar: hidden by default; reveal only while hovering the left edge */}
       <aside
-        onMouseEnter={() => { if (isCompactViewport) setIsHovered(true); }}
-        onMouseLeave={() => { if (isCompactViewport) setIsHovered(false); }}
-        className={`hidden md:block relative shrink-0 self-stretch overflow-visible min-h-screen transition-[width] duration-200 ease-out ${
-          isCompactViewport ? 'w-3 z-50' : 'w-[248px] z-30'
-        }`}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        className="hidden md:block relative w-3 shrink-0 self-stretch overflow-visible min-h-screen z-50"
         aria-label="Barra lateral"
       >
         <div
-          className={`absolute left-0 top-0 h-full min-h-screen transition-[transform,opacity] duration-200 ease-out ${
-            isCompactViewport
-              ? isHovered
-                ? 'translate-x-0 opacity-100 pointer-events-auto shadow-2xl'
-                : '-translate-x-full opacity-0 pointer-events-none'
-              : 'translate-x-0 opacity-100'
+          className={`absolute left-0 top-0 h-full min-h-screen transition-transform duration-200 ease-out ${
+            isHovered
+              ? 'translate-x-0 pointer-events-auto shadow-2xl'
+              : '-translate-x-full pointer-events-none'
           }`}
         >
           {renderSidebarContent(false)}
