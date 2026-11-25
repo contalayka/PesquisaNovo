@@ -4,7 +4,6 @@ import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 (pdfjsLib as any).GlobalWorkerOptions.workerSrc =
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
 import { jsPDF } from 'jspdf';
-import { getSupabaseClient } from '../utils/supabase';
 import {
   CalendarDays,
   Check,
@@ -112,7 +111,6 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [showConfirmClear, setShowConfirmClear] = useState(false);
 
-  const client = getSupabaseClient();
 
   // Helper para computar dailyTotals a partir de lotes locais (soma os lotes da mesma data deduplicando pedidos idênticos)
   function buildDailyTotalsFromBatches(batches: Batch[]): Record<string, Record<string, number>> {
@@ -181,55 +179,46 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
   }, [date]);
 
   async function loadHistory() {
-    const local = (() => {
-      try {
-        return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-      } catch {
-        return [];
-      }
-    })();
-
-    if (!client) {
-      setHistory(local);
-      setDailyTotals(buildDailyTotalsFromBatches(local));
-      return;
-    }
-
+    const local = (() => { try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]') as Batch[]; } catch { return []; } })();
     try {
-      const { data, error: err } = await client
-        .from('report_batches')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(100);
-
-      const activeBatches = !err && data ? (data as Batch[]) : local;
-      setHistory(activeBatches);
-
-      const { data: rows } = await client
-        .from('report_orders')
-        .select('operational_date,marketplace,order_hash')
-        .order('operational_date', { ascending: false })
-        .limit(10000);
-
-      if (rows && rows.length > 0) {
-        const grouped: Record<string, Record<string, number>> = {};
+      let response = await fetch('/api/shipping-reports', { cache:'no-store' });
+      if (!response.ok) throw new Error('Não foi possível consultar o histórico na nuvem.');
+      let cloud = await response.json() as {success:boolean;batches:Batch[];orders:Array<{order_hash:string;operational_date:string;marketplace:string}>};
+      if (!cloud.success) throw new Error('Falha ao carregar o histórico na nuvem.');
+      if ((!cloud.batches || cloud.batches.length === 0) && local.length > 0) {
+        for (const batch of [...local].reverse()) {
+          const valid = (batch.labels || []).filter((l:any) => l.include && !l.duplicate && l.platform && l.orderNumber);
+          const orders = await Promise.all(valid.map(async (l:any) => ({
+            order_hash: await computeOrderHash(l.platform, l.orderNumber),
+            marketplace: l.platform, operational_date: batch.operational_date, batch_id: batch.id
+          })));
+          const migrated = await fetch('/api/shipping-reports',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({batch,orders})});
+          if (!migrated.ok) throw new Error('Não foi possível migrar o histórico antigo para a nuvem.');
+        }
+        response = await fetch('/api/shipping-reports',{cache:'no-store'});
+        if (!response.ok) throw new Error('Falha ao confirmar a migração.');
+        cloud = await response.json();
+      }
+      const batches = Array.isArray(cloud.batches) ? cloud.batches : [];
+      setHistory(batches);
+      if (Array.isArray(cloud.orders) && cloud.orders.length) {
+        const grouped: Record<string,Record<string,number>> = {};
         const seen = new Set<string>();
-        for (const row of rows) {
+        for (const row of cloud.orders) {
           const key = `${row.operational_date}:${row.order_hash}`;
           if (seen.has(key)) continue;
           seen.add(key);
           grouped[row.operational_date] ||= createEmptyCounts();
-          grouped[row.operational_date][row.marketplace] =
-            (grouped[row.operational_date][row.marketplace] || 0) + 1;
+          grouped[row.operational_date][row.marketplace] = (grouped[row.operational_date][row.marketplace] || 0) + 1;
         }
         setDailyTotals(grouped);
-      } else {
-        setDailyTotals(buildDailyTotalsFromBatches(activeBatches));
-      }
+      } else setDailyTotals(buildDailyTotalsFromBatches(batches));
+      try { localStorage.setItem(HISTORY_KEY,JSON.stringify(batches)); } catch {}
     } catch (e) {
-      console.warn('Erro ao carregar histórico do Supabase:', e);
+      console.warn('Erro ao carregar histórico do Cloudflare:',e);
       setHistory(local);
       setDailyTotals(buildDailyTotalsFromBatches(local));
+      if (!local.length) setError('Não foi possível acessar o histórico salvo na nuvem. Verifique sua conexão e tente novamente.');
     }
   }
 
@@ -413,34 +402,17 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
         }
       }
 
-      // Consulta hashes de pedidos já processados em lotes anteriores no Supabase
+      // Deduplicação centralizada no Cloudflare D1 entre todos os dispositivos.
       const knownHashes = new Set<string>();
-      if (client && rawExtractedLabels.length) {
-        setProgress('Conferindo deduplicação com histórico salvo...');
-        const candidateItems = rawExtractedLabels.filter((l) => l.platform && l.orderNumber);
-        const hashesToCheck = await Promise.all(
-          candidateItems.map(async (l) => ({
-            key: `${l.platform}:${normalizeOrderCode(l.orderNumber)}`,
-            hash: await computeOrderHash(l.platform, l.orderNumber),
-          }))
-        );
-
-        for (let i = 0; i < hashesToCheck.length; i += 100) {
-          const chunk = hashesToCheck.slice(i, i + 100);
-          const { data: existingRows } = await client
-            .from('report_orders')
-            .select('order_hash')
-            .in(
-              'order_hash',
-              chunk.map((c) => c.hash)
-            );
-
-          if (existingRows) {
-            for (const r of existingRows) {
-              const matched = chunk.find((c) => c.hash === r.order_hash);
-              if (matched) knownHashes.add(matched.key);
-            }
-          }
+      if (rawExtractedLabels.length) {
+        setProgress('Conferindo deduplicação com histórico salvo na nuvem...');
+        const response = await fetch('/api/shipping-reports',{cache:'no-store'});
+        if (!response.ok) throw new Error('Não foi possível conferir pedidos já salvos na nuvem.');
+        const cloud = await response.json();
+        const existing = new Set((cloud.orders || []).map((row:any) => `${row.marketplace}:${row.order_hash}`));
+        for (const l of rawExtractedLabels.filter((item) => item.platform && item.orderNumber)) {
+          const hash = await computeOrderHash(l.platform, l.orderNumber);
+          if (existing.has(`${l.platform}:${hash}`)) knownHashes.add(`${l.platform}:${normalizeOrderCode(l.orderNumber)}`);
         }
       }
 
@@ -523,29 +495,12 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
         labels: summary.items,
       };
 
-      if (client) {
-        const { error: eBatch } = await client.from('report_batches').insert({
-          id: batch.id,
-          operational_date: batch.operational_date,
-          file_count: batch.file_count,
-          total_orders: batch.total_orders,
-          counts: batch.counts,
-          pending_count: batch.pending_count,
-        });
-
-        if (eBatch) {
-          throw new Error(`Falha ao salvar lote no Supabase: ${eBatch.message}`);
-        }
-
-        if (hashesToInsert.length) {
-          const { error: eOrders } = await client
-            .from('report_orders')
-            .upsert(hashesToInsert, { onConflict: 'order_hash,operational_date' });
-          if (eOrders) {
-            throw new Error(`Falha ao registrar deduplicação no Supabase: ${eOrders.message}`);
-          }
-        }
-      }
+      const cloudSave = await fetch('/api/shipping-reports',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({batch,orders:hashesToInsert})
+      });
+      const cloudResult = await cloudSave.json();
+      if (!cloudSave.ok || !cloudResult.success) throw new Error(cloudResult.error || 'Falha ao salvar o histórico no Cloudflare D1.');
 
       // Atualiza histórico local
       const local = (() => {
