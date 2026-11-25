@@ -2530,50 +2530,125 @@ export default function App() {
                     }
                   : null
               }
-              onConfirmImport={(mappings, mode, options) => {
-                if (detectionPending) {
-                  if (mode === 'replace') {
-                    if (products.length > 0) {
-                      setPreviousProducts(products);
-                      try {
-                        localStorage.setItem(PREV_STORAGE_KEY, JSON.stringify(products));
-                      } catch (e) {
-                        console.error('Falha ao salvar backup no localStorage', e);
-                      }
-                    }
-                    const importedRows = convertRowsToProducts(
-                      detectionPending.rows,
-                      mappings.name,
-                      mappings.cost,
-                      mappings.image,
-                      mappings.available,
-                      mappings.id,
-                      mappings.status
-                    );
-                    setProducts(importedRows);
-                    try {
-                      localStorage.setItem(STORAGE_KEY, JSON.stringify(importedRows));
-                    } catch (e) {
-                      console.error('Falha ao salvar no localStorage', e);
-                    }
-                    setDetectionPending(null);
-                    setCurrentSidebarSection('produtos');
-                    if (isSupabaseConfigured()) {
-                      upsertProductsToSupabase(importedRows).catch(console.error);
-                    }
-                    addToast('Catálogo Carregado', `${importedRows.length} produtos carregados com imagens automáticas.`, 'success');
-                  } else {
-                    handleConfirmMapping(
-                      mappings.name,
-                      mappings.cost,
-                      mappings.image,
-                      mappings.available,
-                      mappings.id,
-                      mappings.status,
-                      options
-                    );
+              onConfirmImport={async (mappings, mode, options) => {
+                if (!detectionPending) return;
+                const importedRows = convertRowsToProducts(
+                  detectionPending.rows,
+                  mappings.name,
+                  mappings.cost,
+                  mappings.image,
+                  mappings.available,
+                  mappings.id,
+                  mappings.status
+                );
+                if (importedRows.length === 0) {
+                  addToast('Importação cancelada', 'Nenhum produto válido foi encontrado na planilha.', 'error');
+                  return;
+                }
+
+                if (products.length > 0) {
+                  setPreviousProducts(products);
+                  try {
+                    localStorage.setItem(PREV_STORAGE_KEY, JSON.stringify(products));
+                  } catch (e) {
+                    console.error('Falha ao salvar backup do catálogo antes da substituição:', e);
+                    addToast('Backup não confirmado', 'Não foi possível salvar o backup local. A substituição foi cancelada para proteger seus dados.', 'error');
+                    return;
                   }
                 }
+
+                if (mode === 'replace') {
+                  const oldIds = products.map((p) => String(p.id).trim()).filter(Boolean);
+                  if (isSupabaseConfigured() && oldIds.length > 0) {
+                    setIsLoading(true);
+                    isMutatingCloudRef.current = true;
+                    try {
+                      const { error } = await deleteProductsFromSupabase(oldIds);
+                      if (error) {
+                        addToast('Substituição cancelada', `Não foi possível remover o catálogo antigo do Supabase: ${error}`, 'error');
+                        return;
+                      }
+                    } catch (e: any) {
+                      addToast('Substituição cancelada', e?.message || 'Falha ao remover o catálogo antigo do Supabase.', 'error');
+                      return;
+                    } finally {
+                      isMutatingCloudRef.current = false;
+                      setIsLoading(false);
+                    }
+                  }
+
+                  const cleanImported = importedRows.map((p) => ({
+                    ...p,
+                    is_new: true,
+                    not_in_catalog: false,
+                    status: 'Pendente' as ProductStatus,
+                    research_records: [],
+                  }));
+
+                  if (isSupabaseConfigured()) {
+                    setIsLoading(true);
+                    isMutatingCloudRef.current = true;
+                    try {
+                      const { error } = await upsertProductsToSupabase(cleanImported);
+                      if (error) {
+                        addToast('Catálogo salvo localmente', `A nuvem não confirmou a nova lista: ${error}. Faça a sincronização após revisar a conexão.`, 'warning');
+                      }
+                    } finally {
+                      isMutatingCloudRef.current = false;
+                      setIsLoading(false);
+                    }
+                  }
+
+                  productsRef.current = cleanImported;
+                  setProducts(cleanImported);
+                  setSelectedProductIds([]);
+                  try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(cleanImported));
+                    localStorage.setItem(LAST_IMPORT_IDS_KEY, JSON.stringify(cleanImported.map((p) => String(p.id))));
+                  } catch (e) {
+                    console.error('Falha ao salvar novo catálogo localmente:', e);
+                  }
+
+                  const ghConfig = getStoredGitHubConfig();
+                  if (isGitHubSyncConfigured(ghConfig)) {
+                    try {
+                      const payload: GitHubSyncPayload = {
+                        version: '2.0',
+                        updatedAt: new Date().toISOString(),
+                        source: 'catalog-replacement-import',
+                        totalProducts: cleanImported.length,
+                        products: cleanImported,
+                        pricingSettings: {
+                          markup: localStorage.getItem('saas_settings_markup') || '100',
+                          tax: localStorage.getItem('saas_settings_tax') || '6',
+                          packaging: localStorage.getItem('saas_settings_packaging') || '3.50',
+                        },
+                      };
+                      const pushed = await pushDataToGitHub(ghConfig, payload, `Catálogo substituído: ${cleanImported.length} produtos`);
+                      if (!pushed.success) {
+                        addToast('Aviso de sincronização', 'O novo catálogo foi importado, mas o GitHub não confirmou a atualização. Verifique a sincronização.', 'warning');
+                      }
+                    } catch (e) {
+                      console.warn('Falha ao atualizar catálogo substituído no GitHub:', e);
+                      addToast('Aviso de sincronização', 'O novo catálogo foi importado, mas não foi possível atualizar o backup do GitHub.', 'warning');
+                    }
+                  }
+
+                  setDetectionPending(null);
+                  setCurrentSidebarSection('produtos');
+                  addToast('Catálogo substituído', `${cleanImported.length} produtos importados. Configurações do projeto preservadas.`, 'success');
+                  return;
+                }
+
+                handleConfirmMapping(
+                  mappings.name,
+                  mappings.cost,
+                  mappings.image,
+                  mappings.available,
+                  mappings.id,
+                  mappings.status,
+                  options
+                );
               }}
               onCancelImport={() => setDetectionPending(null)}
               onDownloadTemplate={downloadSampleTemplate}
