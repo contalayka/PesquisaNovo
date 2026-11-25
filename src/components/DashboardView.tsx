@@ -4,7 +4,7 @@ import {
   Calculator, Search, TrendingUp, CircleDashed
 } from 'lucide-react';
 import { Product, ProductStatus, getProductSku } from '../types';
-import { formatCurrency, parseNumericCost, resolveImageUrl, isMissingOrInvalidProductImage } from '../utils/excel';
+import { formatCurrency, resolveImageUrl, isMissingOrInvalidProductImage } from '../utils/excel';
 import { ProductImage } from './ProductImage';
 
 interface DashboardViewProps {
