@@ -64,16 +64,24 @@ function deriveSupabaseObjectUrl(parsed: URL): string | null {
   return copy.toString();
 }
 
-function looksLikeImageContentType(contentType: string | null, targetUrl: string): boolean {
-  const ct = (contentType || '').toLowerCase();
-  if (ct.startsWith('image/')) return true;
-  if (
-    ct === 'application/octet-stream' &&
-    /\.(jpe?g|png|webp|gif|avif|svg|bmp|ico)(\?|$)/i.test(targetUrl)
-  ) {
-    return true;
+function detectImageContentType(bytes: Uint8Array, declaredType: string | null): string | null {
+  const type = (declaredType || '').split(';')[0].trim().toLowerCase();
+  if (type.startsWith('image/')) return type;
+
+  // Alguns CDNs entregam imagens como application/octet-stream ou sem Content-Type.
+  // Confirma o formato pelos bytes antes de servir, evitando aceitar páginas HTML.
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg';
+  if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return 'image/png';
+  if (bytes.length >= 6 && String.fromCharCode(...bytes.slice(0, 6)).match(/^GIF8[79]a$/)) return 'image/gif';
+  if (bytes.length >= 12 && String.fromCharCode(...bytes.slice(0, 4)) === 'RIFF' && String.fromCharCode(...bytes.slice(8, 12)) === 'WEBP') return 'image/webp';
+  if (bytes.length >= 12 && String.fromCharCode(...bytes.slice(4, 8)) === 'ftyp') {
+    const brand = String.fromCharCode(...bytes.slice(8, 12));
+    if (['avif', 'avis', 'mif1', 'msf1'].includes(brand)) return 'image/avif';
   }
-  return false;
+
+  const prefix = new TextDecoder().decode(bytes.slice(0, Math.min(bytes.length, 512))).trimStart().toLowerCase();
+  if (prefix.startsWith('<svg') || (prefix.startsWith('<?xml') && prefix.includes('<svg'))) return 'image/svg+xml';
+  return null;
 }
 
 async function fetchUpstreamImage(url: string): Promise<Response | null> {
@@ -92,17 +100,25 @@ async function fetchUpstreamImage(url: string): Promise<Response | null> {
     const finalUrl = validateExternalImageUrl(response.url || url);
     if (!finalUrl) return null;
 
-    const contentType = response.headers.get('content-type');
-    if (!looksLikeImageContentType(contentType, finalUrl.toString())) {
-      return null;
-    }
-
     const contentLength = Number(response.headers.get('content-length') || '0');
     if (contentLength > MAX_IMAGE_BYTES) {
       return null;
     }
 
-    return response;
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength === 0 || bytes.byteLength > MAX_IMAGE_BYTES) {
+      return null;
+    }
+
+    const detectedType = detectImageContentType(bytes, response.headers.get('content-type'));
+    if (!detectedType) {
+      return null;
+    }
+
+    return new Response(bytes, {
+      status: 200,
+      headers: { 'Content-Type': detectedType },
+    });
   } catch {
     return null;
   }
