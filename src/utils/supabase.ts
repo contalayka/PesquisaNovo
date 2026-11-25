@@ -3,6 +3,7 @@ import { Product, ResearchRecord, ProductStatus, SupabaseConfig } from '../types
 const API = '/api/catalog';
 export const SUPABASE_SETUP_SQL = '';
 export const SUPABASE_MIGRATION_FIX_BIGINT_SQL = '';
+export function getSupabaseClient(): null { return null; }
 export function getStoredSupabaseConfig(): SupabaseConfig { return { url: 'cloudflare-d1', anonKey: 'managed-by-cloudflare-pages' }; }
 export function isSupabaseConfigured(): boolean { return true; }
 export function saveStoredSupabaseConfig(_config: SupabaseConfig): void {}
