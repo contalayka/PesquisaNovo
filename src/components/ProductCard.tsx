@@ -162,6 +162,7 @@ export const ProductCard = React.memo<ProductCardProps>(
   return (
     <div
       id={`product-card-${product.id}`}
+      data-product-status={product.status || 'Pendente'}
       className={`group relative h-full flex flex-col justify-between rounded-lg border-2 transition-colors duration-150 overflow-hidden min-w-0 w-full ${
         product.status === 'Encontrado'
           ? 'border-emerald-500/80 bg-[#121d1b] shadow-[0_0_12px_rgba(16,185,129,0.10)]'
