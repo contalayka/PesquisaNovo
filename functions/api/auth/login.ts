@@ -64,8 +64,9 @@ export const onRequestPost: PagesFunction<Env> = async ({request,env}) => {
     stage = 'session-cookie';
     return json({authenticated:true},200,{ 'Set-Cookie':`mp_session=${payload}.${signature}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=43200` });
   } catch (error) {
-    const detail = error instanceof Error ? error.name : 'UnknownError';
-    console.error('AUTH_LOGIN_FAILURE', stage, detail, error instanceof Error ? error.message : 'unknown');
-    return json({error:'Falha interna na autenticação.', stage, detail},500);
+    const errorName = error instanceof Error ? error.name : 'UnknownError';
+    const detail = error instanceof Error ? error.message : 'unknown';
+    console.error('AUTH_LOGIN_FAILURE', stage, errorName, detail);
+    return json({error:'Falha interna na autenticação.', stage, detail: `${errorName}: ${detail}`},500);
   }
 };
