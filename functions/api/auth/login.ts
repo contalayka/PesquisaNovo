@@ -1,3 +1,4 @@
+type PagesFunction<Env = Record<string, unknown>> = (context: { request: Request; env: Env }) => Response | Promise<Response>;
 interface Env { AUTH_PASSWORD_HASH: string; AUTH_SESSION_SECRET: string; }
 const attempts = new Map<string, { count: number; blockedUntil: number }>();
 const enc = new TextEncoder();
