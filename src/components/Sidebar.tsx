@@ -59,7 +59,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeFilterStatus,
 }) => {
   const [isHovered, setIsHovered] = React.useState(false);
-  const isCollapsed = !isHovered;
+  const isCollapsed = false;
 
   const navItems: {
     id: AppView;
@@ -136,13 +136,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
     return (
       <div
-        className={`flex flex-col h-full bg-[#03131e] border-r border-cyan-900/40 text-slate-300 select-none overflow-hidden transition-[width] duration-200 ease-out ${
-          isMobileDrawer ? 'w-full' : (collapsed ? 'w-[68px]' : 'w-[236px]')
+        className={`flex flex-col h-full bg-[#111b2e] border-r border-slate-700/70 text-slate-300 select-none overflow-hidden transition-[width] duration-200 ease-out ${
+          isMobileDrawer ? 'w-full' : 'w-[248px]'
         }`}
       >
         {/* Brand area */}
         <div
-          className={`h-14 px-3.5 flex items-center border-b border-slate-800 shrink-0 bg-[#02101a] ${
+          className={`h-14 px-3.5 flex items-center border-b border-slate-800 shrink-0 bg-[#0d1729] ${
             collapsed ? 'justify-center' : 'justify-between'
           }`}
         >
@@ -181,7 +181,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onOpenAddProduct();
               onCloseMobile();
             }}
-            className={`w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-400 to-emerald-300 hover:brightness-110 text-[#032019] text-white font-semibold text-xs py-2 transition shadow-xs ${
+            className={`w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs py-2 transition shadow-xs ${
               collapsed ? 'px-0' : 'px-3'
             }`}
             title={collapsed ? 'Adicionar Novo Produto' : undefined}
@@ -211,7 +211,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   title={collapsed ? `${item.label}${item.badge ? ` (${item.badge})` : ''}` : undefined}
                   className={`w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-xs font-medium transition-colors ${
                     isActive
-                      ? 'bg-emerald-400/15 text-emerald-300 font-semibold shadow-[inset_3px_0_0_#00f5a0]'
+                      ? 'bg-blue-600/20 text-blue-100 font-semibold shadow-[inset_3px_0_0_#7da2ff]'
                       : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
                   } ${collapsed ? 'justify-center' : 'justify-between'}`}
                 >
@@ -254,7 +254,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
 
         {/* Footer Tools & Database Status */}
-        <div className="p-2.5 border-t border-slate-800 shrink-0 bg-[#0b0f1a] space-y-1.5">
+        <div className="p-2.5 border-t border-slate-800 shrink-0 bg-[#0d1729] space-y-1.5">
           {onOpenSimulator && (
             <button
               type="button"
@@ -321,7 +321,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         className={`hidden md:block relative shrink-0 self-stretch overflow-visible shadow-lg transition-[width] duration-200 ease-out min-h-screen ${
-          isCollapsed ? 'w-[68px]' : 'w-[236px]'
+          'w-[248px]'
         }`}
         aria-label="Barra lateral"
       >
