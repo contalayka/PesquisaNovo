@@ -44,7 +44,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     if (raw.length > 8 * 1024 * 1024) return json({success:false,error:"Lote excede 8 MB."},413);
     const body = JSON.parse(raw) as { batch?: StoredBatch; orders?: Array<{order_hash:string;marketplace:string;operational_date:string;batch_id:string}> };
     const b = body.batch;
-    if (!b || typeof b.id !== "string" || typeof b.operational_date !== "string" || !Array.isArray(b.labels)) {
+    if (!b || typeof b.id !== "string" || typeof b.operational_date !== "string" || (b.labels !== undefined && !Array.isArray(b.labels))) {
       return json({success:false,error:"Lote de pedidos inválido."},400);
     }
     const orders = Array.isArray(body.orders) ? body.orders : [];
