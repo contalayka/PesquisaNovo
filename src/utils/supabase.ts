@@ -606,81 +606,51 @@ export async function upsertProductsToSupabase(products: Product[]): Promise<{ e
       };
     });
 
-    // 1. Save products table with automatic fallback
-    for (let i = 0; i < rowsWithStatus.length; i += 100) {
-      let batch = rowsWithStatus.slice(i, i + 100);
+    // 1. Persist the entire catalog in small, verified batches.
+    // Never report success when a fallback insert/update failed silently.
+    const batchSize = 50;
+    for (let i = 0; i < rowsWithStatus.length; i += batchSize) {
+      const batch = rowsWithStatus.slice(i, i + batchSize);
+      const payloadVariants = [
+        batch,
+        batch.map(({ not_in_catalog, ...rest }) => rest),
+        batch.map(({ status, ...rest }) => rest),
+        batch.map(({ not_in_catalog, status, ...rest }) => rest),
+      ];
+      let saved = false;
+      let lastError: any = null;
+      const tried = new Set<string>();
 
-      // Attempt 1: Direct upsert
-      let upsertError: any = null;
-      try {
-        const { error } = await client.from('products').upsert(batch, { onConflict: 'id' });
-        upsertError = error;
-      } catch (err: any) {
-        upsertError = err;
+      for (const payload of payloadVariants) {
+        const signature = Object.keys(payload[0] || {}).sort().join('|');
+        if (tried.has(signature)) continue;
+        tried.add(signature);
+        const { error } = await client.from('products').upsert(payload, { onConflict: 'id' });
+        if (!error) {
+          saved = true;
+          break;
+        }
+        lastError = error;
       }
 
-      // If not_in_catalog column is missing, try upsert without not_in_catalog
-      if (
-        upsertError &&
-        (upsertError.code === '42703' || upsertError.message?.includes('not_in_catalog'))
-      ) {
-        const batchNoNotInCatalog = batch.map(({ not_in_catalog, ...rest }) => rest);
-        const { error: errNoCol } = await client.from('products').upsert(batchNoNotInCatalog, { onConflict: 'id' });
-        if (!errNoCol) {
-          upsertError = null;
-        } else {
-          upsertError = errNoCol;
-        }
+      if (!saved) {
+        console.error(`Falha ao gravar lote ${Math.floor(i / batchSize) + 1} do catálogo:`, lastError);
+        return { error: `Falha ao gravar produtos ${i + 1} a ${Math.min(i + batch.length, rowsWithStatus.length)}: ${lastError?.message || 'erro desconhecido'}` };
       }
 
-      // If status column is missing, try upsert without status
-      if (
-        upsertError &&
-        (upsertError.code === '42703' || upsertError.message?.includes('column "status"') || upsertError.message?.includes('status'))
-      ) {
-        const batchNoStatus = batch.map(({ status, not_in_catalog, ...rest }) => rest);
-        const { error: errNoStatus } = await client.from('products').upsert(batchNoStatus, { onConflict: 'id' });
-        if (!errNoStatus) {
-          upsertError = null;
-        } else {
-          upsertError = errNoStatus;
-        }
+      // Confirm that every ID in this batch exists after the write.
+      const batchIds = batch.map((row) => row.id);
+      const { data: confirmed, error: verifyError } = await client
+        .from('products')
+        .select('id')
+        .in('id', batchIds);
+      if (verifyError) {
+        return { error: `Lote gravado, mas não foi possível confirmar os produtos ${i + 1}–${i + batch.length}: ${verifyError.message}` };
       }
-
-      // Fallback: If upsert failed due to PostgreSQL ON CONFLICT type issues (e.g. 22P02 bigint, 42804 COALESCE),
-      // perform resilient split: check existing IDs, insert new ones, update existing ones
-      if (upsertError) {
-        try {
-          const batchIds = batch.map((b) => b.id);
-          const { data: existingData } = await client
-            .from('products')
-            .select('id')
-            .in('id', batchIds);
-
-          const existingIdSet = new Set((existingData || []).map((r) => String(r.id).trim()));
-          const toInsert = batch.filter((b) => !existingIdSet.has(b.id));
-          const toUpdate = batch.filter((b) => existingIdSet.has(b.id));
-
-          if (toInsert.length > 0) {
-            const { error: insErr } = await client.from('products').insert(toInsert);
-            if (insErr && (insErr.code === '42703' || insErr.message?.includes('status'))) {
-              const toInsertNoStatus = toInsert.map(({ status, ...rest }) => rest);
-              await client.from('products').insert(toInsertNoStatus);
-            }
-          }
-
-          for (const item of toUpdate) {
-            const { id, ...dataToUpdate } = item;
-            const { error: updErr } = await client.from('products').update(dataToUpdate).eq('id', id);
-            if (updErr && (updErr.code === '42703' || updErr.message?.includes('status'))) {
-              const { status, ...updNoStatus } = dataToUpdate;
-              await client.from('products').update(updNoStatus).eq('id', id);
-            }
-          }
-        } catch (fallbackErr: any) {
-          console.error('Falha no fallback de sincronização de produtos:', fallbackErr);
-          return { error: upsertError.message || 'Erro ao sincronizar produtos com Supabase' };
-        }
+      const confirmedIds = new Set((confirmed || []).map((row) => String(row.id).trim()));
+      const missingIds = batchIds.filter((id) => !confirmedIds.has(String(id).trim()));
+      if (missingIds.length > 0) {
+        return { error: `O Supabase confirmou apenas ${confirmedIds.size} de ${batch.length} produtos no lote ${Math.floor(i / batchSize) + 1}. ${missingIds.length} registros não foram encontrados após a gravação.` };
       }
     }
 
