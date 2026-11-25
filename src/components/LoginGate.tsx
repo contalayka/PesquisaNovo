@@ -45,17 +45,27 @@ export function LoginGate({ children }: { children: React.ReactNode }) {
         credentials: 'same-origin',
         body: JSON.stringify({ password }),
       });
-      const data = await response.json();
+      const responseText = await response.text();
+      let data: { authenticated?: boolean; error?: string } = {};
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        data = {};
+      }
       if (!response.ok || !data.authenticated) {
-        setError(data.error || 'Senha incorreta. Tente novamente.');
+        const message = data.error || (response.status
+          ? `O servidor recusou a validação (HTTP ${response.status}).`
+          : 'Resposta inválida do servidor.');
+        setError(message);
         setPassword('');
         return;
       }
       sessionStorage.setItem(TAB_SESSION_KEY, '1');
       setAuthenticated(true);
       setPassword('');
-    } catch {
-      setError('Não foi possível validar o acesso. Verifique sua conexão.');
+    } catch (error) {
+      console.error('Falha ao chamar /api/auth/login:', error);
+      setError('Não foi possível conectar à rota de autenticação. Recarregue a página e tente novamente.');
     } finally {
       setSubmitting(false);
     }
