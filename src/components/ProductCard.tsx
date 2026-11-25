@@ -162,15 +162,15 @@ export const ProductCard = React.memo<ProductCardProps>(
   return (
     <div
       id={`product-card-${product.id}`}
-      className={`group relative h-full flex flex-col justify-between rounded-lg border transition-colors duration-150 overflow-hidden min-w-0 w-full ${
-        isSelected
-          ? 'border-blue-500 bg-[#151d2d] ring-1 ring-blue-500'
-          : product.not_in_catalog
-          ? 'border-amber-500/80 bg-[#17131d] ring-1 ring-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.12)]'
-          : product.is_new
-          ? 'border-blue-500/60 bg-[#121824]'
-          : 'border-slate-800 bg-[#121824] hover:border-slate-700'
-      }`}
+      className={`group relative h-full flex flex-col justify-between rounded-lg border-2 transition-colors duration-150 overflow-hidden min-w-0 w-full ${
+        product.status === 'Encontrado'
+          ? 'border-emerald-500/80 bg-[#121d1b] shadow-[0_0_12px_rgba(16,185,129,0.10)]'
+          : product.status === 'Revisar'
+          ? 'border-purple-500/80 bg-[#1b1722] shadow-[0_0_12px_rgba(168,85,247,0.10)]'
+          : product.status === 'Descartado'
+          ? 'border-slate-500/80 bg-[#171c24]'
+          : 'border-amber-500/75 bg-[#1d1b16] shadow-[0_0_12px_rgba(245,158,11,0.08)]'
+      } ${isSelected ? 'ring-2 ring-blue-500/70' : ''} ${product.not_in_catalog ? 'ring-1 ring-amber-500/40' : ''}`}
     >
       <div className="flex flex-col flex-1">
         {/* Card Media Header */}
