@@ -59,7 +59,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeFilterStatus,
 }) => {
   const [isHovered, setIsHovered] = React.useState(false);
-  const isCollapsed = false;
+  const [isCompactViewport, setIsCompactViewport] = React.useState(
+    () => typeof window !== 'undefined' && window.innerWidth < 1280
+  );
+  React.useEffect(() => {
+    const updateViewport = () => {
+      setIsCompactViewport(window.innerWidth < 1280);
+      setIsHovered(false);
+    };
+    window.addEventListener('resize', updateViewport);
+    return () => window.removeEventListener('resize', updateViewport);
+  }, []);
+  const isCollapsed = isCompactViewport && !isHovered;
 
   const navItems: {
     id: AppView;
@@ -137,7 +148,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return (
       <div
         className={`flex flex-col h-full bg-[#111b2e] border-r border-slate-700/70 text-slate-300 select-none overflow-hidden transition-[width] duration-200 ease-out ${
-          isMobileDrawer ? 'w-full' : 'w-[248px]'
+          isMobileDrawer ? 'w-full' : isCompactViewport ? (isHovered ? 'w-[248px]' : 'w-16') : 'w-[248px]'
         }`}
       >
         {/* Brand area */}
@@ -318,14 +329,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <>
       {/* Desktop Persistent Sidebar */}
       <aside
-        onMouseEnter={() => setIsHovered(true)}
+        onMouseEnter={() => { if (isCompactViewport) setIsHovered(true); }}
         onMouseLeave={() => setIsHovered(false)}
-        className={`hidden md:block relative shrink-0 self-stretch overflow-visible shadow-lg transition-[width] duration-200 ease-out min-h-screen ${
-          'w-[248px]'
-        }`}
+        className={`hidden md:block relative shrink-0 self-stretch overflow-visible shadow-lg transition-[width] duration-200 ease-out min-h-screen z-30 ${
+          isCompactViewport ? 'w-16' : 'w-[248px]'
+        } ${isCompactViewport && isHovered ? 'z-50' : ''}`}
         aria-label="Barra lateral"
       >
-        {renderSidebarContent(false)}
+        <div className={isCompactViewport ? 'absolute left-0 top-0 h-full min-h-screen' : 'relative h-full'}>
+          {renderSidebarContent(false)}
+        </div>
       </aside>
 
       {/* Mobile Drawer */}
