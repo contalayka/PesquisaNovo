@@ -563,7 +563,19 @@ export const WhatsAppReportView: React.FC<WhatsAppReportViewProps> = ({
 
   // Copia mensagem oficial do fechamento mensal para o WhatsApp
   async function copyMonthlyToWhatsApp(mSummary: MonthSummary) {
-    const text = formatMonthlyWhatsAppMessage(mSummary);
+    const counts = mSummary.counts;
+    const text = [
+      `📅 Data: ${formatBrDate(getTodayIsoDate())}`,
+      `📅 Mês: ${mSummary.label}`,
+      '',
+      `🟠 Shopee: ${counts['Shopee']} pedido(s)`,
+      `🟡 Mercado Livre: ${counts['Mercado Livre']} pedido(s)`,
+      `⚫ TikTok Shop: ${counts['TikTok Shop']} pedido(s)`,
+      `⚪ SHEIN: ${counts['SHEIN']} pedido(s)`,
+      '',
+      '━━━━━━━━━━━━━━',
+      `📦 *TOTAL DO MÊS: ${mSummary.totalOrders} pedido(s)*`,
+    ].join('\\n');
     try {
       await navigator.clipboard.writeText(text);
       setCopiedMonthly(true);
