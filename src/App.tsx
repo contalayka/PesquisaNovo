@@ -2168,6 +2168,11 @@ export default function App() {
     const maxC = advancedFilters.maxCost !== '' ? parseFloat(advancedFilters.maxCost) : null;
 
     return products.filter((p) => {
+      // Oculta produtos sem imagem utilizável em todas as listagens do catálogo.
+      // O registro permanece salvo; apenas deixa de aparecer na interface.
+      const displayImage = resolveImageUrl(p.image, p.rawColumns as Record<string, unknown> | undefined, p.name);
+      if (isMissingOrInvalidProductImage(displayImage)) return false;
+
       // Text Search
       const matchesSearch =
         !query ||
