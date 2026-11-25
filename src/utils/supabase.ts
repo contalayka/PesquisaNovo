@@ -429,10 +429,12 @@ export async function fetchProductsFromSupabase(): Promise<{
   }
 
   try {
-    // 1. Fetch all products with pagination (chunks of 1000)
+    // Supabase REST can enforce a project-level max_rows limit (commonly 100).
+    // Request exactly 100 per page and continue until an empty/short page so the
+    // client never mistakes a server-capped response for the complete catalog.
     let prodRows: SupabaseProductRow[] = [];
     let page = 0;
-    const pageSize = 1000;
+    const pageSize = 100;
     while (true) {
       const from = page * pageSize;
       const to = from + pageSize - 1;
