@@ -73,9 +73,41 @@ export async function clearAllSupabaseData():Promise<{error:string|null}> {
 export interface SupabaseRealtimePayload<T=Record<string,any>> {schema:string;table:string;commit_timestamp:string;eventType:string;new:T;old:Partial<T>;errors?:any[];}
 export interface SupabaseRealtimeListeners {onProductChange?:(p:SupabaseRealtimePayload)=>void;onResearchChange?:(p:SupabaseRealtimePayload)=>void;onBatchProductChanges?:(p:SupabaseRealtimePayload[])=>void;onBatchResearchChanges?:(p:SupabaseRealtimePayload[])=>void;onAnyChange?:()=>void;bufferMs?:number;maxBatchSize?:number;}
 export function subscribeToSupabaseChanges(listeners:(()=>void)|SupabaseRealtimeListeners):()=>void {
-  const callback=typeof listeners==='function'?listeners:listeners.onAnyChange;
-  let active=true;let last='';
-  const poll=async()=>{try{const rows=await readCatalog();const signature=rows.map(p=>String(p.id)+':'+String(p.updated_at||'')).join('|');if(last&&signature!==last)callback?.();last=signature;}catch(e){console.warn('Sincronização Cloudflare:',e);}};
-  void poll();const timer=setInterval(()=>{if(active)void poll();},12000);
+  const legacyCallback=typeof listeners==='function'?listeners:listeners.onAnyChange;
+  const handlers=typeof listeners==='function'?null:listeners;
+  let active=true;
+  let previous=new Map<string,Product>();
+  let initialized=false;
+  let running=false;
+  const poll=async()=>{
+    if(!active||running)return;
+    running=true;
+    try {
+      const rows=await readCatalog();
+      const current=new Map(rows.map(p=>[String(p.id),p]));
+      if(initialized) {
+        const changes:SupabaseRealtimePayload[]=[];
+        const now=new Date().toISOString();
+        for(const [id,product] of current) {
+          const before=previous.get(id);
+          if(!before) changes.push({schema:'public',table:'products',commit_timestamp:now,eventType:'INSERT',new:product,old:{}});
+          else if(JSON.stringify(before)!==JSON.stringify(product)) changes.push({schema:'public',table:'products',commit_timestamp:now,eventType:'UPDATE',new:product,old:before});
+        }
+        for(const [id,product] of previous) {
+          if(!current.has(id)) changes.push({schema:'public',table:'products',commit_timestamp:now,eventType:'DELETE',new:{},old:product});
+        }
+        if(changes.length) {
+          if(handlers?.onBatchProductChanges) handlers.onBatchProductChanges(changes);
+          else if(handlers?.onProductChange) changes.forEach(change=>handlers.onProductChange?.(change));
+          legacyCallback?.();
+        }
+      }
+      previous=current;
+      initialized=true;
+    } catch(e) { console.warn('Sincronização Cloudflare:',e); }
+    finally { running=false; }
+  };
+  void poll();
+  const timer=setInterval(()=>void poll(),5000);
   return ()=>{active=false;clearInterval(timer);};
 }
