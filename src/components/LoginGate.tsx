@@ -46,16 +46,15 @@ export function LoginGate({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ password }),
       });
       const responseText = await response.text();
-      let data: { authenticated?: boolean; error?: string } = {};
+      let data: { authenticated?: boolean; error?: string; stage?: string; detail?: string } = {};
       try {
         data = responseText ? JSON.parse(responseText) : {};
       } catch {
         data = {};
       }
       if (!response.ok || !data.authenticated) {
-        const message = data.error || (response.status
-          ? `O servidor recusou a validação (HTTP ${response.status}).`
-          : 'Resposta inválida do servidor.');
+        const diagnostic = data.stage ? ` Etapa: ${data.stage}${data.detail ? ` (${data.detail})` : ''}.` : '';
+        const message = `${data.error || (response.status ? `O servidor recusou a validação (HTTP ${response.status}).` : 'Resposta inválida do servidor.')}${diagnostic}`;
         setError(message);
         setPassword('');
         return;
