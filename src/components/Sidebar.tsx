@@ -148,7 +148,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return (
       <div
         className={`flex flex-col h-full bg-[#111b2e] border-r border-slate-700/70 text-slate-300 select-none overflow-hidden transition-[width] duration-200 ease-out ${
-          isMobileDrawer ? 'w-full' : isCompactViewport ? (isHovered ? 'w-[248px]' : 'w-16') : 'w-[248px]'
+          isMobileDrawer ? 'w-full' : 'w-[248px]'
         }`}
       >
         {/* Brand area */}
@@ -327,16 +327,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <>
-      {/* Desktop Persistent Sidebar */}
+      {/* Desktop Sidebar: hidden until the pointer reaches the left edge on compact monitors */}
       <aside
         onMouseEnter={() => { if (isCompactViewport) setIsHovered(true); }}
-        onMouseLeave={() => setIsHovered(false)}
-        className={`hidden md:block relative shrink-0 self-stretch overflow-visible shadow-lg transition-[width] duration-200 ease-out min-h-screen z-30 ${
-          isCompactViewport ? 'w-16' : 'w-[248px]'
-        } ${isCompactViewport && isHovered ? 'z-50' : ''}`}
+        onMouseLeave={() => { if (isCompactViewport) setIsHovered(false); }}
+        className={`hidden md:block relative shrink-0 self-stretch overflow-visible min-h-screen transition-[width] duration-200 ease-out ${
+          isCompactViewport ? 'w-3 z-50' : 'w-[248px] z-30'
+        }`}
         aria-label="Barra lateral"
       >
-        <div className={isCompactViewport ? 'absolute left-0 top-0 h-full min-h-screen' : 'relative h-full'}>
+        <div
+          className={`absolute left-0 top-0 h-full min-h-screen transition-[transform,opacity] duration-200 ease-out ${
+            isCompactViewport
+              ? isHovered
+                ? 'translate-x-0 opacity-100 pointer-events-auto shadow-2xl'
+                : '-translate-x-full opacity-0 pointer-events-none'
+              : 'translate-x-0 opacity-100'
+          }`}
+        >
           {renderSidebarContent(false)}
         </div>
       </aside>
