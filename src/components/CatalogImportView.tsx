@@ -314,7 +314,7 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
   const previewMissingRows = missingFromSupplierCandidates.slice(0, 12);
 
   const handleExecuteImport = () => {
-    onConfirmImport(customMappings, 'merge', { markMissingAsNotInCatalog, fillMissingImages });
+    onConfirmImport(customMappings, importMode, { markMissingAsNotInCatalog, fillMissingImages });
     setFinishedSuccess(true);
     setStep(4);
   };
@@ -506,6 +506,29 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
                   : `Re-sincronizar Catálogo (${rows.length} Itens)`}
               </span>
             </button>
+          </div>
+
+          <div className="rounded-lg bg-amber-950/30 border border-amber-500/40 p-3 space-y-2">
+            <p className="text-xs font-semibold text-amber-200">Como deseja importar esta planilha?</p>
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <input type="radio" name="catalog-import-mode" checked={importMode === 'merge'} onChange={() => setImportMode('merge')} className="mt-0.5" />
+              <span>
+                <span className="block text-xs font-semibold text-slate-100">Atualizar catálogo atual</span>
+                <span className="block text-[11px] text-slate-400">Mantém os produtos existentes e atualiza os correspondentes.</span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <input type="radio" name="catalog-import-mode" checked={importMode === 'replace'} onChange={() => setImportMode('replace')} className="mt-0.5" />
+              <span>
+                <span className="block text-xs font-semibold text-amber-200">Substituir catálogo atual pelos produtos da planilha</span>
+                <span className="block text-[11px] text-amber-100/70">Remove os produtos e pesquisas vinculadas antigos do catálogo ativo. As configurações do MARKETPREÇO permanecem.</span>
+              </span>
+            </label>
+            {importMode === 'replace' && (
+              <p className="text-[11px] text-amber-200 border-t border-amber-500/20 pt-2">
+                Atenção: esta ação substitui o catálogo ativo e não pode ser desfeita depois que o backup local for sobrescrito. O backup da importação anterior será mantido para tentativa de restauração.
+              </p>
+            )}
           </div>
 
           <div className="rounded-lg bg-emerald-950/30 border border-emerald-500/40 p-3 space-y-3">
