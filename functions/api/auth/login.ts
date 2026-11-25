@@ -42,8 +42,6 @@ async function verifyPassword(password: string, stored: string): Promise<boolean
   const expected = decodeBase64Url(parts[3]);
   if (salt.byteLength < 8 || salt.byteLength > 64 || expected.byteLength !== 32) return false;
 
-  // Pass standalone ArrayBuffers to WebCrypto. This avoids BufferSource/view
-  // compatibility issues in the Workers runtime.
   const passwordBytes = encoder.encode(password);
   const passwordBuffer = passwordBytes.buffer.slice(
     passwordBytes.byteOffset,
@@ -54,19 +52,29 @@ async function verifyPassword(password: string, stored: string): Promise<boolean
     salt.byteOffset + salt.byteLength,
   ) as ArrayBuffer;
 
-  const key = await crypto.subtle.importKey(
-    "raw",
-    passwordBuffer,
-    { name: "PBKDF2" },
-    false,
-    ["deriveBits"],
-  );
+  let key: CryptoKey;
+  try {
+    key = await crypto.subtle.importKey(
+      "raw",
+      passwordBuffer,
+      { name: "PBKDF2" },
+      false,
+      ["deriveBits"],
+    );
+  } catch (error) {
+    throw new Error("pbkdf2-importKey:" + (error instanceof Error ? error.name : "UnknownError"));
+  }
 
-  const derived = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", salt: saltBuffer, iterations, hash: "SHA-256" },
-    key,
-    256,
-  );
+  let derived: ArrayBuffer;
+  try {
+    derived = await crypto.subtle.deriveBits(
+      { name: "PBKDF2", salt: saltBuffer, iterations, hash: "SHA-256" },
+      key,
+      256,
+    );
+  } catch (error) {
+    throw new Error("pbkdf2-deriveBits:" + (error instanceof Error ? error.name : "UnknownError"));
+  }
 
   return equalBytes(new Uint8Array(derived), expected);
 }
@@ -114,11 +122,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     try {
       valid = await verifyPassword(password, env.AUTH_PASSWORD_HASH);
     } catch (error) {
-      const cause = error instanceof Error ? error : new Error("Erro desconhecido");
-      console.error("AUTH_PASSWORD_VERIFY_FAILED", cause.name, cause.message);
+      const detail = error instanceof Error ? error.message : "UnknownError";
+      console.error("AUTH_PASSWORD_VERIFY_FAILED", detail);
       return json({
         error: "Falha ao verificar a senha no servidor.",
-        diagnostic: cause.name,
+        diagnostic: detail,
       }, 500);
     }
 
