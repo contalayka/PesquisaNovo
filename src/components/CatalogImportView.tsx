@@ -50,7 +50,7 @@ interface CatalogImportViewProps {
   onFileSelect: (file: File) => void;
   parseResult: ExcelParseResult | null;
   detectedMappings: ColumnMapping | null;
-  onConfirmImport: (mappings: ColumnMapping, mode: 'merge' | 'replace', options?: { markMissingAsNotInCatalog?: boolean; fillMissingImages?: boolean }) => void;
+  onConfirmImport: (mappings: ColumnMapping, mode: 'merge' | 'replace', options?: { markMissingAsNotInCatalog?: boolean; fillMissingImages?: boolean }) => void | Promise<void>;
   onCancelImport: () => void;
   onDownloadTemplate: () => void;
   onNavigateToProducts: () => void;
@@ -313,8 +313,8 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
   const previewNewRows = newProductCandidates.slice(0, 12);
   const previewMissingRows = missingFromSupplierCandidates.slice(0, 12);
 
-  const handleExecuteImport = () => {
-    onConfirmImport(customMappings, importMode, { markMissingAsNotInCatalog, fillMissingImages });
+  const handleExecuteImport = async () => {
+    await onConfirmImport(customMappings, importMode, { markMissingAsNotInCatalog, fillMissingImages });
     setFinishedSuccess(true);
     setStep(4);
   };
