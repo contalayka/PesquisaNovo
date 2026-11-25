@@ -167,10 +167,9 @@ main { background: var(--mp-bg) !important; }
 [id^="product-card-"] .text-slate-500 { color: #9aa5b2 !important; }
 
 /* Panels, metrics, tables and drawers */
-.mp-panel, .mp-metric, .mp-dashboard-hero,
-.mp-app-content [class*="rounded-"][class*="border"] {
-  color: var(--mp-text);
-  background-color: var(--mp-surface);
+.mp-panel, .mp-metric, .mp-dashboard-hero {
+  color: var(--mp-text) !important;
+  background-color: var(--mp-surface) !important;
   border-color: var(--mp-border) !important;
   box-shadow: 0 5px 18px rgba(0,0,0,.10);
 }
