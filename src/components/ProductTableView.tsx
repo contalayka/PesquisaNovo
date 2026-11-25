@@ -106,11 +106,19 @@ const ProductTableRow = React.memo<ProductTableRowProps>(
 
     return (
       <tr
-        className={`group transition-colors ${
+        className={`group transition-colors border-l-4 ${
+          product.status === 'Encontrado'
+            ? 'border-l-emerald-500'
+            : product.status === 'Revisar'
+            ? 'border-l-purple-500'
+            : product.status === 'Descartado'
+            ? 'border-l-slate-500'
+            : 'border-l-amber-500'
+        } ${
           isSelected
             ? 'bg-blue-950/30'
             : product.not_in_catalog
-            ? 'bg-amber-950/20 hover:bg-amber-950/30 border-l-2 border-l-amber-500'
+            ? 'bg-amber-950/20 hover:bg-amber-950/30'
             : product.is_new
             ? 'bg-blue-950/15 hover:bg-slate-800/40'
             : 'hover:bg-slate-800/30'
