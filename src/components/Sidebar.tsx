@@ -137,13 +137,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
     return (
       <div
-        className={`flex flex-col h-full bg-[#111b2e] border-r border-slate-700/70 text-slate-300 select-none overflow-hidden transition-[width] duration-200 ease-out ${
+        className={`flex flex-col h-full bg-[#14181e] border-r border-[#303844] text-slate-300 select-none overflow-hidden transition-[width] duration-200 ease-out ${
           isMobileDrawer ? 'w-full' : 'w-[248px]'
         }`}
       >
         {/* Brand area */}
         <div
-          className={`h-14 px-3.5 flex items-center border-b border-slate-800 shrink-0 bg-[#0d1729] ${
+          className={`h-14 px-3.5 flex items-center border-b border-[#303844] shrink-0 bg-[#191d24] ${
             collapsed ? 'justify-center' : 'justify-between'
           }`}
         >
@@ -175,14 +175,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Primary Action CTA */}
-        <div className="p-2.5 border-b border-slate-800 shrink-0">
+        <div className="p-2.5 border-b border-[#303844] shrink-0">
           <button
             type="button"
             onClick={() => {
               onOpenAddProduct();
               onCloseMobile();
             }}
-            className={`w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs py-2 transition shadow-xs ${
+            className={`w-full flex items-center justify-center gap-2 rounded-lg bg-[#b7f34a] hover:bg-[#a3df35] text-[#12170b] font-semibold text-xs py-2 transition shadow-xs ${
               collapsed ? 'px-0' : 'px-3'
             }`}
             title={collapsed ? 'Adicionar Novo Produto' : undefined}
@@ -212,14 +212,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   title={collapsed ? `${item.label}${item.badge ? ` (${item.badge})` : ''}` : undefined}
                   className={`w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-xs font-medium transition-colors ${
                     isActive
-                      ? 'bg-blue-600/20 text-blue-100 font-semibold shadow-[inset_3px_0_0_#7da2ff]'
+                      ? 'bg-[#b7f34a]/12 text-[#eaffc8] font-semibold shadow-[inset_3px_0_0_#b7f34a]'
                       : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
                   } ${collapsed ? 'justify-center' : 'justify-between'}`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <Icon
                       className={`w-4 h-4 shrink-0 transition-colors ${
-                        isActive ? 'text-emerald-300' : 'text-slate-400 group-hover:text-slate-300'
+                        isActive ? 'text-[#b7f34a]' : 'text-slate-400 group-hover:text-slate-200'
                       }`}
                     />
                     {!collapsed && (
@@ -255,7 +255,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
 
         {/* Footer Tools & Database Status */}
-        <div className="p-2.5 border-t border-slate-800 shrink-0 bg-[#0d1729] space-y-1.5">
+        <div className="p-2.5 border-t border-[#303844] shrink-0 bg-[#191d24] space-y-1.5">
           {onOpenSimulator && (
             <button
               type="button"
@@ -284,7 +284,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             className={`w-full flex items-center gap-2 p-1.5 rounded-lg border text-xs transition ${
               isSupabaseConnected
                 ? 'bg-emerald-950/20 border-emerald-800/40 text-emerald-300 hover:bg-emerald-950/30'
-                : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:bg-slate-800'
+                : 'bg-slate-900/60 border-[#303844] text-slate-400 hover:bg-slate-800'
             } ${collapsed ? 'justify-center' : 'justify-start'}`}
             title="Status do Armazenamento"
           >
@@ -351,14 +351,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Mobile Bottom Navigation Bar */}
       <nav
         aria-label="Navegação rápida móvel"
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#0e1320] border-t border-slate-800 px-1 py-1 flex items-center justify-around"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#0e1320] border-t border-[#303844] px-1 py-1 flex items-center justify-around"
       >
         <button
           type="button"
           onClick={() => handleNavClick('inicio')}
           className={`flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-md transition ${
             currentSection === 'inicio'
-              ? 'text-blue-400 font-semibold'
+              ? 'text-[#b7f34a] font-semibold'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
@@ -371,14 +371,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onClick={() => handleNavClick('produtos')}
           className={`flex-1 relative flex flex-col items-center justify-center py-1 px-1 rounded-md transition ${
             currentSection === 'produtos'
-              ? 'text-blue-400 font-semibold'
+              ? 'text-[#b7f34a] font-semibold'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           <Package className="w-4 h-4 mb-0.5" />
           <span className="text-[10px]">Produtos</span>
           {totalCount > 0 && (
-            <span className="absolute top-0 right-2 px-1 min-w-3.5 h-3.5 rounded-full bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center leading-none">
+            <span className="absolute top-0 right-2 px-1 min-w-3.5 h-3.5 rounded-full bg-[#b7f34a] text-[#12170b] text-[9px] font-bold flex items-center justify-center leading-none">
               {totalCount > 99 ? '99+' : totalCount}
             </span>
           )}
@@ -389,7 +389,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onClick={() => handleNavClick('importar')}
           className={`flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-md transition ${
             currentSection === 'importar'
-              ? 'text-blue-400 font-semibold'
+              ? 'text-[#b7f34a] font-semibold'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
@@ -403,7 +403,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onClick={() => handleNavClick('estoque_interno')}
           className={`flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-md transition ${
             currentSection === 'estoque_interno'
-              ? 'text-blue-400 font-semibold'
+              ? 'text-[#b7f34a] font-semibold'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
@@ -416,7 +416,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onClick={() => handleNavClick('configuracoes')}
           className={`flex-1 relative flex flex-col items-center justify-center py-1 px-1 rounded-md transition ${
             currentSection === 'configuracoes'
-              ? 'text-blue-400 font-semibold'
+              ? 'text-[#b7f34a] font-semibold'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
@@ -430,12 +430,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
             type="button"
             onClick={onSyncSupabase}
             disabled={isSyncingSupabase}
-            className="flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-md transition text-slate-400 hover:text-blue-300"
+            className="flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-md transition text-slate-400 hover:text-[#b7f34a]"
             title="Sincronizar nuvem"
           >
             <RefreshCw
               className={`w-4 h-4 mb-0.5 text-slate-400 ${
-                isSyncingSupabase ? 'animate-spin text-blue-400' : ''
+                isSyncingSupabase ? 'animate-spin text-[#b7f34a]' : ''
               }`}
             />
             <span className="text-[10px]">Sync</span>
@@ -454,7 +454,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           }}
           className={`flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-md transition ${
             isMobileOpen
-              ? 'text-blue-400 font-semibold'
+              ? 'text-[#b7f34a] font-semibold'
               : 'text-slate-400 hover:text-slate-200'
           }`}
           title="Abrir menu lateral"
