@@ -202,7 +202,7 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
       const rawCost = customMappings.cost ? row[customMappings.cost] : '';
       const rawImg = customMappings.image ? row[customMappings.image] : '';
       const parsedCost = parseNumber(rawCost as string | number);
-      const resolvedImg = resolveImageUrl(rawImg, row, rawName, Boolean(customMappings.image));
+      const resolvedImg = resolveImageUrl(rawImg, row, rawName);
       const hasRealImg = Boolean(resolvedImg && !isGenericFallbackPhoto(resolvedImg));
       if (!firstValidImg && hasRealImg) {
         firstValidImg = resolvedImg;

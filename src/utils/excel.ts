@@ -7,6 +7,7 @@ import {
   isCostDifferent,
   parseNumericCost,
 } from './productDeduplication';
+import { normalizeSupabaseStorageImageUrl } from './imageHelper';
 
 export { isCostDifferent, parseNumericCost };
 
@@ -1733,3 +1734,427 @@ export function downloadSampleTemplate() {
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Catálogo');
   XLSX.writeFile(workbook, 'modelo_catalogo_produtos.xlsx');
 }
+
+// ============================================================================
+// SELF-HEALING IMAGE LOADING MECHANISM (MISSING / INVALID PRODUCT IMAGES)
+// ============================================================================
+
+export interface ImageConnectionStatus {
+  online: boolean;
+  proxyAvailable: boolean;
+  provider?: string;
+}
+
+export interface SelfHealImagesResult {
+  healedProducts: Product[];
+  updatedById: Map<string, string>;
+  connection: ImageConnectionStatus;
+  checkedCount: number;
+  healedCount: number;
+}
+
+const verifiedImageSourceCache = new Map<string, string | null>();
+
+function extractWrappedImageUrl(raw: string): string {
+  let str = raw.trim();
+  if (!str) return '';
+  const cssUrlMatch = str.match(/url\(['"]?(https?:\/\/[^'")\s]+|\/[^'")\s]+)['"]?\)/i);
+  if (cssUrlMatch?.[1]) str = cssUrlMatch[1].trim();
+  const imgTagMatch = str.match(/src=['"]([^'"]+)['"]/i);
+  if (imgTagMatch?.[1]) str = imgTagMatch[1].trim();
+  const formulaMatch = str.match(/IMAGE\(\s*["']([^"']+)["']/i);
+  if (formulaMatch?.[1]) str = formulaMatch[1].trim();
+  return str;
+}
+
+/**
+ * Returns true when a product's image URL is missing, empty, corrupted (scraper metadata/page),
+ * invalid, or only a generic fallback placeholder.
+ */
+export function isMissingOrInvalidProductImage(image: unknown): boolean {
+  if (!image || typeof image !== 'string') return true;
+  const trimmed = image.trim();
+  if (!trimmed) return true;
+  const lower = trimmed.toLowerCase();
+  if (
+    lower.includes('web_scraper') ||
+    lower.includes('web-scraper') ||
+    lower.includes('start_url') ||
+    lower.includes('start-url') ||
+    lower.endsWith('/decoracao') ||
+    lower.endsWith('/decoracao/')
+  ) {
+    return true;
+  }
+  if (isGenericFallbackPhoto(trimmed)) return true;
+  if (trimmed.startsWith('/api/image') || trimmed.startsWith('data:image/')) return false;
+  return !isUsableProductImage(trimmed);
+}
+
+/**
+ * Verifies current network connectivity and whether `/api/image-proxy`
+ * is reachable and ready to validate/fetch upstream images.
+ */
+export async function verifyImageProxyConnection(
+  timeoutMs = 4000,
+  signal?: AbortSignal
+): Promise<ImageConnectionStatus> {
+  const isOnline = typeof navigator !== 'undefined' ? navigator.onLine !== false : true;
+  if (!isOnline) {
+    return { online: false, proxyAvailable: false };
+  }
+
+  if (typeof fetch !== 'function') {
+    return { online: true, proxyAvailable: false };
+  }
+
+  const controller = new AbortController();
+  const onExternalAbort = () => controller.abort();
+  signal?.addEventListener('abort', onExternalAbort, { once: true });
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch('/api/image-proxy?check=1', {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      return { online: true, proxyAvailable: false };
+    }
+    const data = (await res.json().catch(() => null)) as { ok?: boolean; provider?: string } | null;
+    return {
+      online: true,
+      proxyAvailable: Boolean(data?.ok),
+      provider: data?.provider,
+    };
+  } catch {
+    return { online: true, proxyAvailable: false };
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', onExternalAbort);
+  }
+}
+
+/**
+ * Collects prioritized candidate image URLs for a product missing a valid image,
+ * including raw spreadsheet columns, bundled catalog fallback, and direct Supabase `/object/` rewrites.
+ */
+export function collectMissingImageCandidates(
+  product: Product,
+  bundledFallbackUrl?: string | null
+): string[] {
+  const candidates: string[] = [];
+  const seen = new Set<string>();
+
+  const pushCandidate = (raw?: string | null) => {
+    if (!raw || typeof raw !== 'string') return;
+    const cleaned = extractWrappedImageUrl(raw);
+    if (!cleaned || isGenericFallbackPhoto(cleaned)) return;
+
+    const formatted = cleaned.startsWith('data:image/') || cleaned.startsWith('/api/image')
+      ? cleaned
+      : formatImageUrl(cleaned);
+
+    if (!formatted) return;
+    const isUsable =
+      formatted.startsWith('data:image/') ||
+      formatted.startsWith('/api/image') ||
+      isUsableProductImage(formatted);
+    if (!isUsable) return;
+
+    const directSupabaseObject = normalizeSupabaseStorageImageUrl(formatted);
+    if (directSupabaseObject && !seen.has(directSupabaseObject)) {
+      seen.add(directSupabaseObject);
+      candidates.push(directSupabaseObject);
+    }
+
+    if (!seen.has(formatted)) {
+      seen.add(formatted);
+      candidates.push(formatted);
+    }
+  };
+
+  const rawCols = product.rawColumns as Record<string, unknown> | undefined;
+  if (rawCols && typeof rawCols['__embedded_image__'] === 'string') {
+    pushCandidate(rawCols['__embedded_image__']);
+  }
+
+  if (rawCols) {
+    const baseOrigin = extractBaseOrigin(rawCols);
+    const entries = Object.entries(rawCols);
+
+    const isImgHeader = (col: string) => {
+      const n = normalizeStr(col);
+      return (
+        n.includes('image') ||
+        n.includes('imagem') ||
+        n.includes('foto') ||
+        n.includes('img') ||
+        n.includes('photo') ||
+        n.includes('thumb') ||
+        n.includes('midia')
+      );
+    };
+
+    const sortedEntries = [...entries].sort(([a], [b]) => Number(isImgHeader(b)) - Number(isImgHeader(a)));
+
+    for (const [colName, val] of sortedEntries) {
+      if (!val || colName === '__embedded_image__') continue;
+      const colNorm = normalizeStr(colName);
+      if (colNorm.includes('start_url') || colNorm.includes('web_scraper') || colNorm.includes('scraper')) {
+        continue;
+      }
+      const strVal = extractWrappedImageUrl(String(val));
+      if (!strVal) continue;
+
+      if (strVal.startsWith('/') && !strVal.startsWith('//') && baseOrigin && (isImgHeader(colName) || isActualImageSource(strVal))) {
+        pushCandidate(`${baseOrigin}${strVal}`);
+      } else if (strVal.startsWith('./') && baseOrigin && (isImgHeader(colName) || isActualImageSource(strVal))) {
+        pushCandidate(`${baseOrigin}${strVal.slice(1)}`);
+      } else if (isImgHeader(colName) ? isUsableProductImage(strVal) : isActualImageSource(strVal)) {
+        pushCandidate(strVal);
+      }
+    }
+  }
+
+  if (bundledFallbackUrl) {
+    pushCandidate(bundledFallbackUrl);
+  }
+
+  if (Array.isArray(product.research_records)) {
+    for (const rec of product.research_records) {
+      if (rec?.url && isActualImageSource(rec.url)) {
+        pushCandidate(rec.url);
+      }
+    }
+  }
+
+  return candidates;
+}
+
+function probeImageInBrowser(url: string, timeoutMs: number, useNoReferrer: boolean): Promise<boolean> {
+  if (typeof window === 'undefined' || typeof window.Image === 'undefined') {
+    return Promise.resolve(false);
+  }
+  return new Promise((resolve) => {
+    const img = new window.Image();
+    let settled = false;
+    const finish = (ok: boolean) => {
+      if (settled) return;
+      settled = true;
+      resolve(ok);
+    };
+    const timer = window.setTimeout(() => finish(false), timeoutMs);
+    img.onload = () => {
+      window.clearTimeout(timer);
+      finish(img.naturalWidth > 0);
+    };
+    img.onerror = () => {
+      window.clearTimeout(timer);
+      finish(false);
+    };
+    if (useNoReferrer) {
+      img.referrerPolicy = 'no-referrer';
+    }
+    img.src = url;
+  });
+}
+
+function isImageContentTypeHeader(contentType: string | null, url: string): boolean {
+  const ct = (contentType || '').toLowerCase();
+  if (ct.startsWith('image/')) return true;
+  if (
+    ct === 'application/octet-stream' &&
+    /\.(jpe?g|png|webp|gif|avif|svg|bmp|ico)(\?|$)/i.test(url)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Verifies and fetches a valid image source using `/api/image-proxy`
+ * with browser-side direct and `wsrv.nl` probe fallback.
+ */
+export async function fetchAndValidateImageSource(
+  candidateUrl: string,
+  options: {
+    useProxy: boolean;
+    timeoutMs?: number;
+    signal?: AbortSignal;
+  }
+): Promise<string | null> {
+  const url = candidateUrl.trim();
+  if (!url) return null;
+
+  if (url.startsWith('data:image/')) {
+    return url;
+  }
+
+  if (verifiedImageSourceCache.has(url)) {
+    return verifiedImageSourceCache.get(url) ?? null;
+  }
+
+  const timeoutMs = options.timeoutMs ?? 5000;
+  const isExternalHttp = url.startsWith('https://') || url.startsWith('http://');
+
+  if (url.startsWith('/api/image') && typeof fetch === 'function') {
+    const controller = new AbortController();
+    const onAbort = () => controller.abort();
+    options.signal?.addEventListener('abort', onAbort, { once: true });
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { method: 'GET', signal: controller.signal });
+      if (res.ok && isImageContentTypeHeader(res.headers.get('content-type'), url)) {
+        verifiedImageSourceCache.set(url, url);
+        return url;
+      }
+    } catch {
+      // fall through
+    } finally {
+      clearTimeout(timer);
+      options.signal?.removeEventListener('abort', onAbort);
+    }
+  }
+
+  if (options.useProxy && isExternalHttp && typeof fetch === 'function' && !options.signal?.aborted) {
+    const controller = new AbortController();
+    const onAbort = () => controller.abort();
+    options.signal?.addEventListener('abort', onAbort, { once: true });
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(url)}`;
+      const res = await fetch(proxyUrl, {
+        method: 'GET',
+        signal: controller.signal,
+      });
+      if (res.ok && isImageContentTypeHeader(res.headers.get('content-type'), url)) {
+        verifiedImageSourceCache.set(url, url);
+        return url;
+      }
+    } catch {
+      // Fall back to browser probe below
+    } finally {
+      clearTimeout(timer);
+      options.signal?.removeEventListener('abort', onAbort);
+    }
+  }
+
+  if (isExternalHttp && !options.signal?.aborted) {
+    const directOk = await probeImageInBrowser(url, timeoutMs, true);
+    if (directOk) {
+      verifiedImageSourceCache.set(url, url);
+      return url;
+    }
+
+    if (!options.signal?.aborted && !url.includes('wsrv.nl') && !url.includes('weserv.nl')) {
+      const wsrvUrl = `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=640&q=75&output=webp`;
+      const wsrvOk = await probeImageInBrowser(wsrvUrl, timeoutMs, true);
+      if (wsrvOk) {
+        verifiedImageSourceCache.set(url, url);
+        return url;
+      }
+    }
+  }
+
+  verifiedImageSourceCache.set(url, null);
+  return null;
+}
+
+/**
+ * Self-healing batch image loader for products with missing or invalid image URLs.
+ */
+export async function selfHealMissingProductImages(
+  products: Product[],
+  options?: {
+    getBundledFallback?: (product: Product) => string | null;
+    concurrency?: number;
+    timeoutMs?: number;
+    signal?: AbortSignal;
+  }
+): Promise<SelfHealImagesResult> {
+  const missingProducts = products.filter((p) => isMissingOrInvalidProductImage(p.image));
+  if (missingProducts.length === 0) {
+    return {
+      healedProducts: products,
+      updatedById: new Map(),
+      connection: { online: true, proxyAvailable: false },
+      checkedCount: 0,
+      healedCount: 0,
+    };
+  }
+
+  const timeoutMs = options?.timeoutMs ?? 5000;
+  const connection = await verifyImageProxyConnection(Math.min(timeoutMs, 4000), options?.signal);
+  const updatedById = new Map<string, string>();
+  const concurrency = Math.max(1, Math.min(options?.concurrency ?? 4, 8));
+
+  let cursor = 0;
+  const worker = async () => {
+    while (cursor < missingProducts.length && !options?.signal?.aborted) {
+      const idx = cursor++;
+      const prod = missingProducts[idx];
+      const bundledUrl = options?.getBundledFallback ? options.getBundledFallback(prod) : null;
+      const candidates = collectMissingImageCandidates(prod, bundledUrl);
+      if (candidates.length === 0) continue;
+
+      let resolvedValidUrl: string | null = null;
+
+      if (!connection.online) {
+        const offlineEmbedded = candidates.find((c) => c.startsWith('data:image/'));
+        if (offlineEmbedded) {
+          resolvedValidUrl = offlineEmbedded;
+        }
+      } else {
+        for (const candidate of candidates) {
+          if (options?.signal?.aborted) break;
+          const verified = await fetchAndValidateImageSource(candidate, {
+            useProxy: connection.proxyAvailable,
+            timeoutMs,
+            signal: options?.signal,
+          });
+          if (verified) {
+            resolvedValidUrl = verified;
+            break;
+          }
+        }
+      }
+
+      if (resolvedValidUrl) {
+        updatedById.set(String(prod.id).trim(), resolvedValidUrl);
+      }
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, missingProducts.length) }, () => worker()));
+
+  if (updatedById.size === 0) {
+    return {
+      healedProducts: products,
+      updatedById,
+      connection,
+      checkedCount: missingProducts.length,
+      healedCount: 0,
+    };
+  }
+
+  const healedProducts = products.map((p) => {
+    const healedUrl = updatedById.get(String(p.id).trim());
+    if (!healedUrl) return p;
+    return {
+      ...p,
+      image: healedUrl,
+      updated_at: new Date().toISOString(),
+    };
+  });
+
+  return {
+    healedProducts,
+    updatedById,
+    connection,
+    checkedCount: missingProducts.length,
+    healedCount: updatedById.size,
+  };
+}
+
