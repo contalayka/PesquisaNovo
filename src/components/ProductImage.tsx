@@ -31,7 +31,7 @@ export const ProductImage: React.FC<ProductImageProps> = ({
 
   if (!currentSrc || hasError) {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center text-slate-600 p-2 text-center select-none">
+      <div className="product-image-unavailable w-full h-full flex flex-col items-center justify-center text-slate-600 p-2 text-center select-none">
         <ImageIcon className={`${fallbackIconSize} stroke-1 text-slate-600 mb-0.5`} />
         {showEmptyText && <span className="text-[11px] text-slate-500">Sem foto</span>}
       </div>
