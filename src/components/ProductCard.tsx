@@ -48,6 +48,9 @@ export const ProductCard = React.memo<ProductCardProps>(
   const [copiedName, setCopiedName] = useState(false);
   const [copiedCost, setCopiedCost] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [imageUnavailable, setImageUnavailable] = useState(false);
+
+  if (imageUnavailable) return null;
 
   const costNum = parseNumericCost(product.cost);
   const discountedCost = costNum !== null && costNum > 0 ? costNum * 0.9 : null;
@@ -181,7 +184,8 @@ export const ProductCard = React.memo<ProductCardProps>(
             alt={product.name}
             className="w-full h-full object-cover"
             fallbackIconSize="w-6 h-6 sm:w-8 sm:h-8"
-            showEmptyText
+            showEmptyText={false}
+            onUnavailable={() => setImageUnavailable(true)}
           />
 
           {/* Selection Checkbox & Badges Overlay - Left */}
