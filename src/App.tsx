@@ -2799,7 +2799,62 @@ export default function App() {
                 />
               ) : (
                 /* Visual Hierarchy Structure */
-                <div className="space-y-4">
+                <div className="space-y-5">
+                  {/* MARKETPLACE INTELLIGENCE — novo cabeçalho de descoberta de produtos */}
+                  <section className="relative overflow-hidden rounded-2xl border border-[#303844] bg-[#191f27] p-5 sm:p-7">
+                    <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-[#b7f34a]/[0.07] blur-3xl" />
+                    <div className="relative flex flex-col xl:flex-row xl:items-end xl:justify-between gap-5">
+                      <div className="max-w-2xl">
+                        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#b7f34a]/20 bg-[#b7f34a]/[0.07] px-3 py-1 text-[10px] font-bold uppercase tracking-[.16em] text-[#c8f58a]">
+                          <span className="h-1.5 w-1.5 rounded-full bg-[#b7f34a]" />
+                          Product intelligence
+                        </div>
+                        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+                          Descubra oportunidades de produtos.
+                        </h1>
+                        <p className="mt-2 max-w-xl text-sm text-slate-400">
+                          Explore seu catálogo, compare referências de mercado e encontre produtos com potencial de venda.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setCurrentSidebarSection('importar')}
+                          className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#414b58] bg-[#242c36] px-4 py-2.5 text-xs font-semibold text-slate-200 transition hover:bg-[#2d3742]"
+                        >
+                          <FileSpreadsheet className="h-4 w-4" />
+                          Importar catálogo
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowAddProductModal(true)}
+                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#b7f34a] px-4 py-2.5 text-xs font-bold text-[#151b0d] transition hover:bg-[#a6e63b]"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Adicionar produto
+                        </button>
+                      </div>
+                    </div>
+                    <div className="relative mt-6 grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+                      <div className="rounded-xl border border-[#343d48] bg-[#202630] p-3">
+                        <div className="text-[10px] font-medium uppercase tracking-wider text-slate-500">No catálogo</div>
+                        <div className="mt-1 text-xl font-bold tabular-nums text-white">{totalCount.toLocaleString('pt-BR')}</div>
+                      </div>
+                      <div className="rounded-xl border border-[#343d48] bg-[#202630] p-3">
+                        <div className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Encontrados</div>
+                        <div className="mt-1 text-xl font-bold tabular-nums text-[#b7f34a]">{statusCounts.Encontrado.toLocaleString('pt-BR')}</div>
+                      </div>
+                      <div className="rounded-xl border border-[#343d48] bg-[#202630] p-3">
+                        <div className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Pendentes</div>
+                        <div className="mt-1 text-xl font-bold tabular-nums text-amber-300">{statusCounts.Pendente.toLocaleString('pt-BR')}</div>
+                      </div>
+                      <div className="rounded-xl border border-[#343d48] bg-[#202630] p-3">
+                        <div className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Novos produtos</div>
+                        <div className="mt-1 text-xl font-bold tabular-nums text-sky-300">{newCount.toLocaleString('pt-BR')}</div>
+                      </div>
+                    </div>
+                  </section>
+
                   {/* Card de Status & Sincronização Móvel Exclusivo para Celular */}
                   <div className="md:hidden rounded-lg bg-[#121824] border border-slate-800 p-3 space-y-2">
                     <div className="flex items-center justify-between gap-2">
