@@ -498,7 +498,7 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
                 {newProductCandidates.length > 0 && priceChangeCandidates.length > 0
                   ? `Importar: ${newProductCandidates.length} Novos + ${priceChangeCandidates.length} Valores`
                   : priceChangeCandidates.length > 0
-                  ? `Atualizar Valores (${priceChangeCandidates.length} Produtos)`
+                  ? `Atualizar ${priceChangeCandidates.length} Valores + ${imageChangeCandidates.length} Fotos`
                   : newProductCandidates.length > 0
                   ? `Adicionar ${newProductCandidates.length} Novos Itens`
                   : fillMissingImages && imageChangeCandidates.length > 0
@@ -663,7 +663,11 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                 {priceChangeCandidates.map((item, idx) => {
                   const prodName = item.product.name;
-                  const prodImg = item.product.image || '';
+                  const incomingImage = imageChangeCandidates.find(
+                    (candidate) => candidate.product.id === item.product.id
+                  )?.newImage;
+                  // Show the photo that will actually be imported, not the old broken catalog photo.
+                  const prodImg = incomingImage || item.product.image || '';
                   const oldCostStr = formatCurrency(item.oldCost);
                   const newCostStr = formatCurrency(item.newCost);
                   const isUp = item.diff !== null && item.diff > 0;
