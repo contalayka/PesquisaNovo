@@ -361,3 +361,63 @@ main { background: var(--mp-bg) !important; }
 #root .text-blue-400, #root .text-blue-300 { color: #b7f34a !important; }
 #root .bg-blue-600 { background-color: #b7f34a !important; color: #12170b !important; }
 #root .border-blue-500, #root .border-blue-600 { border-color: rgba(183,243,74,.55) !important; }
+
+
+/* Research modal — bring legacy research workflow into MARKETPREÇO brand */
+#research-modal {
+  background: #191d24 !important;
+  border-color: #303844 !important;
+  color: #edf1f5 !important;
+}
+#research-modal > div:first-child {
+  background: #14181e !important;
+  border-color: #303844 !important;
+}
+#research-modal > div:nth-child(2) {
+  background: #191d24 !important;
+}
+#research-modal [class*="bg-slate-50"],
+#research-modal [class*="bg-slate-950"],
+#research-modal [class*="bg-white"],
+#research-modal [class*="bg-indigo-50"],
+#research-modal [class*="bg-indigo-950"] {
+  background-color: #202630 !important;
+}
+#research-modal [class*="border-indigo-"] {
+  border-color: rgba(183,243,74,.38) !important;
+}
+#research-modal [class*="text-indigo-"] {
+  color: #c6f779 !important;
+}
+#research-modal [class*="ring-indigo-"] {
+  --tw-ring-color: rgba(183,243,74,.24) !important;
+}
+#research-modal #search-google-lens-btn {
+  background: linear-gradient(105deg, #a3df35 0%, #b7f34a 55%, #d0ff78 100%) !important;
+  border-color: rgba(183,243,74,.75) !important;
+  color: #12170b !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,.22) !important;
+}
+#research-modal #search-google-lens-btn,
+#research-modal #search-google-lens-btn * {
+  color: #12170b !important;
+}
+#research-modal input:focus,
+#research-modal select:focus,
+#research-modal textarea:focus {
+  border-color: rgba(183,243,74,.7) !important;
+  --tw-ring-color: rgba(183,243,74,.18) !important;
+}
+#research-modal button[class*="bg-indigo-600"] {
+  background: #b7f34a !important;
+  border-color: #b7f34a !important;
+  color: #12170b !important;
+}
+#research-modal button[class*="bg-indigo-600"] svg { color: #12170b !important; }
+#research-modal a[class*="text-indigo-"] { color: #c6f779 !important; }
+#research-modal [class*="border-slate-200"],
+#research-modal [class*="border-slate-300"],
+#research-modal [class*="border-slate-700"],
+#research-modal [class*="border-slate-800"] {
+  border-color: #303844 !important;
+}
