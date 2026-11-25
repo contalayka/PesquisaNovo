@@ -11,6 +11,8 @@ import {
   resolveImageUrl,
   isActualImageSource,
   isGenericFallbackPhoto,
+  isMissingOrInvalidProductImage,
+  selfHealMissingProductImages,
   parseNumber,
 } from './utils/excel';
 import {
@@ -154,17 +156,17 @@ export default function App() {
 
       if (rawList.length > 0) {
         const cleaned = rawList.map((p: any) => {
-          // Self-heal product image if missing, corrupted or set to scraper metadata/landing page
+          // Self-heal product image synchronously if missing, corrupted or set to scraper metadata/landing page
+          // Prefer genuine bundled/rawColumn images and leave unhealed items empty so async self-healing can verify live sources
           let finalImage = p.image;
-          if (
-            !finalImage ||
-            !isActualImageSource(finalImage) ||
-            String(finalImage).includes('web_scraper') ||
-            String(finalImage).includes('start_url') ||
-            String(finalImage).endsWith('/decoracao') ||
-            String(finalImage).endsWith('/decoracao/')
-          ) {
-            finalImage = resolveImageUrl(finalImage, p.rawColumns, p.name);
+          if (isMissingOrInvalidProductImage(finalImage)) {
+            const bundledImg = getBundledImageFallback(p.id, p.sku, p.name);
+            if (bundledImg) {
+              finalImage = bundledImg;
+            } else {
+              const candidateFromRow = resolveImageUrl(finalImage, p.rawColumns, p.name);
+              finalImage = isGenericFallbackPhoto(candidateFromRow) ? '' : candidateFromRow;
+            }
           }
 
           return {
@@ -571,14 +573,99 @@ export default function App() {
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
   const silentSyncTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const productsRef = React.useRef<Product[]>(products);
+  const selfHealAttemptedIdsRef = React.useRef<Set<string>>(new Set());
+  const isMutatingCloudRef = React.useRef(false);
 
   useEffect(() => {
     productsRef.current = products;
   }, [products]);
 
+  const missingImageIdsKey = useMemo(
+    () =>
+      products
+        .filter((p) => isMissingOrInvalidProductImage(p.image))
+        .map((p) => String(p.id).trim())
+        .join(','),
+    [products]
+  );
+
+  // Automatic self-healing image loader for products missing valid image URLs:
+  // verifies current connection + /api/image-proxy availability and fetches/validates real image sources.
+  useEffect(() => {
+    if (!missingImageIdsKey) return;
+
+    const currentProducts = productsRef.current;
+    const pendingToHeal = currentProducts.filter((p) => {
+      const idKey = String(p.id).trim();
+      return isMissingOrInvalidProductImage(p.image) && !selfHealAttemptedIdsRef.current.has(idKey);
+    });
+
+    if (pendingToHeal.length === 0) return;
+
+    const abortController = new AbortController();
+
+    (async () => {
+      try {
+        const result = await selfHealMissingProductImages(pendingToHeal, {
+          getBundledFallback: (p) => getBundledImageFallback(p.id, p.sku, p.name),
+          concurrency: 4,
+          timeoutMs: 5000,
+          signal: abortController.signal,
+        });
+
+        if (abortController.signal.aborted) return;
+
+        // Mark checked IDs only after completion so aborted runs can cleanly retry
+        for (const p of pendingToHeal) {
+          selfHealAttemptedIdsRef.current.add(String(p.id).trim());
+        }
+
+        if (result.healedCount === 0) return;
+
+        const healedForSync: Product[] = [];
+        setProducts((prev) => {
+          const next = prev.map((item) => {
+            const healedUrl = result.updatedById.get(String(item.id).trim());
+            if (!healedUrl) return item;
+            const updated: Product = {
+              ...item,
+              image: healedUrl,
+              updated_at: new Date().toISOString(),
+            };
+            healedForSync.push(updated);
+            return updated;
+          });
+
+          productsRef.current = next;
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+          } catch (e) {
+            console.warn('Erro ao salvar imagens auto-recuperadas no localStorage:', e);
+          }
+          return next;
+        });
+
+        if (healedForSync.length > 0 && isSupabaseConfigured()) {
+          upsertProductsToSupabase(healedForSync).catch((err) => {
+            console.warn('Falha ao sincronizar imagens auto-recuperadas:', err);
+          });
+        }
+      } catch (err) {
+        console.warn('Falha na verificação/auto-recuperação de imagens:', err);
+      }
+    })();
+
+    return () => {
+      abortController.abort();
+    };
+  }, [missingImageIdsKey]);
+
   // Load from Supabase on mount, tab focus, or manual sync with automatic push of pending local products
   const loadFromSupabase = useCallback(
     async (isSilent = false) => {
+      if (isSilent && isMutatingCloudRef.current) {
+        return;
+      }
       if (!isSupabaseConfigured()) {
         setIsSupabaseConnected(false);
         return;
@@ -1230,6 +1317,8 @@ export default function App() {
     } = mergeCatalogs(products, importedRows, options);
 
     productsRef.current = mergedProducts;
+    // Allow freshly imported products with missing images to run through live self-healing verification
+    selfHealAttemptedIdsRef.current.clear();
     setProducts(mergedProducts);
     try {
       localStorage.setItem(LAST_IMPORT_IDS_KEY, JSON.stringify(newProducts.map((p) => String(p.id))));
@@ -1287,7 +1376,16 @@ export default function App() {
       setIsLoading(true);
       const toSync = [...newProducts, ...updatedProducts, ...missingProducts];
       if (toSync.length > 0) {
-        await upsertProductsToSupabase(toSync);
+        if (silentSyncTimerRef.current) {
+          clearTimeout(silentSyncTimerRef.current);
+          silentSyncTimerRef.current = null;
+        }
+        isMutatingCloudRef.current = true;
+        try {
+          await upsertProductsToSupabase(toSync);
+        } finally {
+          isMutatingCloudRef.current = false;
+        }
       }
       setIsLoading(false);
     }

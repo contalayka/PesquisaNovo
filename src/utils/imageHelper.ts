@@ -222,45 +222,37 @@ export function getImageCandidateEntries(src: string | undefined | null): ImageC
     normalizedOriginal.includes('/api/image-proxy');
 
   if (supabaseObjectUrl) {
-    // 1. Same-origin Cloudflare Pages proxy first: avoids browser hotlink/CORS restrictions.
-    pushUnique(
-      `/api/image-proxy?url=${encodeURIComponent(supabaseObjectUrl)}`,
-      'proxy-object'
-    );
-
-    // 2. Direct public object URL remains as fallback.
+    // 1. Direct Supabase public object URL first (instant in browser, avoids proxy bottlenecks).
     pushUnique(supabaseObjectUrl, 'supabase-object');
 
-    // 3. Original saved URL directly from browser remains as fallback.
+    // 2. Original saved URL directly from browser as second attempt.
     pushUnique(normalizedOriginal, 'original');
 
-    // 4. External image proxy fallback.
+    // 3. External WebP proxy fallback on direct object URL.
     pushUnique(
       `https://wsrv.nl/?url=${encodeURIComponent(supabaseObjectUrl)}&w=640&q=75&output=webp`,
       'wsrv-object'
     );
 
-    // 5. External proxy on original URL (without aggressive transform params).
+    // 4. Same-origin Cloudflare Pages proxy on direct object URL.
+    pushUnique(
+      `/api/image-proxy?url=${encodeURIComponent(supabaseObjectUrl)}`,
+      'proxy-object'
+    );
+
+    // 5. External proxy on original URL.
     pushUnique(
       `https://wsrv.nl/?url=${encodeURIComponent(normalizedOriginal)}`,
       'wsrv-original'
     );
 
-    // 6. Same-origin proxy on original URL as final source fallback.
+    // 6. Same-origin proxy on original URL as final fallback.
     pushUnique(
       `/api/image-proxy?url=${encodeURIComponent(normalizedOriginal)}`,
       'proxy-original'
     );
   } else {
-    // Standard external image URL. Route through our own domain first to bypass
-    // marketplace hotlink blocks and browser referrer restrictions.
-    if (!isAlreadyProxy && (normalizedOriginal.startsWith('https://') || normalizedOriginal.startsWith('http://'))) {
-      pushUnique(
-        `/api/image-proxy?url=${encodeURIComponent(normalizedOriginal)}`,
-        'proxy-original'
-      );
-    }
-
+    // Standard external image URL directly first, then proxies as fallbacks.
     pushUnique(normalizedOriginal, 'original');
 
     if (httpFallback) {
@@ -271,6 +263,10 @@ export function getImageCandidateEntries(src: string | undefined | null): ImageC
       pushUnique(
         `https://wsrv.nl/?url=${encodeURIComponent(normalizedOriginal)}&w=640&q=75&output=webp`,
         'wsrv-original'
+      );
+      pushUnique(
+        `/api/image-proxy?url=${encodeURIComponent(normalizedOriginal)}`,
+        'proxy-original'
       );
     }
   }

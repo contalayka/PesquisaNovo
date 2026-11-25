@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Product, ProductStatus, getProductSku } from '../types';
 import { formatCurrency, parseNumericCost } from '../utils/excel';
 import { ProductImage } from './ProductImage';
-import { resolveImageUrl } from '../utils/excel';
 import {
   ExternalLink,
   Search,
@@ -177,7 +176,7 @@ export const ProductCard = React.memo<ProductCardProps>(
         {/* Card Media Header */}
         <div className="relative aspect-4/3 w-full bg-[#0b0f17] border-b border-slate-800 overflow-hidden flex items-center justify-center">
           <ProductImage
-            src={resolveImageUrl(product.image, product.rawColumns as Record<string, unknown> | undefined, product.name)}
+            src={product.image}
             alt={product.name}
             className="w-full h-full object-cover"
             fallbackIconSize="w-6 h-6 sm:w-8 sm:h-8"

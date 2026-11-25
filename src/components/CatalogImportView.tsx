@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { Product } from '../types';
 import { ProductImage } from './ProductImage';
-import { resolveImageUrl, formatCurrency, normalizeStr, parseNumber } from '../utils/excel';
+import { resolveImageUrl, isGenericFallbackPhoto, formatCurrency, normalizeStr, parseNumber } from '../utils/excel';
 import {
   normalizeProductName,
   normalizeCode,
@@ -142,8 +142,10 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
   const {
     newProductCandidates,
     priceChangeCandidates,
+    imageChangeCandidates,
     unchangedCandidates,
     missingFromSupplierCandidates,
+    sampleSpreadsheetImage,
   } = useMemo(() => {
     if (!parseResult) {
       return {
@@ -156,8 +158,10 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
           percentDiff: number | null;
           row: any;
         }>,
+        imageChangeCandidates: [] as Array<{ product: Product; newImage: string }>,
         unchangedCandidates: [] as Array<{ product: Product; row: any }>,
         missingFromSupplierCandidates: [] as Product[],
+        sampleSpreadsheetImage: '',
       };
     }
 
@@ -185,16 +189,24 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
       percentDiff: number | null;
       row: any;
     }> = [];
+    const imageChanges: Array<{ product: Product; newImage: string }> = [];
     const unchanged: Array<{ product: Product; row: any }> = [];
 
     const seenNewKeys = new Set<string>();
     const seenUpdatedIds = new Set<string>();
+    let firstValidImg = '';
 
     for (const row of parseResult.rows) {
       const rawId = customMappings.id ? String(row[customMappings.id] ?? '').trim() : '';
       const rawName = customMappings.name ? String(row[customMappings.name] ?? '').trim() : '';
       const rawCost = customMappings.cost ? row[customMappings.cost] : '';
+      const rawImg = customMappings.image ? row[customMappings.image] : '';
       const parsedCost = parseNumber(rawCost as string | number);
+      const resolvedImg = resolveImageUrl(rawImg, row, rawName, Boolean(customMappings.image));
+      const hasRealImg = Boolean(resolvedImg && !isGenericFallbackPhoto(resolvedImg));
+      if (!firstValidImg && hasRealImg) {
+        firstValidImg = resolvedImg;
+      }
 
       const idLower = rawId.toLowerCase();
       const normName = normalizeProductName(rawName);
@@ -220,6 +232,17 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
       if (existing) {
         if (seenUpdatedIds.has(existing.id)) continue;
         seenUpdatedIds.add(existing.id);
+
+        const existingImg = (existing.image || '').trim();
+        const isManualR2 = Boolean(
+          existingImg &&
+            (existingImg.startsWith('/api/image') ||
+              existingImg.startsWith('data:image/') ||
+              existingImg.toLowerCase().includes('.r2.dev'))
+        );
+        if (hasRealImg && existingImg !== resolvedImg.trim() && !isManualR2) {
+          imageChanges.push({ product: existing, newImage: resolvedImg.trim() });
+        }
 
         const hasPriceDiff = isCostDifferent(existing.cost, parsedCost);
         if (hasPriceDiff) {
@@ -264,8 +287,10 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
     return {
       newProductCandidates: newCandidates,
       priceChangeCandidates: priceChanges,
+      imageChangeCandidates: imageChanges,
       unchangedCandidates: unchanged,
       missingFromSupplierCandidates,
+      sampleSpreadsheetImage: firstValidImg,
     };
   }, [parseResult, currentProducts, customMappings]);
 
@@ -448,11 +473,15 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
                   ? `${priceChangeCandidates.length} alterações de valor identificadas em produtos existentes`
                   : newProductCandidates.length > 0
                   ? `${newProductCandidates.length} novos produtos identificados`
+                  : fillMissingImages && imageChangeCandidates.length > 0
+                  ? `${imageChangeCandidates.length} fotos novas identificadas para atualização`
                   : `Nenhuma alteração detectada (${rows.length} produtos já cadastrados)`}
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
                 Arquivo: <span className="text-slate-200 font-mono">{parseResult.fileName}</span> ({rows.length} linhas lidas).
-                {priceChangeCandidates.length > 0
+                {fillMissingImages && imageChangeCandidates.length > 0
+                  ? ` ${imageChangeCandidates.length} produto(s) receberão os novos links de foto da planilha.`
+                  : priceChangeCandidates.length > 0
                   ? ' Produtos já existentes terão apenas o valor atualizado. Pesquisas e vídeos são 100% preservados.'
                   : ' Produtos duplicados não serão inseridos novamente.'}
               </p>
@@ -472,23 +501,76 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
                   ? `Atualizar Valores (${priceChangeCandidates.length} Produtos)`
                   : newProductCandidates.length > 0
                   ? `Adicionar ${newProductCandidates.length} Novos Itens`
+                  : fillMissingImages && imageChangeCandidates.length > 0
+                  ? `Atualizar ${imageChangeCandidates.length} Fotos`
                   : `Re-sincronizar Catálogo (${rows.length} Itens)`}
               </span>
             </button>
           </div>
 
-          <label className="flex items-start gap-2.5 px-3 py-3 rounded-lg bg-emerald-900/30 border border-emerald-500/40 cursor-pointer select-none mb-3">
-            <input
-              type="checkbox"
-              checked={fillMissingImages}
-              onChange={(e) => setFillMissingImages(e.target.checked)}
-              className="mt-0.5 rounded border-emerald-600 bg-slate-900 text-emerald-500 focus:ring-emerald-400"
-            />
-            <span>
-              <span className="block text-sm font-semibold text-emerald-100">Recuperar imagens dos produtos que estão sem foto</span>
-              <span className="block text-xs text-emerald-200/70 mt-1">Usa a imagem da planilha para preencher fotos vazias ou inválidas. Imagens existentes e os demais dados do produto são preservados.</span>
-            </span>
-          </label>
+          <div className="rounded-lg bg-emerald-950/30 border border-emerald-500/40 p-3 space-y-3">
+            <label className="flex items-start gap-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={fillMissingImages}
+                onChange={(e) => setFillMissingImages(e.target.checked)}
+                className="mt-0.5 rounded border-emerald-600 bg-slate-900 text-emerald-500 focus:ring-emerald-400"
+              />
+              <span>
+                <span className="block text-sm font-semibold text-emerald-100">
+                  Atualizar e recuperar imagens com os links da planilha
+                </span>
+                <span className="block text-xs text-emerald-200/70 mt-0.5">
+                  Substitui links antigos, quebrados ou vazios pelas fotos da planilha. Fotos enviadas manualmente ao Cloudflare R2 e os demais dados do produto são preservados.
+                </span>
+              </span>
+            </label>
+
+            <div className="pt-2.5 border-t border-emerald-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-10 h-10 rounded bg-[#0b0f17] border border-slate-800 overflow-hidden shrink-0">
+                  <ProductImage
+                    src={sampleSpreadsheetImage}
+                    alt="Prévia da foto da planilha"
+                    className="w-full h-full object-cover"
+                    fallbackIconSize="w-4 h-4"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-white">
+                    {imageChangeCandidates.length > 0
+                      ? `${imageChangeCandidates.length} link(s) de foto diferente(s) pronto(s) para atualizar`
+                      : sampleSpreadsheetImage
+                      ? 'Esta planilha contém os mesmos links de foto já salvos no catálogo'
+                      : 'Nenhuma URL de foto encontrada na coluna selecionada'}
+                  </p>
+                  <p className="text-[11px] text-slate-400 font-mono truncate max-w-md" title={sampleSpreadsheetImage || ''}>
+                    {sampleSpreadsheetImage
+                      ? `1ª foto lida: ${sampleSpreadsheetImage}`
+                      : 'Escolha a coluna da foto ao lado se ela tiver outro nome.'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <label className="text-[11px] font-semibold text-slate-300 whitespace-nowrap">
+                  Coluna da Foto:
+                </label>
+                <select
+                  value={customMappings.image}
+                  onChange={(e) => setCustomMappings({ ...customMappings, image: e.target.value })}
+                  className="rounded-lg bg-[#121824] border border-slate-700 px-2.5 py-1.5 text-xs text-white focus:border-emerald-500 focus:outline-none max-w-[180px]"
+                >
+                  <option value="">(Auto-detectar)</option>
+                  {headers.map((h) => (
+                    <option key={h} value={h}>
+                      {h}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
 
           {/* Sub-Tabs de Revisão */}
           <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 pb-3">
@@ -833,6 +915,8 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
                   ? `Confirmar e Atualizar ${priceChangeCandidates.length} Valores`
                   : newProductCandidates.length > 0
                   ? `Confirmar e Adicionar ${newProductCandidates.length} Novos Itens`
+                  : fillMissingImages && imageChangeCandidates.length > 0
+                  ? `Confirmar e Atualizar ${imageChangeCandidates.length} Fotos`
                   : missingFromSupplierCandidates.length > 0 && markMissingAsNotInCatalog
                   ? `Confirmar e Destacar ${missingFromSupplierCandidates.length} Fora do Site`
                   : `Re-sincronizar Catálogo`}
@@ -860,6 +944,8 @@ export const CatalogImportView: React.FC<CatalogImportViewProps> = ({
                 ? `${priceChangeCandidates.length} produto(s) tiveram seus valores atualizados. Pesquisas, opções e mídias existentes foram 100% preservadas.`
                 : newProductCandidates.length > 0
                 ? `${newProductCandidates.length} novos produtos adicionados ao seu catálogo.`
+                : fillMissingImages && imageChangeCandidates.length > 0
+                ? `${imageChangeCandidates.length} produto(s) tiveram seus links de foto atualizados com a planilha.`
                 : 'Catálogo sincronizado com a lista do fornecedor.'}
             </p>
             {missingFromSupplierCandidates.length > 0 && markMissingAsNotInCatalog && (

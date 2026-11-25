@@ -286,9 +286,121 @@ function imageProxyPlugin() {
   };
 }
 
+function cloudflareImagePlugin() {
+  const imageDir = path.resolve(__dirname, 'tmp/images');
+  if (!fs.existsSync(imageDir)) {
+    fs.mkdirSync(imageDir, { recursive: true });
+  }
+
+  return {
+    name: 'cloudflare-image-plugin',
+    configureServer(server: any) {
+      server.middlewares.use(async (req: any, res: any, next: any) => {
+        if (req.url?.startsWith('/api/upload-image') && req.method === 'GET') {
+          res.setHeader('Content-Type', 'application/json');
+          res.end(
+            JSON.stringify({
+              ok: true,
+              provider: 'Cloudflare R2 (Simulado / Pages)',
+              message: 'Armazenamento de imagens Cloudflare R2 pronto e ativo!',
+              hasPublicUrl: true,
+            })
+          );
+          return;
+        }
+
+        if (req.url?.startsWith('/api/upload-image') && req.method === 'POST') {
+          const chunks: Buffer[] = [];
+          req.on('data', (chunk: Buffer) => chunks.push(chunk));
+          req.on('end', () => {
+            try {
+              const rawBuf = Buffer.concat(chunks);
+              const contentType = String(req.headers['content-type'] || '');
+              const rawFileName = req.headers['x-file-name']
+                ? decodeURIComponent(String(req.headers['x-file-name']))
+                : 'produto.jpg';
+              const cleanFileName = rawFileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+
+              let fileData = rawBuf;
+              if (contentType.includes('multipart/form-data')) {
+                const boundaryMatch = contentType.match(/boundary=([^\s;]+)/i);
+                if (boundaryMatch) {
+                  const boundary = `--${boundaryMatch[1]}`;
+                  const headerEnd = rawBuf.indexOf(Buffer.from('\r\n\r\n'));
+                  const nextBoundary = rawBuf.lastIndexOf(Buffer.from(`\r\n${boundary}`));
+                  if (headerEnd !== -1 && nextBoundary > headerEnd + 4) {
+                    fileData = rawBuf.subarray(headerEnd + 4, nextBoundary);
+                  }
+                }
+              }
+
+              const key = `${Date.now()}_${cleanFileName}`;
+              fs.writeFileSync(path.join(imageDir, key), fileData);
+
+              res.setHeader('Content-Type', 'application/json');
+              res.end(
+                JSON.stringify({
+                  success: true,
+                  provider: 'Cloudflare R2',
+                  key: `images/${key}`,
+                  imageUrl: `/api/image?key=images/${key}`,
+                  fileName: rawFileName,
+                  sizeBytes: fileData.length,
+                })
+              );
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: err?.message || 'Erro no upload de imagem' }));
+            }
+          });
+          return;
+        }
+
+        if (req.url?.startsWith('/api/image?') && req.method === 'GET') {
+          const urlObj = new URL(req.url, 'http://localhost:3000');
+          const fullKey = urlObj.searchParams.get('key') || '';
+          const baseKey = path.basename(fullKey);
+          const filePath = path.join(imageDir, baseKey);
+
+          if (!fs.existsSync(filePath)) {
+            res.statusCode = 404;
+            res.end('Imagem não encontrada');
+            return;
+          }
+
+          const ext = path.extname(baseKey).toLowerCase();
+          const mimeMap: Record<string, string> = {
+            '.png': 'image/png',
+            '.webp': 'image/webp',
+            '.gif': 'image/gif',
+            '.svg': 'image/svg+xml',
+            '.avif': 'image/avif',
+          };
+          res.writeHead(200, {
+            'Content-Type': mimeMap[ext] || 'image/jpeg',
+            'Cache-Control': 'public, max-age=31536000',
+          });
+          fs.createReadStream(filePath).pipe(res);
+          return;
+        }
+
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss(), cloudflareVideoPlugin(), marketplaceScanPlugin(), imageProxyPlugin()],
+    plugins: [
+      react(),
+      tailwindcss(),
+      cloudflareVideoPlugin(),
+      cloudflareImagePlugin(),
+      marketplaceScanPlugin(),
+      imageProxyPlugin(),
+    ],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
