@@ -40,8 +40,6 @@ interface ResearchModalProps {
   onOpenSimulator?: (product: Product) => void;
 }
 
-const COMMON_PLATFORMS = ['Shopee', 'TikTok Shop', 'SHEIN', 'UpSeller ERP', 'Outro'];
-
 export const ResearchModal: React.FC<ResearchModalProps> = ({
   product,
   allProducts = [],
@@ -654,7 +652,7 @@ export const ResearchModal: React.FC<ResearchModalProps> = ({
               {/* Grid Inputs */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* 1. Nome Encontrado */}
-                <div>
+                <div className="sm:col-span-2">
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Nome Encontrado no Anúncio
                   </label>
@@ -691,10 +689,11 @@ export const ResearchModal: React.FC<ResearchModalProps> = ({
                     placeholder="Cole o link do anúncio (Shopee, TikTok Shop, SHEIN etc.)"
                     className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   />
+                  <p className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">A plataforma será identificada automaticamente pelo endereço informado.</p>
                 </div>
 
                 {/* Preço que será utilizado na plataforma */}
-                <div>
+                <div className="sm:col-span-2">
                   <div className="flex items-center justify-between mb-1">
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
                       Preço de venda na plataforma (R$)
@@ -715,7 +714,7 @@ export const ResearchModal: React.FC<ResearchModalProps> = ({
                   <p className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">Este é o preço final que você pretende utilizar no anúncio da plataforma.</p>
                 </div>
 
-                                {/* Observação */}
+                {/* Observação */}
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Observação
