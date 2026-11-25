@@ -122,29 +122,125 @@ export function getBestExternalImageUrl(src: string | undefined | null): string 
 
   const supabaseObjectUrl = normalizeSupabaseStorageImageUrl(str);
   if (supabaseObjectUrl) {
-    // Supplier storage hosts may reject browser requests due to TLS, hotlink rules or CDN behavior.
-    // Prefer the same-origin Pages Function so the browser receives the image from this app's domain.
+    return supabaseObjectUrl;
+  }
+
+  let normalized = str;
+  if (normalized.startsWith('//')) {
+    normalized = `https:${normalized}`;
+  } else if (normalized.startsWith('www.')) {
+    normalized = `https://${normalized}`;
+  } else if (normalized.startsWith('http://')) {
+    normalized = normalized.replace('http://', 'https://');
+  }
+
+  if (normalized.includes('dropbox.com') && !normalized.includes('raw=1')) {
+    normalized = normalized.includes('dl=0')
+      ? normalized.replace('dl=0', 'raw=1')
+      : normalized + (normalized.includes('?') ? '&raw=1' : '?raw=1');
+  }
+
+  return normalized;
+}
+
+/**
+ * Builds prioritized candidate objects for an image source, honoring any previously
+ * proven winning strategy for the same host in this session.
+ */
+export function getImageCandidateEntries(src: string | undefined | null): ImageCandidate[] {
+  if (!src) return [];
+  const str = String(src).trim();
+  if (!str) return [];
+
+  // Base64 data URLs or local same-origin paths don't need external fallbacks
+  if (str.startsWith('data:image/') || (str.startsWith('/') && !str.startsWith('//'))) {
+    return [{ url: str, strategy: 'data-url' }];
+  }
+
+  const driveId = extractGoogleDriveFileId(str);
+  if (driveId) {
+    const driveHost = 'drive.google.com';
+    const entries: ImageCandidate[] = [
+      {
+        url: `https://drive.google.com/thumbnail?id=${driveId}&sz=w1000`,
+        strategy: 'drive-thumb',
+        host: driveHost,
+      },
+      {
+        url: `https://lh3.googleusercontent.com/d/${driveId}`,
+        strategy: 'drive-lh3',
+        host: driveHost,
+      },
+      {
+        url: `https://drive.google.com/uc?export=view&id=${driveId}`,
+        strategy: 'drive-uc-view',
+        host: driveHost,
+      },
+      {
+        url: `https://drive.google.com/uc?id=${driveId}`,
+        strategy: 'drive-uc',
+        host: driveHost,
+      },
+    ];
+    return applyHostPreference(entries, driveHost);
+  }
+
+  let normalizedOriginal = str;
+  let httpFallback: string | null = null;
+
+  if (str.startsWith('http://')) {
+    normalizedOriginal = str.replace('http://', 'https://');
+    httpFallback = str;
+  } else if (str.startsWith('//')) {
+    normalizedOriginal = `https:${str}`;
+  } else if (str.startsWith('www.')) {
+    normalizedOriginal = `https://${str}`;
+  }
+
+  const host = extractHost(normalizedOriginal);
+  const candidates: ImageCandidate[] = [];
+  const seenUrls = new Set<string>();
+
+  const pushUnique = (url: string, strategy: ImageCandidateStrategy) => {
+    if (!url || seenUrls.has(url)) return;
+    seenUrls.add(url);
+    candidates.push({ url, strategy, host });
+  };
+
+  // Dropbox raw URL first
+  if (normalizedOriginal.includes('dropbox.com') && !normalizedOriginal.includes('raw=1')) {
+    const rawVersion = normalizedOriginal.includes('dl=0')
+      ? normalizedOriginal.replace('dl=0', 'raw=1')
+      : normalizedOriginal + (normalizedOriginal.includes('?') ? '&raw=1' : '?raw=1');
+    pushUnique(rawVersion, 'dropbox-raw');
+  }
+
+  const supabaseObjectUrl = normalizeSupabaseStorageImageUrl(normalizedOriginal);
+  const isAlreadyProxy =
+    normalizedOriginal.includes('wsrv.nl') ||
+    normalizedOriginal.includes('weserv.nl') ||
+    normalizedOriginal.includes('/api/image-proxy');
+
+  if (supabaseObjectUrl) {
+    // Prefer the same-origin Cloudflare Pages proxy first. Supplier storage hosts may
+    // reject browser requests due to TLS, hotlink rules or CDN behavior.
     pushUnique(
       `/api/image-proxy?url=${encodeURIComponent(supabaseObjectUrl)}`,
       'proxy-object'
     );
 
-    // Preserve the original render endpoint as a fallback for providers that require it.
+    // Keep original render endpoint and direct object URL as fallbacks.
     pushUnique(normalizedOriginal, 'original');
-
-    // Direct public object URL remains available as a fallback.
     pushUnique(supabaseObjectUrl, 'supabase-object');
 
     pushUnique(
       `https://wsrv.nl/?url=${encodeURIComponent(supabaseObjectUrl)}&w=640&q=75&output=webp`,
       'wsrv-object'
     );
-
     pushUnique(
       `https://wsrv.nl/?url=${encodeURIComponent(normalizedOriginal)}`,
       'wsrv-original'
     );
-
     pushUnique(
       `/api/image-proxy?url=${encodeURIComponent(normalizedOriginal)}`,
       'proxy-original'
