@@ -46,14 +46,14 @@ export function LoginGate({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ password }),
       });
       const responseText = await response.text();
-      let data: { authenticated?: boolean; error?: string; stage?: string; detail?: string } = {};
+      let data: { authenticated?: boolean; error?: string; stage?: string; detail?: string; diagnostic?: string } = {};
       try {
         data = responseText ? JSON.parse(responseText) : {};
       } catch {
         data = {};
       }
       if (!response.ok || !data.authenticated) {
-        const diagnostic = data.stage ? ` Etapa: ${data.stage}${data.detail ? ` (${data.detail})` : ''}.` : '';
+        const diagnostic = data.stage ? ` Etapa: ${data.stage}${data.detail ? ` (${data.detail})` : ''}.` : data.diagnostic ? ` Diagnóstico: ${data.diagnostic}.` : '';
         const message = `${data.error || (response.status ? `O servidor recusou a validação (HTTP ${response.status}).` : 'Resposta inválida do servidor.')}${diagnostic}`;
         setError(message);
         setPassword('');
@@ -64,7 +64,7 @@ export function LoginGate({ children }: { children: React.ReactNode }) {
       setPassword('');
     } catch (error) {
       console.error('Falha ao chamar /api/auth/login:', error);
-      setError('Não foi possível conectar à rota de autenticação. Recarregue a página e tente novamente.');
+      setError(`Falha de conexão com a autenticação: ${error instanceof Error ? error.message : 'erro desconhecido'}.`);
     } finally {
       setSubmitting(false);
     }
