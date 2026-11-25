@@ -17,7 +17,6 @@ import {
   Layers,
   ArrowRight,
 } from 'lucide-react';
-import { getSupabaseClient } from '../utils/supabase';
 import { Product } from '../types';
 import { ProductImage } from './ProductImage';
 import { getBestExternalImageUrl } from '../utils/imageHelper';
@@ -104,38 +103,20 @@ export const InternalInventoryView: React.FC<InternalInventoryViewProps> = ({
   const [isBatchAdding, setIsBatchAdding] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
-  const supabase = getSupabaseClient();
 
   const load = async () => {
-    if (!supabase) {
-      setError('Supabase não configurado.');
-      setLoading(false);
-      return;
-    }
     setLoading(true);
     setError('');
-    const pageSize = 1000;
-    const all: InternalItem[] = [];
-    let from = 0;
-    let loadError = false;
-    while (true) {
-      const { data, error: e } = await supabase
-        .from('internal_inventory')
-        .select('*')
-        .order('product_name', { ascending: true })
-        .range(from, from + pageSize - 1);
-      if (e) {
-        setError(e.message);
-        loadError = true;
-        break;
-      }
-      const page = (data || []) as InternalItem[];
-      all.push(...page);
-      if (page.length < pageSize) break;
-      from += pageSize;
+    try {
+      const response = await fetch('/api/inventory', { cache: 'no-store' });
+      const body = await response.json();
+      if (!response.ok || !body.success || !Array.isArray(body.items)) throw new Error(body.error || 'Falha ao carregar estoque no Cloudflare.');
+      setItems(body.items as InternalItem[]);
+    } catch (e: any) {
+      setError(e?.message || 'Falha ao carregar estoque interno no Cloudflare.');
+    } finally {
+      setLoading(false);
     }
-    if (!loadError) setItems(all);
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -228,7 +209,6 @@ export const InternalInventoryView: React.FC<InternalInventoryViewProps> = ({
     setError('');
     setImporting(true);
     try {
-      if (!supabase) throw new Error('Supabase não configurado.');
       const buffer = await file.arrayBuffer();
       const wb = XLSX.read(buffer, { type: 'array' });
       const ws = wb.Sheets[wb.SheetNames[0]];
@@ -277,16 +257,14 @@ export const InternalInventoryView: React.FC<InternalInventoryViewProps> = ({
         };
       });
 
-      const { error: delError } = await supabase
-        .from('internal_inventory')
-        .delete()
-        .not('id', 'is', null);
-      if (delError) throw delError;
-      for (let i = 0; i < payload.length; i += 200) {
-        const { error: insertError } = await supabase
-          .from('internal_inventory')
-          .insert(payload.slice(i, i + 200));
-        if (insertError) throw insertError;
+      const response = await fetch('/api/inventory', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: payload }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success || result.total !== payload.length) {
+        throw new Error(result.error || 'O Cloudflare não confirmou todos os itens do estoque.');
       }
       await load();
     } catch (e: any) {
