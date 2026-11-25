@@ -20,7 +20,7 @@ async function verifyPassword(password: string, encoded: string) {
   }
   let derived: ArrayBuffer;
   try {
-    derived = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: { name: 'SHA-256' }, salt, iterations }, key, 256);
+    derived = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations }, key, 256);
   } catch (error) {
     console.error('AUTH_PBKDF2_DERIVE_FAILURE', error instanceof Error ? error.name : 'UnknownError', error instanceof Error ? error.message : 'unknown');
     throw new Error('PBKDF2_DERIVE_FAILED');
