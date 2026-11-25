@@ -72,6 +72,7 @@ import { ToastContainer, ToastMessage } from './components/Toast';
 import { useDevice } from './utils/device';
 import {
   Search,
+  Plus,
   Filter,
   AlertCircle,
   CheckCircle2,
