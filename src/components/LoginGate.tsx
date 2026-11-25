@@ -78,7 +78,14 @@ export function LoginGate({ children }: { children: React.ReactNode }) {
     <main className="min-h-screen w-full flex items-center justify-center bg-[#0b0e12] text-slate-100 px-5 py-10 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none" style={{background:'radial-gradient(ellipse at 50% 38%, rgba(183,243,74,.10), transparent 48%)'}} />
       <div className="absolute inset-0 pointer-events-none opacity-[0.12]" style={{backgroundImage:'linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px)',backgroundSize:'54px 54px'}} />
-      <section className="relative w-full max-w-[440px] rounded-[28px] border border-[#303943] bg-[#151a20]/95 shadow-[0_28px_100px_rgba(0,0,0,.55)] px-7 py-10 sm:px-10">
+      <div aria-hidden="true" className="absolute inset-0 overflow-hidden pointer-events-none select-none">
+        <span className="absolute left-[4%] top-[12%] -rotate-12 text-[clamp(24px,3.2vw,48px)] font-black tracking-[0.18em] text-white/[0.035]">MARKETPREÇO</span>
+        <span className="absolute right-[3%] top-[27%] rotate-90 origin-center text-[clamp(22px,2.8vw,42px)] font-black tracking-[0.2em] text-[#b7f34a]/[0.055]">MARKETPREÇO</span>
+        <span className="absolute left-[7%] bottom-[17%] rotate-[-8deg] text-[clamp(20px,2.6vw,38px)] font-black tracking-[0.2em] text-[#b7f34a]/[0.045]">MARKETPREÇO</span>
+        <span className="absolute right-[6%] bottom-[10%] rotate-[-12deg] text-[clamp(18px,2.2vw,34px)] font-black tracking-[0.18em] text-white/[0.035]">MARKETPREÇO</span>
+        <span className="absolute left-1/2 top-[7%] -translate-x-1/2 text-[clamp(13px,1.5vw,22px)] font-bold tracking-[0.42em] text-white/[0.025]">CENTRAL DE INTELIGÊNCIA COMERCIAL</span>
+      </div>
+      <section className="relative z-10 w-full max-w-[440px] rounded-[28px] border border-[#303943] bg-[#151a20]/95 shadow-[0_28px_100px_rgba(0,0,0,.55)] px-7 py-10 sm:px-10">
         <div className="flex flex-col items-center text-center">
           <div className="h-20 w-20 rounded-[24px] border border-[#b7f34a]/35 bg-[#b7f34a]/[0.08] flex items-center justify-center shadow-[0_0_45px_rgba(183,243,74,.10)]"><Crown size={38} strokeWidth={1.6} className="text-[#b7f34a]" /></div>
           <div className="mt-6 text-[27px] leading-none tracking-[-0.07em] font-extrabold text-white">MARKET<span className="text-[#b7f34a]">PREÇO</span></div>
