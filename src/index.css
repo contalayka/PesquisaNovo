@@ -224,6 +224,29 @@ main { background: var(--mp-bg) !important; }
   outline-offset: 2px;
 }
 
+/* Mobile dock — active destination follows the lime product-intelligence accent */
+#root nav[aria-label="Navegação rápida móvel"] {
+  background: rgba(20,24,30,.96) !important;
+  border-color: #303844 !important;
+  box-shadow: 0 -10px 30px rgba(0,0,0,.22);
+  backdrop-filter: blur(18px);
+}
+#root nav[aria-label="Navegação rápida móvel"] button[class*="text-blue-400"] {
+  color: var(--mp-accent) !important;
+}
+#root nav[aria-label="Navegação rápida móvel"] button[class*="text-blue-400"] svg {
+  color: var(--mp-accent) !important;
+}
+#root nav[aria-label="Navegação rápida móvel"] button[class*="text-blue-400"] span {
+  color: var(--mp-accent) !important;
+}
+#root aside button[class*="bg-blue-600"] {
+  background: var(--mp-accent) !important;
+  color: var(--mp-accent-ink) !important;
+  border-color: var(--mp-accent) !important;
+}
+#root aside button[class*="bg-blue-600"] svg { color: var(--mp-accent-ink) !important; }
+
 /* Floating utilities */
 #root button[aria-label="Voltar ao topo da página"] {
   background: #202630 !important;
