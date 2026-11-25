@@ -703,24 +703,20 @@ export default function App() {
             }
           }
 
-          // 1. Detect any local products that aren't on Supabase yet and upload them so they are never lost
-          const unsyncedToPush = (localList || []).filter(
-            (lp) => !remoteIdSet.has(String(lp.id).trim())
-          );
-
+          // The cloud is authoritative once it contains a catalog. Only bootstrap from local cache
+          // when the cloud is genuinely empty; never re-upload stale device-only products over a newer catalog.
           let pushedCount = 0;
-          if (unsyncedToPush.length > 0) {
-            console.log(`Encontrados ${unsyncedToPush.length} produtos locais pendentes. Enviando para o Supabase...`);
-            const { error: pushErr } = await upsertProductsToSupabase(unsyncedToPush);
+          if (remoteIdSet.size === 0 && (localList || []).length > 0) {
+            const bootstrapProducts = deduplicateProducts(localList || []);
+            console.log(`Nuvem vazia: enviando ${bootstrapProducts.length} produtos do cache inicial para o Supabase...`);
+            const { error: pushErr } = await upsertProductsToSupabase(bootstrapProducts);
             if (!pushErr) {
-              pushedCount = unsyncedToPush.length;
-              for (const pushed of unsyncedToPush) {
-                normalizedData.push(pushed);
-                remoteIdSet.add(String(pushed.id).trim());
-              }
-              console.log(`${pushedCount} produtos sincronizados com sucesso na nuvem!`);
+              pushedCount = bootstrapProducts.length;
+              normalizedData.push(...bootstrapProducts);
+              for (const pushed of bootstrapProducts) remoteIdSet.add(String(pushed.id).trim());
+              console.log(`Catálogo inicial com ${pushedCount} produtos enviado para a nuvem.`);
             } else {
-              console.error('Erro ao enviar produtos pendentes para o Supabase:', pushErr);
+              console.error('Erro ao inicializar catálogo no Supabase:', pushErr);
             }
           }
 
@@ -828,10 +824,10 @@ export default function App() {
             mergedList.push(mergedProd);
           }
 
-          // 3. Keep ALL local products that aren't on remote yet (NEVER discard user's products!)
-          for (const localProd of localList || []) {
-            const localId = String(localProd.id).trim();
-            if (!remoteIdSet.has(localId)) {
+          // Keep local-only records only if the cloud is still empty and bootstrap could not complete.
+          // Once cloud has data, stale per-device cache must never resurrect removed or outdated products.
+          if (remoteIdSet.size === 0) {
+            for (const localProd of localList || []) {
               mergedList.push(localProd);
             }
           }
@@ -1393,20 +1389,30 @@ export default function App() {
 
     if (isSupabaseConfigured()) {
       setIsLoading(true);
-      const toSync = [...newProducts, ...updatedProducts, ...missingProducts];
-      if (toSync.length > 0) {
-        if (silentSyncTimerRef.current) {
-          clearTimeout(silentSyncTimerRef.current);
-          silentSyncTimerRef.current = null;
-        }
-        isMutatingCloudRef.current = true;
-        try {
-          await upsertProductsToSupabase(toSync);
-        } finally {
-          isMutatingCloudRef.current = false;
-        }
+      if (silentSyncTimerRef.current) {
+        clearTimeout(silentSyncTimerRef.current);
+        silentSyncTimerRef.current = null;
       }
-      setIsLoading(false);
+      isMutatingCloudRef.current = true;
+      try {
+        // Persist the complete reconciled catalog, not only the changed subset.
+        // This makes the exact same catalog available to every device after import.
+        const { error: syncError } = await upsertProductsToSupabase(mergedProducts);
+        if (syncError) {
+          console.error('Importação local concluída, mas a nuvem recusou a sincronização completa:', syncError);
+          addToast('Sincronização incompleta', `O catálogo foi atualizado neste aparelho, mas a nuvem não confirmou todos os produtos: ${syncError}`, 'error');
+        } else {
+          addToast('Catálogo publicado na nuvem', `${mergedProducts.length} produtos enviados. Os outros dispositivos receberão esta mesma versão ao sincronizar.`, 'success');
+        }
+      } catch (syncError) {
+        console.error('Falha ao publicar catálogo completo no Supabase:', syncError);
+        addToast('Falha na sincronização', 'O catálogo foi atualizado neste aparelho, mas não foi possível confirmar a gravação completa na nuvem.', 'error');
+      } finally {
+        isMutatingCloudRef.current = false;
+        setIsLoading(false);
+      }
+    } else {
+      addToast('Nuvem não configurada', 'Este catálogo foi atualizado apenas neste aparelho. Configure o Supabase para compartilhar entre PC e celular.', 'warning');
     }
   };
 
