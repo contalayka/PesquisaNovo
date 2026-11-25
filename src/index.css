@@ -276,3 +276,40 @@ main { background: var(--mp-bg) !important; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
+
+/* Absolute dark-surface enforcement — prevent legacy/light components and portals
+   from rendering white or near-white panels inside the application. */
+#root,
+#root > *,
+#root main,
+#root [class*="bg-white"],
+#root [class*="bg-gray-50"],
+#root [class*="bg-slate-50"],
+#root [class*="bg-neutral-50"],
+#root [class*="bg-zinc-50"],
+#root [class*="bg-stone-50"],
+#root [class*="bg-[#fff"],
+#root [class*="bg-[#FFF"],
+#root [class*="bg-[#ffffff"],
+#root [class*="bg-[#FFFFFF"],
+#root [style*="background-color: rgb(255, 255, 255)"],
+#root [style*="background: rgb(255, 255, 255)"],
+#root [style*="background-color:#fff"],
+#root [style*="background-color: #fff"],
+#root [style*="background:#fff"],
+#root [style*="background: #fff"] {
+  background-color: #191d24 !important;
+  color: #edf1f5;
+}
+#root [class*="bg-white/"],
+#root [class*="bg-gray-50/"],
+#root [class*="bg-slate-50/"],
+#root [class*="bg-neutral-50/"] {
+  background-color: #202630 !important;
+}
+#root [class*="border-gray-100"],
+#root [class*="border-slate-100"],
+#root [class*="border-neutral-100"],
+#root [class*="border-zinc-100"] {
+  border-color: #303844 !important;
+}
