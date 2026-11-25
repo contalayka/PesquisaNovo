@@ -335,3 +335,29 @@ main { background: var(--mp-bg) !important; }
 [id^="product-card-"]:hover {
   transform: translateY(-2px);
 }
+
+
+/* Brand consistency pass — lime/graphite across legacy navigation and controls */
+#root aside,
+#root aside > div,
+#root aside [class*="bg-[#111b2e]"],
+#root aside [class*="bg-[#0d1729]"] {
+  background: #14181e !important;
+  border-color: #303844 !important;
+}
+#root aside nav button[class*="bg-blue-600/20"] {
+  background: rgba(183,243,74,.12) !important;
+  color: #eaffc8 !important;
+  box-shadow: inset 3px 0 0 #b7f34a !important;
+}
+#root aside nav button[class*="bg-blue-600/20"] svg { color: #b7f34a !important; }
+#root aside button[class*="bg-blue-600"],
+#root nav[aria-label="Navegação rápida móvel"] button[class*="bg-blue-600"] {
+  background: #b7f34a !important;
+  border-color: #b7f34a !important;
+  color: #12170b !important;
+}
+#root aside button[class*="bg-blue-600"] svg { color: #12170b !important; }
+#root .text-blue-400, #root .text-blue-300 { color: #b7f34a !important; }
+#root .bg-blue-600 { background-color: #b7f34a !important; color: #12170b !important; }
+#root .border-blue-500, #root .border-blue-600 { border-color: rgba(183,243,74,.55) !important; }
