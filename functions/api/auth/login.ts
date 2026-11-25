@@ -20,25 +20,39 @@ async function sign(payload: string, secret: string) {
   return b64url(new Uint8Array(await crypto.subtle.sign('HMAC',key,enc.encode(payload))));
 }
 export const onRequestPost: PagesFunction<Env> = async ({request,env}) => {
-  if (!env.AUTH_PASSWORD_HASH || !env.AUTH_SESSION_SECRET) return json({error:'Autenticação ainda não configurada no servidor.'},503);
-  const origin=request.headers.get('Origin');
-  if (origin && origin !== new URL(request.url).origin) return json({error:'Origem não permitida.'},403);
-  const ip=request.headers.get('CF-Connecting-IP') || 'unknown';
-  const now=Date.now(), state=attempts.get(ip) || {count:0,blockedUntil:0};
-  if (state.blockedUntil > now) return json({error:'Muitas tentativas. Aguarde alguns minutos.'},429);
-  let body: {password?:string};
-  try { body=await request.json(); } catch { return json({error:'Solicitação inválida.'},400); }
-  const password=typeof body.password==='string' ? body.password : '';
-  if (!password || password.length > 256) return json({error:'Informe a senha.'},400);
-  const valid=await verifyPassword(password,env.AUTH_PASSWORD_HASH);
-  if (!valid) {
-    state.count++;
-    if (state.count >= 5) { state.count=0; state.blockedUntil=now+5*60*1000; }
-    attempts.set(ip,state);
-    return json({error:'Senha incorreta. Tente novamente.'},401);
+  let stage = 'configuration';
+  try {
+    if (!env.AUTH_PASSWORD_HASH || !env.AUTH_SESSION_SECRET) return json({error:'Autenticação ainda não configurada no servidor.'},503);
+    stage = 'origin-check';
+    const origin=request.headers.get('Origin');
+    if (origin && origin !== new URL(request.url).origin) return json({error:'Origem não permitida.'},403);
+    stage = 'rate-limit';
+    const ip=request.headers.get('CF-Connecting-IP') || 'unknown';
+    const now=Date.now(), state=attempts.get(ip) || {count:0,blockedUntil:0};
+    if (state.blockedUntil > now) return json({error:'Muitas tentativas. Aguarde alguns minutos.'},429);
+    stage = 'request-body';
+    let body: {password?:string};
+    try { body=await request.json(); } catch { return json({error:'Solicitação inválida.'},400); }
+    const password=typeof body.password==='string' ? body.password : '';
+    if (!password || password.length > 256) return json({error:'Informe a senha.'},400);
+    stage = 'password-verification';
+    const valid=await verifyPassword(password,env.AUTH_PASSWORD_HASH);
+    if (!valid) {
+      state.count++;
+      if (state.count >= 5) { state.count=0; state.blockedUntil=now+5*60*1000; }
+      attempts.set(ip,state);
+      return json({error:'Senha incorreta. Tente novamente.'},401);
+    }
+    attempts.delete(ip);
+    stage = 'session-payload';
+    const payload=b64url(enc.encode(JSON.stringify({iat:Math.floor(now/1000),exp:Math.floor(now/1000)+12*60*60})));
+    stage = 'session-signature';
+    const signature=await sign(payload,env.AUTH_SESSION_SECRET);
+    stage = 'session-cookie';
+    return json({authenticated:true},200,{ 'Set-Cookie':`mp_session=${payload}.${signature}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=43200` });
+  } catch (error) {
+    const detail = error instanceof Error ? error.name : 'UnknownError';
+    console.error('AUTH_LOGIN_FAILURE', stage, detail, error instanceof Error ? error.message : 'unknown');
+    return json({error:'Falha interna na autenticação.', stage, detail},500);
   }
-  attempts.delete(ip);
-  const payload=b64url(enc.encode(JSON.stringify({iat:Math.floor(now/1000),exp:Math.floor(now/1000)+12*60*60})));
-  const signature=await sign(payload,env.AUTH_SESSION_SECRET);
-  return json({authenticated:true},200,{ 'Set-Cookie':`mp_session=${payload}.${signature}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=43200` });
 };
