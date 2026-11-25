@@ -59,7 +59,7 @@ export const ResearchModal: React.FC<ResearchModalProps> = ({
   const [store, setStore] = useState('');
   const [url, setUrl] = useState('');
   const [price, setPrice] = useState<string | number>('');
-  const [confidence, setConfidence] = useState<ConfidenceLevel>('Média');
+  const [confidence, setConfidence] = useState<ConfidenceLevel>('Alta');
   const [note, setNote] = useState('');
 
   // UI helpers
@@ -78,7 +78,7 @@ export const ResearchModal: React.FC<ResearchModalProps> = ({
     setStore('');
     setUrl('');
     setPrice('');
-    setConfidence('Média');
+    setConfidence('Alta');
     setNote('');
     setShowForm(productRecords.length === 0);
   }, [product.id, product.name, productRecords.length]);
@@ -667,33 +667,11 @@ export const ResearchModal: React.FC<ResearchModalProps> = ({
                   />
                 </div>
 
-                {/* 2. Plataforma */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Plataforma / Marketplace
-                  </label>
-                  <div className="flex gap-1.5 flex-wrap mb-1.5">
-                    {COMMON_PLATFORMS.map((p) => (
-                      <button
-                        key={p}
-                        type="button"
-                        onClick={() => setPlatform(p)}
-                        className={`px-2 py-0.5 text-[11px] rounded-md transition ${
-                          platform === p
-                            ? 'bg-indigo-600 text-white font-bold'
-                            : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-700'
-                        }`}
-                      >
-                        {p}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
+                {/* Plataforma definida automaticamente pelo link informado */}
                 {/* 3. Link do Anúncio */}
                 <div className="sm:col-span-2">
                   <label className="flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    <span>Link do Anúncio (para copiar no UpSeller)</span>
+                    <span>Link do anúncio</span>
                     {url && (
                       <a
                         href={url.startsWith('http') ? url : `https://${url}`}
@@ -710,16 +688,16 @@ export const ResearchModal: React.FC<ResearchModalProps> = ({
                     type="text"
                     value={url}
                     onChange={(e) => handleUrlInputChange(e.target.value)}
-                    placeholder="Cole o link aqui (ex: https://produto.mercadolivre.com.br/... ou https://shopee.com.br/...)"
+                    placeholder="Cole o link do anúncio (Shopee, TikTok Shop, SHEIN etc.)"
                     className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   />
                 </div>
 
-                {/* 4. Preço Encontrado */}
+                {/* Preço que será utilizado na plataforma */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      Preço Encontrado (R$)
+                      Preço de venda na plataforma (R$)
                     </label>
                     {instantMarkup && (
                       <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-300 dark:border-emerald-800">
@@ -731,39 +709,13 @@ export const ResearchModal: React.FC<ResearchModalProps> = ({
                     type="text"
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
-                    placeholder="Ex: 34.90"
+                    placeholder="Informe o valor que deseja anunciar. Ex: 34,90"
                     className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   />
+                  <p className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">Este é o preço final que você pretende utilizar no anúncio da plataforma.</p>
                 </div>
 
-                {/* 5. Nível de Confiança */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Nível de Confiança da Correspondência
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(['Alta', 'Média', 'Baixa'] as ConfidenceLevel[]).map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => setConfidence(c)}
-                        className={`py-1.5 rounded-lg text-xs font-bold transition border ${
-                          confidence === c
-                            ? c === 'Alta'
-                              ? 'bg-emerald-600 text-white border-emerald-600'
-                              : c === 'Média'
-                              ? 'bg-amber-500 text-white border-amber-500'
-                              : 'bg-rose-600 text-white border-rose-600'
-                            : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-700'
-                        }`}
-                      >
-                        {c}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 6. Observação */}
+                                {/* Observação */}
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Observação
