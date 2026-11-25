@@ -1225,8 +1225,14 @@ export function mergeCatalogs(
       const importedImg = (imported.image || '').trim();
       const importedHasRealImage = isUsableProductImage(importedImg);
       const existingHasUsableImage = isUsableProductImage(existingImg);
-      const shouldFillMissingImage = options?.fillMissingImages !== false && !existingHasUsableImage && importedHasRealImage;
-      const imageHasChanged = shouldFillMissingImage;
+      // A planilha nova é a fonte atual das fotos do fornecedor.
+      // Sempre substitui a imagem existente quando a linha importada contém uma imagem real
+      // diferente; se a planilha não trouxer imagem válida, preserva a foto já cadastrada.
+      const shouldReplaceImage =
+        options?.fillMissingImages !== false &&
+        importedHasRealImage &&
+        importedImg !== existingImg;
+      const imageHasChanged = shouldReplaceImage;
 
       if ((priceHasChanged || wasNotInCatalog || imageHasChanged) && !updatedIdsInRun.has(existing.id)) {
         // Atualiza o custo/valor, reativa se voltou ao site e atualiza a URL da imagem se o fornecedor mudou a foto.
