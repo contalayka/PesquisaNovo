@@ -107,7 +107,7 @@ export function LoginGate({ children }: { children: React.ReactNode }) {
           {error&&<p role="alert" className="mt-3 rounded-lg border border-rose-500/25 bg-rose-500/10 px-3 py-2.5 text-sm text-rose-300">{error}</p>}
           <button type="submit" disabled={!password||submitting||checking} className="mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-[#b7f34a] px-5 font-bold text-[#10150a] shadow-[0_8px_28px_rgba(183,243,74,.16)] transition hover:bg-[#c8ff63] disabled:cursor-not-allowed disabled:opacity-60">{submitting?'Verificando...':'Entrar'}{!submitting&&<ArrowRight size={18}/>}</button>
         </form>
-        <div className="mt-8 flex items-center justify-center gap-2 border-t border-white/[0.07] pt-5 text-[11px] text-slate-500"><ShieldCheck size={14} className="text-[#b7f34a]/80" /> Área privada · Sessão encerrada ao fechar a aba</div>
+        <div className="mt-8 flex items-center justify-center gap-2 border-t border-white/[0.07] pt-5 text-[11px] text-slate-500"><ShieldCheck size={14} className="text-[#b7f34a]/80" /> Área privada</div>
       </section>
       {checking&&<div className="absolute inset-0 bg-[#0b0e12]/70" aria-label="Verificando sessão"/>}
     </main>
