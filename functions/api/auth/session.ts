@@ -1,3 +1,4 @@
+type PagesFunction<Env = Record<string, unknown>> = (context: { request: Request; env: Env }) => Response | Promise<Response>;
 interface Env { AUTH_SESSION_SECRET: string; }
 const enc=new TextEncoder();
 const b64url=(bytes:Uint8Array)=>btoa(String.fromCharCode(...bytes)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
