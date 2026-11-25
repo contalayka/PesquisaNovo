@@ -49,34 +49,34 @@ export const MarketPrepLogo: React.FC<MarketPrepLogoProps> = ({
         {/* Outer Hexagon / Cube Contour */}
         <path
           d="M20 3L35 11.66V28.34L20 37L5 28.34V11.66L20 3Z"
-          fill="#1E293B"
-          stroke="#3B82F6"
+          fill="#1b222b"
+          stroke="#b7f34a"
           strokeWidth="1.75"
           strokeLinejoin="round"
         />
         {/* Top Face */}
         <path
           d="M20 4.5L33.5 12.3L20 20.1L6.5 12.3L20 4.5Z"
-          fill="#2563EB"
+          fill="#b7f34a"
           opacity="0.9"
         />
         {/* Left Face */}
         <path
           d="M6.5 13.8L19.2 21.1V35.3L6.5 27.9V13.8Z"
-          fill="#1D4ED8"
+          fill="#8fbf32"
           opacity="0.75"
         />
         {/* Right Face */}
         <path
           d="M33.5 13.8L20.8 21.1V35.3L33.5 27.9V13.8Z"
-          fill="#0F172A"
+          fill="#171d25"
           opacity="0.95"
         />
         {/* Central Precision Node */}
-        <circle cx="20" cy="20" r="2" fill="#60A5FA" />
+        <circle cx="20" cy="20" r="2" fill="#d6ff83" />
         <path
           d="M20 6.5V18M8 27L18.5 21M32 27L21.5 21"
-          stroke="#93C5FD"
+          stroke="#c5f27a"
           strokeWidth="1.25"
           strokeLinecap="round"
           opacity="0.5"
@@ -101,7 +101,7 @@ export const MarketPrepLogo: React.FC<MarketPrepLogoProps> = ({
         <BrandGlyph sizeClass={iconSizeMap[size]} />
         <div className="mt-2">
           <h1 className={`font-bold tracking-tight text-white ${titleSizeMap[size]}`}>
-            Market<span className="text-blue-400">Preço</span>
+            Market<span className="text-[#b7f34a]">Preço</span>
           </h1>
           {showSubtitle && (
             <p className={`font-medium tracking-wider uppercase text-slate-400 mt-0.5 ${subtitleSizeMap[size]}`}>
@@ -122,7 +122,7 @@ export const MarketPrepLogo: React.FC<MarketPrepLogoProps> = ({
         <BrandGlyph sizeClass={iconSizeMap[size]} />
         <div className="text-left">
           <div className={`font-bold tracking-tight leading-none text-white ${titleSizeMap[size]}`}>
-            Market<span className="text-blue-400">Preço</span>
+            Market<span className="text-[#b7f34a]">Preço</span>
           </div>
           {showSubtitle && (
             <div className={`font-medium text-slate-400 tracking-wider leading-none mt-1 ${subtitleSizeMap[size]}`}>
@@ -140,7 +140,7 @@ export const MarketPrepLogo: React.FC<MarketPrepLogoProps> = ({
       <BrandGlyph sizeClass={iconSizeMap[size]} />
       <div className="min-w-0 text-left">
         <div className={`font-bold tracking-tight leading-snug text-white truncate ${titleSizeMap[size]}`}>
-          Market<span className="text-blue-400">Preço</span>
+          Market<span className="text-[#b7f34a]">Preço</span>
         </div>
         {showSubtitle && (
           <p className={`font-medium text-slate-400 tracking-wide uppercase truncate ${subtitleSizeMap[size]}`}>
