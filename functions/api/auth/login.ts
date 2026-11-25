@@ -2,154 +2,88 @@ interface Env {
   AUTH_PASSWORD_HASH: string;
   AUTH_SESSION_SECRET: string;
 }
-
 const encoder = new TextEncoder();
 
 function json(body: unknown, status = 200, extra: Record<string, string> = {}) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-      "X-Content-Type-Options": "nosniff",
-      ...extra,
-    },
-  });
+  return new Response(JSON.stringify(body), { status, headers: {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store, no-cache, must-revalidate",
+    "X-Content-Type-Options": "nosniff", ...extra,
+  }});
 }
-
-function decodeBase64Url(value: string): Uint8Array {
-  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
-  const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
-  const binary = atob(padded);
-  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+function b64url(bytes: Uint8Array): string {
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");
 }
-
-function equalBytes(left: Uint8Array, right: Uint8Array): boolean {
-  if (left.byteLength !== right.byteLength) return false;
-  let mismatch = 0;
-  for (let i = 0; i < left.byteLength; i++) mismatch |= left[i] ^ right[i];
-  return mismatch === 0;
+function unb64url(value: string): Uint8Array {
+  const s=value.replace(/-/g,"+").replace(/_/g,"/");
+  const b=atob(s+"=".repeat((4-s.length%4)%4));
+  return Uint8Array.from(b,c=>c.charCodeAt(0));
 }
-
-async function verifyPassword(password: string, stored: string): Promise<boolean> {
-  const parts = stored.split("$");
-  if (parts.length !== 4 || parts[0] !== "pbkdf2_sha256") return false;
-
-  const iterations = Number(parts[1]);
-  if (!Number.isSafeInteger(iterations) || iterations < 100000 || iterations > 1000000) return false;
-
-  const salt = decodeBase64Url(parts[2]);
-  const expected = decodeBase64Url(parts[3]);
-  if (salt.byteLength < 8 || salt.byteLength > 64 || expected.byteLength !== 32) return false;
-
-  const passwordBytes = encoder.encode(password);
-  const passwordBuffer = passwordBytes.buffer.slice(
-    passwordBytes.byteOffset,
-    passwordBytes.byteOffset + passwordBytes.byteLength,
-  ) as ArrayBuffer;
-  const saltBuffer = salt.buffer.slice(
-    salt.byteOffset,
-    salt.byteOffset + salt.byteLength,
-  ) as ArrayBuffer;
-
-  let key: CryptoKey;
-  try {
-    key = await crypto.subtle.importKey(
-      "raw",
-      passwordBuffer,
-      { name: "PBKDF2" },
-      false,
-      ["deriveBits"],
-    );
-  } catch (error) {
-    throw new Error("pbkdf2-importKey:" + (error instanceof Error ? error.name : "UnknownError"));
-  }
-
-  let derived: ArrayBuffer;
-  try {
-    derived = await crypto.subtle.deriveBits(
-      { name: "PBKDF2", salt: saltBuffer, iterations, hash: "SHA-256" },
-      key,
-      256,
-    );
-  } catch (error) {
-    throw new Error("pbkdf2-deriveBits:" + (error instanceof Error ? error.name : "UnknownError"));
-  }
-
-  return equalBytes(new Uint8Array(derived), expected);
+function equalBytes(a: Uint8Array,b: Uint8Array): boolean {
+  if(a.length!==b.length) return false;
+  let d=0; for(let i=0;i<a.length;i++) d|=a[i]^b[i]; return d===0;
 }
-
+async function hmac(keyBytes: Uint8Array, data: string): Promise<Uint8Array> {
+  const raw=keyBytes.buffer.slice(keyBytes.byteOffset,keyBytes.byteOffset+keyBytes.byteLength) as ArrayBuffer;
+  const key=await crypto.subtle.importKey("raw",raw,{name:"HMAC",hash:"SHA-256"},false,["sign"]);
+  const bytes=encoder.encode(data);
+  const buf=bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength) as ArrayBuffer;
+  return new Uint8Array(await crypto.subtle.sign("HMAC",key,buf));
+}
 async function sign(payload: string, secret: string): Promise<string> {
-  const secretBytes = encoder.encode(secret);
-  const secretBuffer = secretBytes.buffer.slice(
-    secretBytes.byteOffset,
-    secretBytes.byteOffset + secretBytes.byteLength,
-  ) as ArrayBuffer;
-  const key = await crypto.subtle.importKey(
-    "raw",
-    secretBuffer,
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const data = encoder.encode(payload);
-  const dataBuffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
-  const signature = new Uint8Array(await crypto.subtle.sign("HMAC", key, dataBuffer));
-  return btoa(String.fromCharCode(...signature))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/g, "");
+  return b64url(await hmac(encoder.encode(secret),payload));
 }
+function readStoredHash(stored: string) {
+  const p=stored.split("$");
+  if(p.length!==4 || p[0]!=="pbkdf2_sha256") throw new Error("Formato de hash inválido");
+  const iterations=Number(p[1]), salt=unb64url(p[2]), digest=unb64url(p[3]);
+  if(!Number.isSafeInteger(iterations)||iterations<100000||iterations>1000000||salt.length<8||salt.length>64||digest.length!==32)
+    throw new Error("Parâmetros do hash inválidos");
+  return {iterations,salt,digest};
+}
+
+export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
+  if(!env.AUTH_PASSWORD_HASH || !env.AUTH_SESSION_SECRET) return json({error:"Autenticação não configurada."},503);
+  const origin=request.headers.get("Origin");
+  if(origin && origin!==new URL(request.url).origin) return json({error:"Origem não permitida."},403);
+  try {
+    const {iterations,salt}=readStoredHash(env.AUTH_PASSWORD_HASH);
+    const now=Math.floor(Date.now()/1000);
+    const nonce=b64url(crypto.getRandomValues(new Uint8Array(32)));
+    const payload=b64url(encoder.encode(JSON.stringify({nonce,exp:now+60})));
+    const token=payload+"."+await sign(payload,env.AUTH_SESSION_SECRET);
+    return json({salt:b64url(salt),iterations,challenge:token});
+  } catch(e) {
+    console.error("AUTH_CHALLENGE_FAILED",e instanceof Error?e.message:"UnknownError");
+    return json({error:"Não foi possível iniciar a verificação."},500);
+  }
+};
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   try {
-    if (!env.AUTH_PASSWORD_HASH || !env.AUTH_SESSION_SECRET) {
-      return json({ error: "Autenticação não configurada no servidor." }, 503);
-    }
+    if(!env.AUTH_PASSWORD_HASH || !env.AUTH_SESSION_SECRET) return json({error:"Autenticação não configurada no servidor."},503);
+    const origin=request.headers.get("Origin");
+    if(origin && origin!==new URL(request.url).origin) return json({error:"Origem não permitida."},403);
+    const body=await request.json().catch(()=>null) as {challenge?:unknown; proof?:unknown}|null;
+    if(typeof body?.challenge!=="string" || typeof body?.proof!=="string") return json({error:"Solicitação inválida."},400);
+    const [payload,signature,...extra]=body.challenge.split(".");
+    if(!payload||!signature||extra.length) return json({error:"Desafio inválido."},401);
+    const expectedTokenSig=await sign(payload,env.AUTH_SESSION_SECRET);
+    if(!equalBytes(encoder.encode(signature),encoder.encode(expectedTokenSig))) return json({error:"Desafio inválido."},401);
+    const challenge=JSON.parse(new TextDecoder().decode(unb64url(payload))) as {nonce?:string;exp?:number};
+    if(typeof challenge.nonce!=="string" || !Number.isSafeInteger(challenge.exp) || !challenge.exp || challenge.exp<Math.floor(Date.now()/1000))
+      return json({error:"Desafio expirado. Tente novamente."},401);
+    const {digest}=readStoredHash(env.AUTH_PASSWORD_HASH);
+    const expectedProof=b64url(await hmac(digest,challenge.nonce));
+    if(!equalBytes(encoder.encode(body.proof),encoder.encode(expectedProof))) return json({error:"Senha incorreta. Tente novamente."},401);
 
-    const origin = request.headers.get("Origin");
-    if (origin && origin !== new URL(request.url).origin) {
-      return json({ error: "Origem não permitida." }, 403);
-    }
-
-    const body = await request.json().catch(() => null) as { password?: unknown } | null;
-    const password = typeof body?.password === "string" ? body.password : "";
-    if (!password || password.length > 256) {
-      return json({ error: "Informe uma senha válida." }, 400);
-    }
-
-    let valid: boolean;
-    try {
-      valid = await verifyPassword(password, env.AUTH_PASSWORD_HASH);
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : "UnknownError";
-      console.error("AUTH_PASSWORD_VERIFY_FAILED", detail);
-      return json({
-        error: "Falha ao verificar a senha no servidor.",
-        diagnostic: detail,
-      }, 500);
-    }
-
-    if (!valid) return json({ error: "Senha incorreta. Tente novamente." }, 401);
-
-    const now = Math.floor(Date.now() / 1000);
-    const payloadBytes = encoder.encode(JSON.stringify({ iat: now, exp: now + 12 * 60 * 60 }));
-    const payload = btoa(String.fromCharCode(...payloadBytes))
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=+$/g, "");
-    const signature = await sign(payload, env.AUTH_SESSION_SECRET);
-
-    return json(
-      { authenticated: true },
-      200,
-      {
-        "Set-Cookie": `mp_session=${payload}.${signature}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=43200`,
-      },
-    );
-  } catch (error) {
-    const cause = error instanceof Error ? error : new Error("Erro desconhecido");
-    console.error("AUTH_LOGIN_FAILURE", cause.name, cause.message);
-    return json({ error: "Erro interno ao iniciar a sessão.", diagnostic: cause.name }, 500);
+    const now=Math.floor(Date.now()/1000);
+    const sessionPayload=b64url(encoder.encode(JSON.stringify({iat:now,exp:now+12*60*60})));
+    const sessionSignature=await sign(sessionPayload,env.AUTH_SESSION_SECRET);
+    return json({authenticated:true},200,{"Set-Cookie":`mp_session=${sessionPayload}.${sessionSignature}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=43200`});
+  } catch(error) {
+    const detail=error instanceof Error?error.message:"UnknownError";
+    console.error("AUTH_LOGIN_FAILURE",detail);
+    return json({error:"Erro interno ao iniciar a sessão.",diagnostic:detail},500);
   }
 };
