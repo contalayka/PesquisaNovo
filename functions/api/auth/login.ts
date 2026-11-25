@@ -11,8 +11,21 @@ async function verifyPassword(password: string, encoded: string) {
   const decode = (value: string) => Uint8Array.from(atob(value.replace(/-/g,'+').replace(/_/g,'/') + '='.repeat((4-value.length%4)%4)), c=>c.charCodeAt(0));
   const salt=decode(saltText), expected=decode(expectedText), iterations=Number(iterText);
   if (iterations < 100000 || iterations > 1000000 || expected.length !== 32) return false;
-  const key=await crypto.subtle.importKey('raw',enc.encode(password),'PBKDF2',false,['deriveBits']);
-  const bits=new Uint8Array(await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt,iterations},key,256));
+  let key: CryptoKey;
+  try {
+    key = await crypto.subtle.importKey('raw', enc.encode(password), { name: 'PBKDF2' }, false, ['deriveBits']);
+  } catch (error) {
+    console.error('AUTH_PBKDF2_IMPORT_FAILURE', error instanceof Error ? error.name : 'UnknownError', error instanceof Error ? error.message : 'unknown');
+    throw new Error('PBKDF2_IMPORT_FAILED');
+  }
+  let derived: ArrayBuffer;
+  try {
+    derived = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: { name: 'SHA-256' }, salt, iterations }, key, 256);
+  } catch (error) {
+    console.error('AUTH_PBKDF2_DERIVE_FAILURE', error instanceof Error ? error.name : 'UnknownError', error instanceof Error ? error.message : 'unknown');
+    throw new Error('PBKDF2_DERIVE_FAILED');
+  }
+  const bits = new Uint8Array(derived);
   return safeEqual(bits,expected);
 }
 async function sign(payload: string, secret: string) {
